@@ -1,0 +1,16 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "sass:math"
+
+.MuiPagination-root
+    background: variables.$white
+    border-top: 1px solid variables.$turquoise
+    margin: 0
+    padding: variables.$grid-gutter math.div(variables.$grid, 2)
+
+    button
+        color: variables.$turquoise
+        font-weight: 700
+
+        &.Mui-selected
+            background: variables.$turquoise
+            color: variables.$white

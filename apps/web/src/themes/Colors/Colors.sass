@@ -1,0 +1,283 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+@use "sass:math"
+@use "sass:color"
+
+#root.colors
+    background: variables.$wet-asphalt
+    color: variables.$silver
+
+    .component
+        background: none
+        border: none
+        margin: 0
+        padding: 16px 24px
+
+        header
+            padding: variables.$grid-gutter 0
+            background: variables.$wet-asphalt
+
+            h1
+                color: variables.$nephritis
+                font-size: 24px
+
+    .loader
+        svg
+            fill: variables.$silver
+
+        .lds-roller div:after
+            background: variables.$white
+
+    .modal
+        backdrop-filter: blur(2px)
+
+        .modal-overlay
+            background: rgba(variables.$wet-asphalt, 0.7)
+            position: fixed
+            top: 0
+            right: 0
+            bottom: 0
+            left: 0
+            cursor: pointer
+
+        .modal-content
+            .header
+                background: variables.$silver
+                border-radius: variables.$grid variables.$grid 0 0
+
+                h1
+                    color: variables.$alizarin
+                    text-transform: capitalize
+                    font-weight: bold
+                    font-size: 30px
+                    text-shadow: mixins.md-text-shadow(8, $color: color.adjust(variables.$alizarin, $lightness: 20%))
+
+            .body,
+            .error,
+            .footer
+                background: variables.$clouds
+                padding: variables.$grid-gutter
+
+            .body
+                &.center
+                    display: flex
+                    align-items: center
+                    justify-content: center
+                    text-align: center
+
+                img
+                    max-width: 100%
+
+                &.no-gutter
+                    padding: 0
+
+            .error
+                text-align: center
+                color: variables.$white
+                background: variables.$alizarin
+
+            .footer
+                border-radius: 0 0 variables.$grid variables.$grid
+
+        &.large .modal-content
+            width: 600px
+            max-width: 100%
+
+    .general-form
+        padding: 0
+        border: none
+
+        input,
+        textarea,
+        .select,
+        .fake-input,
+        select
+            color: variables.$clouds
+            border-radius: 0
+
+        &.white
+            input,
+            textarea,
+            .select,
+            .fake-input,
+            select
+                border: 1px solid variables.$silver
+                background: variables.$white
+                color: variables.$wet-asphalt
+
+            input:-webkit-autofill
+                -webkit-box-shadow: 0 0 0 1000px variables.$white inset
+
+        .select
+            .select__input-container
+                color: variables.$clouds
+
+            .select__single-value
+                color: variables.$clouds
+
+            .select__menu
+                background: variables.$midnight-blue
+
+                .select__menu-list
+                    .select__option,
+                    .select__menu-notice
+                        &:hover
+                            text-shadow: mixins.md-text-shadow(8, $color: color.adjust(variables.$wet-asphalt, $lightness: 10%))
+
+                    .select__option--is-focused
+                        text-shadow: mixins.md-text-shadow(8, $color: color.adjust(variables.$wet-asphalt, $lightness: 10%))
+
+                    .select__option--is-selected
+                        background: variables.$peter-river
+
+    .main-header
+        background: variables.$pomegranate
+
+        .info a
+            color: variables.$sun-flower
+
+    nav.sidebar
+        ul
+            background: variables.$sun-flower
+            height: fit-content
+
+        li
+            a,
+            span
+                font-weight: normal
+                background: variables.$sun-flower
+                color: variables.$black
+
+        .active
+            a,
+            span
+                background: variables.$pomegranate
+                color: variables.$white
+
+    .general-table
+        th,
+        td
+            color: variables.$silver
+            line-height: 40px
+            padding: 0
+
+        th
+            border-bottom: 1px solid variables.$sun-flower
+            border-top: 1px solid variables.$sun-flower
+            background: none
+
+        tbody tr
+            td
+                border: none
+                border-top: 4px solid variables.$wet-asphalt
+
+            &:nth-child(2n)
+                background: #3d566e
+
+            &:hover
+                background: #46637f
+
+        .actions .dot
+            background: variables.$silver
+
+    .component.order
+        header
+            border: none
+            box-shadow: inset 0 -1px 0 0 variables.$emerald
+            background: variables.$wet-asphalt
+
+        .order-head
+            padding: 8px 0 12px
+
+        .customer-date
+            box-shadow: inset 0 -1px 0 0 variables.$emerald
+            margin-bottom: 8px
+            padding: 8px 0 12px
+
+        thead
+            th
+                background: #3d566e
+                border: none
+                text-align: left
+
+        td
+            input,
+            textarea,
+            .select,
+            .fake-input,
+            select
+                margin-right: math.div(variables.$grid, 2)
+
+            &.actions
+                padding: 0 variables.$grid-gutter 0 math.div(variables.$grid, 2)
+                cursor: pointer
+
+                .action-list
+                    background: variables.$sun-flower
+                    border: 1px solid variables.$wet-asphalt
+                    color: variables.$wet-asphalt
+
+                    li
+                        line-height: initial
+
+                        &:hover
+                            background: variables.$orange
+                            color: variables.$black
+
+                        + li
+                            border-top: 1px solid variables.$wet-asphalt
+
+        tfoot
+            tr
+                &:first-of-type td
+                    padding: variables.$grid-gutter
+
+                &:nth-child(2),
+                &:nth-child(7),
+                &:nth-child(8)
+                    td
+                        background: variables.$pomegranate
+
+    .css-1eqdgzv-MuiPaper-root-MuiSnackbarContent-root
+        background: variables.$sun-flower
+        color: variables.$black
+
+    nav.sidebar ul
+        background: variables.$midnight-blue
+
+    .ql-toolbar.ql-snow
+        border: none
+        background: transparent
+
+        .ql-picker.ql-expanded .ql-picker-options
+            background: variables.$wet-asphalt
+
+            .ql-picker-item:hover
+                color: variables.$emerald
+
+        svg
+            stroke: variables.$silver
+
+    .ql-snow .ql-stroke
+        stroke: variables.$silver
+
+    .ql-snow .ql-picker
+        color: variables.$silver
+
+        .ql-picker-label.ql-active,
+        .ql-picker-label:hover
+            color: variables.$emerald
+
+    .ql-container.ql-snow
+        border: none
+
+.MuiPagination-root
+    background: variables.$wet-asphalt
+    border-top: 1px solid variables.$sun-flower
+
+    button
+        color: variables.$sun-flower
+
+        &.Mui-selected
+            background: variables.$sun-flower
+            color: variables.$wet-asphalt

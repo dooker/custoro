@@ -1,0 +1,22 @@
+{
+    "client": "Klient",
+    "invoiceNr": "Arve nr",
+    "offerNr": "Pakkumuse nr",
+    "date": "Kuupäev",
+    "due": "Tasumise tähtaeg",
+    "penalty": "Viivis",
+    "perDay": "päevas",
+    "code": "Kood",
+    "name": "Nimetus",
+    "unit": "Ühik",
+    "quantity": "Kogus",
+    "price": "Hind",
+    "total": "Kokku",
+    "totalTotal": "Summa",
+    "vat": "Käibemaks",
+    "toPay": "Tasuda (EUR)",
+    "regNr": "Registrikood",
+    "vatNr": "KMKR",
+    "regNumber": "Reg number",
+    "vatNumber": "Vat number"
+}

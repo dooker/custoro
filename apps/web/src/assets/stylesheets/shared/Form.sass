@@ -1,0 +1,181 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "sass:color"
+@use "sass:math"
+
+.general-form
+    display: grid
+    column-gap: variables.$grid-gutter*2
+    row-gap: 4px
+    padding: variables.$grid-gutter
+    box-sizing: border-box
+
+    .splitter
+        row-gap: 4px
+        column-gap: variables.$grid-gutter
+
+        &.by-three
+            grid-template-columns: 1fr 1fr 1fr
+
+    input,
+    textarea,
+    .textarea .tiptap,
+    .select,
+    select
+        width: 100%
+        height: 40px
+        line-height: 40px
+        font-size: 14px
+        box-sizing: border-box
+        color: variables.$black
+        padding: 0 variables.$grid
+        border-radius: 4px
+        border: none
+        background: color.adjust(variables.$asbestos, $alpha: -0.8)
+
+        &:focus
+            outline: none
+            box-shadow: inset 0 0 0 1px variables.$emerald
+
+    .error
+        input:not(.select__input),
+        textarea,
+        .select,
+        select
+            outline: none
+            box-shadow: inset 0 0 0 1px variables.$alizarin
+
+
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button
+        -webkit-appearance: none
+        margin: 0
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:focus
+        transition: background-color 0s 600000s, color 0s 600000s !important
+
+    textarea,
+    .textarea .tiptap
+        height: 172px
+        line-height: 20px
+        resize: none
+        font-family: Roboto, Verdana, sans-serif
+        -webkit-font-smoothing: antialiased
+        -moz-osx-font-smoothing: grayscale
+        padding: variables.$grid
+        overflow-y: auto
+
+    .select
+        padding: 0
+
+        .select__control
+            background: transparent
+            border: none
+            box-shadow: none
+            border-radius: 0
+
+            &.select__control--is-focused
+                box-shadow: inset 0 0 0 1px variables.$emerald
+                border-radius: 4px
+
+            + .select__menu
+                z-index: 100
+
+        .select__value-container
+            padding: 0 variables.$grid
+
+        .select__input-container
+            margin: 0
+            padding: 0
+            color: variables.$black
+
+            input:focus
+                box-shadow: none
+
+        .select__placeholder
+            white-space: nowrap
+            overflow: hidden
+            text-overflow: ellipsis
+
+        .select__single-value
+            color: variables.$black
+
+        .select__menu
+            background: variables.$clouds
+
+            .select__menu-list
+                .select__option,
+                .select__menu-notice
+                    line-height: 20px
+                    min-height: 36px
+
+                    &:hover
+                        background: variables.$silver
+
+                .select__option--is-focused
+                    background: variables.$silver
+
+                .select__option--is-selected
+                    background: variables.$turquoise
+
+    .field
+        label
+            display: block
+            padding-bottom: math.div(variables.$grid, 2)
+
+        + .field:not(.splitter .field)
+            padding-top: math.div(variables.$grid, 2)
+
+            svg
+                top: 33px + math.div(variables.$grid, 2)
+
+        input + button
+            margin-top: math.div(variables.$grid, 2)
+
+        h3
+            padding-top: variables.$grid-gutter
+            padding-bottom: variables.$grid-gutter
+
+            &:is(.splitter + .field h3)
+                border-bottom: 1px solid variables.$emerald
+                padding-top: variables.$grid-gutter*2
+                padding-bottom: variables.$grid
+
+    .image-field
+        img
+            height: 100px
+            width: 100px
+            object-fit: cover
+
+    .image-upload
+        display: none
+
+    .password-field
+        position: relative
+
+        svg
+            position: absolute
+            height: 30px
+            width: 30px
+            right: 10px
+            top: 8px
+            fill: variables.$wet-asphalt
+            cursor: pointer
+            user-select: none
+
+            &.hollow
+                pointer-events: none
+
+            &:hover
+                fill: variables.$black
+
+        label + input ~ svg
+            top: 33px
+
+    .ql-editor
+        background: color.adjust(variables.$asbestos, $alpha: -0.8)
+        font-family: Roboto, Verdana, sans-serif
+        height: 200px
+
+        &:focus
+            box-shadow: inset 0 0 0 1px variables.$emerald

@@ -1,0 +1,21 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "sass:color"
+
+.search
+    position: relative
+    left: 3px
+    border-radius: 4px 0 0 4px
+    padding: 0 35px 0 variables.$grid
+    color: variables.$black
+    background: variables.$white
+    border: none
+    width: 160px
+    box-sizing: border-box
+
+    &:focus
+        box-shadow: inset 0 0 0 2px variables.$emerald
+        outline: none
+
+.searchWrapper
+    display: flex
+    position: relative

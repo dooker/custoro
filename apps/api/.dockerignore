@@ -1,0 +1,13 @@
+# Keep the build context small and never bake secrets or local data into the image
+node_modules
+dist
+.github
+.idea
+**/.DS_Store
+*.log
+.env
+.env.*
+!.env*.example
+uploads
+pdf
+db

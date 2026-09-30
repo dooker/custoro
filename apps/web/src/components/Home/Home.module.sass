@@ -1,0 +1,15 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+
+.dashboard
+    padding: variables.$grid-gutter
+
+    :global(.component)
+        min-height: 100%
+        margin: 0
+
+    @include mixins.for-tablet-landscape-up
+        display: grid
+        gap: variables.$grid-gutter
+        grid-template-columns: 1fr 1fr
+        grid-template-rows: 1fr 1fr

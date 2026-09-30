@@ -1,0 +1,9 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "sass:math"
+
+.icon
+    display: inline-block
+    border: 1px solid variables.$black
+    padding: math.div(variables.$grid, 2) variables.$grid
+    border-radius: math.div(variables.$grid, 2)
+    cursor: pointer

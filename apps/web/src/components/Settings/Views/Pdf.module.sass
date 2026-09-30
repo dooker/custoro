@@ -1,0 +1,15 @@
+@use "src/assets/stylesheets/variables" as variables
+
+$gutter: variables.$grid-gutter*2
+
+.splitter :global(.field)
+    &:first-child
+        grid-column: 1
+        grid-row: 1
+
+    &:last-child
+        grid-column: 2
+        grid-row: 1 / span 2
+
+    textarea
+        height: calc(100% - $gutter)

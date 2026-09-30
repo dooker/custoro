@@ -1,0 +1,293 @@
+{
+    "button": {
+        "logout": "Bye bye",
+        "comment": "Comment",
+        "view": "View",
+        "delete": "Delete",
+        "add": "Add",
+        "save": "Save",
+        "goBack": "Go Back",
+        "invoice": "Invoice",
+        "login": "¡Vamos!",
+        "close": "Close",
+        "list": "List",
+        "toInvoice": "Add to invoice",
+        "paid": "Mark as paid",
+        "pdf": "PDF",
+        "generatePdf": "Generate PDF",
+        "send": "Send email",
+        "upload": "Pick file"
+    },
+    "products": {
+        "singular": "Product",
+        "plural": "Products",
+        "form": {
+            "code": "Code",
+            "name": "Name",
+            "price": "Price",
+            "discountPrice": "My price",
+            "unit": "Unit",
+            "comment": "Comment",
+            "pc": "pc",
+            "set": "set",
+            "hour": "hour",
+            "placeholder": "Select product...",
+            "priceHelp": "Please enter prices without VAT",
+            "duplicate": "Wait a moment, I know this code already!",
+            "duplicateSave": "Wait a moment, I know this code already! Press 'save' if your mind is true!"
+        }
+    },
+    "customers": {
+        "singular": "Customer",
+        "plural": "Customers",
+        "form": {
+            "name": "Name / Company",
+            "contact": "Contact Person",
+            "regNumber": "Reg number",
+            "phone": "Phone",
+            "phone2": "Additional Phone",
+            "address": "Address",
+            "email": "Email",
+            "invoiceEmail": "Invoice Email",
+            "www": "Website",
+            "additionalInfo": "Additional info",
+            "shippingInfo": "Shipping info",
+            "placeholder": "Select customer...",
+            "vatNumber": "VAT number",
+            "paymentPeriod": "Payment Period (days)",
+            "department": "Department"
+        }
+    },
+    "worksheets": {
+        "singular": "Worksheet",
+        "plural": "Worksheets",
+        "form": {
+            "name": "Name",
+            "customer": "Customer",
+            "product_id": "Product",
+            "products": "Products",
+            "quantity": "Quantity",
+            "price": "Price",
+            "discountPrice": "My price",
+            "customerRequired": "To whom may this worksheet belong?",
+            "productRequired": "Any particular product that will be added?"
+        },
+        "newInvoice": "New nr"
+    },
+    "invoices": {
+        "singular": "Invoice",
+        "plural": "Invoices",
+        "form": {
+            "customer": "Customer",
+            "invoice-receiver": "Invoice receiver",
+            "create-date": "Create Date",
+            "change-date": "Change Date",
+            "invoice-date": "Invoice Date",
+            "name": "Name",
+            "unit": "Unit",
+            "quantity": "Quantity",
+            "price": "Price",
+            "discountPrice": "My price",
+            "total": "Total",
+            "discountTotal": "My Total",
+            "payment": "Payment Type",
+            "transfer": "Bank transfer",
+            "cash": "Cash",
+            "type": "Invoice Type",
+            "offer": "Offer",
+            "invoice": "Invoice",
+            "products": "Products",
+            "vatNumber": "Customer has foreign VAT number so invoice will be made without VAT"
+        },
+        "total": "Total",
+        "vat": "VAT",
+        "toPay": "To pay",
+        "win": "Win",
+        "view": "View",
+        "regenerate": "Regenerate"
+    },
+    "worksheets-per-customer": {
+        "plural": "Worksheets"
+    },
+    "profile": {
+        "singular": "Profile",
+        "plural": "Profile",
+        "form": {
+            "name": "Name",
+            "email": "Email",
+            "password": "Password",
+            "theme": "Theme",
+            "avatar": "Avatar"
+        }
+    },
+    "pdf": {
+        "client": "Client",
+        "invoiceNr": "Invoice nr",
+        "date": "Date",
+        "due": "Due date",
+        "penalty": "Fine for delay",
+        "perDay": "per day",
+        "code": "Code",
+        "name": "Name",
+        "unit": "Unit",
+        "quantity": "Quantity",
+        "price": "Price",
+        "total": "Total",
+        "totalTotal": "Total",
+        "vat": "VAT",
+        "toPay": "To pay (EUR)",
+        "regNr": "Register code",
+        "vatNr": "VAT number"
+    },
+    "login": {
+        "title": "Login",
+        "form": {
+            "username": "Username",
+            "usernameRequired": "We need some sort of username",
+            "usernameFormat": "What is this? Not an email for sure",
+            "password": "Password",
+            "passwordRequired": "Providing valid password shows You may access the system",
+            "passwordConfirmation": "Just in case - repeat the password",
+            "passwordRequiredForgot": "Password is sorta needed...",
+            "passwordConfirmationRequired": "Maybe you made a typo? We need re-typed password",
+            "passwordsDoNotMatch": "Oh dear... these two do not match!"
+        },
+        "error": {
+            "missingInfo": "Uhm... smth went very-very wrong now...",
+            "noToken": "Who you trying to get crazy with, ése?<br/>Don't you know I'm loco?<br/><br/>You cannot just type in random token...",
+            "noUpdate": "Bam! Zoom! Password did not update :("
+        },
+        "forgot": "Wait... password?",
+        "forgotTitle": "Lets get you back in the game",
+        "forgotSent": "We sent an email to your email address. Go check it out and click on the link there, life will be better!",
+        "forgotTokenTitle": "Create new very secret handshake",
+        "forgotNoToken": "Uhm... what?",
+        "login": "I remember my password!"
+    },
+    "new": "New",
+    "latest": "Latest",
+    "search": "Start typing...",
+    "modal": {
+        "delete": {
+            "title": "Delete?",
+            "text": "Are you sure you want to delete this "
+        },
+        "paid": {
+            "title": "Mark as paid?",
+            "text": "Invoice will be locked and cannot be edited anymore"
+        },
+        "yes": "Yes",
+        "no": "No",
+        "bigError": {
+            "header": "Oh dear...",
+            "imageAlt": "Sad Server",
+            "footer": "Something bigger happened and we are not quite sure how to proceed..."
+        },
+        "pdfError": {
+            "header": "This PDF ran away",
+            "footer": "Our highly advanced technology has failed you once again"
+        },
+        "notFound": {
+            "footer": "Page Not Found"
+        },
+        "order": "order",
+        "product": "product",
+        "customer": "customer",
+        "worksheet": "worksheet",
+        "profile": "avatar",
+        "settings": "logo",
+        "invoice": "product"
+    },
+    "notification": {
+        "saved": "Saved...",
+        "pdfGenerated": "PDF generated...",
+        "invoiceSend": "Email sent",
+        "invoiceSendFail": "Email carrier-pigeon crashed, sending unsuccessful...",
+        "error": "We encountered some sort of error...",
+        "deleted": "Deleted...",
+        "added": "Added...",
+        "session_expired": "Session got old and died, log in again",
+        "invalid_token": "That is some unrecognizable token, man",
+        "pdfGeneratorError": "PDF generator spits sparks, something is wrong",
+        "missingInfo": "It seems we are missing some vital info to actually send the email",
+        "user.exists": "Well well well, there is already user with this email"
+    },
+    "settings": {
+        "singular": "Settings",
+        "plural": "Settings",
+        "emailSettings": "Email Settings",
+        "form": {
+            "vat": "VAT",
+            "lastInvoiceId": "Last Invoice ID",
+            "invoiceFilenamePrefix": "Invoice Filename Prefix",
+            "companyName": "Company Name",
+            "companyEmail": "Company Email",
+            "companyPhone": "Company Phone",
+            "companyAddress1": "Company Address",
+            "companyAddress2": "Company Address (additional)",
+            "companyWebsite": "Company Website",
+            "companyRegNr": "Company Register number",
+            "companyVatNumber": "Company VAT number",
+            "companyBankAccount": "Company Bank Account",
+            "companyBankAccount2": "Company Bank Account (additional)",
+            "pdfDisclaimer": "Disclaimer",
+            "logo": "Logo",
+            "host": "Host",
+            "port": "Port",
+            "username": "Username",
+            "password": "Password",
+            "invoiceSubject": "Invoice email subject",
+            "invoiceText": "Invoice email text",
+            "invoiceHtml": "Invoice email HTML",
+            "forgotSubject": "Forgot password email subject",
+            "forgotText": "Forgot password email text",
+            "forgotHtml": "Forgot password email HTML",
+            "website": "Website url"
+        },
+        "titles": {
+            "generalSettings": "General settings",
+            "pdfSettings": "Pdf settings",
+            "invoiceSettings": "Invoice email settings",
+            "forgotSettings": "Forgot email settings",
+            "serverSettings": "Email server settings"
+        },
+        "help": {
+            "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
+            "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
+        }
+    },
+    "users": {
+        "singular": "User",
+        "plural": "Users",
+        "form": {
+            "name": "Name",
+            "username": "Username",
+            "discount": "Allow discount",
+            "offer": "Allow offer",
+            "1": "Yes",
+            "0": "No",
+            "avatar": "Avatar",
+            "role": "Role",
+            "user": "User",
+            "admin": "Admin"
+        },
+        "avatar": {
+            "singular": "avatar"
+        }
+    },
+    "home": {
+        "plural": "Home",
+        "dashboard": "Dashboard"
+    },
+    "menu": {
+        "plural": "List",
+        "add": "Add new"
+    },
+    "emptyList": "Looks like there are no entries...",
+    "languages": {
+        "en": "English",
+        "et": "Eesti",
+        "fun": "English (fun)"
+    },
+    "changelog": "Changelog"
+}

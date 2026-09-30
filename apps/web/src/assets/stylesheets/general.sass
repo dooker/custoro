@@ -1,0 +1,118 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+
+html,
+#root
+    min-height: 100vh
+
+#root
+    background: #E9E9E9
+    color: variables.$black
+    position: relative
+
+    &::before
+        position: absolute
+        content: ""
+        background: variables.$midnight-blue
+        height: variables.$header-height
+        z-index: 1
+        width: 100%
+        left: 0
+        top: 0
+
+    &::after
+        content: "Custoro"
+        position: absolute
+        z-index: 20
+        top: 41px
+        left: 250px
+        transform: translateY(-50%)
+        font-size: 128px
+        font-weight: 900
+        color: rgba(255, 255, 255, 0.05)
+        white-space: nowrap
+        pointer-events: none
+
+    .splitter
+        display: grid
+        grid-template-columns: 1fr 1fr
+
+    &:not(.pdf)
+        display: grid
+        grid-template-columns: 200px 1fr
+        grid-template-rows: minmax(variables.$header-height, min-content) 1fr
+
+    > svg
+        position: absolute
+        fill: #dddddd
+        bottom: 0
+        right: 0
+        filter: blur(1px)
+
+body
+    color: variables.$silver
+    font-family: Roboto, Verdana, sans-serif
+    -webkit-font-smoothing: antialiased
+    -moz-osx-font-smoothing: grayscale
+    margin: 0
+    height: 100%
+
+.component
+    background: variables.$white
+    padding: 0
+    margin: variables.$grid-gutter
+    height: fit-content
+    position: relative
+    border-top: 3px solid variables.$turquoise
+
+    header
+        border-bottom: 1px solid variables.$turquoise
+        background: variables.$white
+        padding: variables.$grid-gutter
+        display: flex
+        justify-content: space-between
+        align-items: center
+        flex-direction: column
+        row-gap: variables.$grid-gutter
+        position: sticky
+        z-index: 11
+        top: 0
+
+        h1
+            font-size: 20px
+            color: variables.$midnight-blue
+
+        @include mixins.for-tablet-landscape-up
+            flex-direction: row
+
+        .actions
+            display: flex
+            gap: variables.$grid-gutter
+            flex-wrap: wrap
+
+.hidden
+    display: none !important
+
+.image-container
+    display: grid
+    width: fit-content
+    grid-template-columns: 100px 92px 1fr
+    gap: 12px
+    align-items: center
+    position: relative
+
+    img
+        min-height: 40px
+        min-width: 40px
+        box-shadow: inset 0 0 1px 0 variables.$asbestos
+        border-radius: 100%
+
+    > .button
+        margin-left: variables.$grid
+
+    .preview
+        position: absolute
+        top: 0
+
+.MuiSnackbar-root.snackbar-error .MuiPaper-root
+    background: variables.$pomegranate

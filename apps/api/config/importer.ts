@@ -1,0 +1,34 @@
+import { Express } from "express";
+import customer from "../routes/customer";
+import customers from "../routes/customers";
+import product from "../routes/product";
+import products from "../routes/products";
+import search from "../routes/search";
+import worksheet from "../routes/worksheet";
+import worksheets from "../routes/worksheets";
+import invoice from "../routes/invoice";
+import invoices from "../routes/invoices";
+import settings from "../routes/settings";
+import pdf from "../routes/pdf";
+import email from "../routes/email";
+import profile from "../routes/profile";
+import user from "../routes/user";
+import users from "../routes/users";
+
+export default (app: Express): void => {
+    app.use("/customer", customer);
+    app.use("/customers", customers);
+    app.use("/product", product);
+    app.use("/products", products);
+    app.use("/search", search);
+    app.use("/worksheet", worksheet);
+    app.use("/worksheets", worksheets);
+    app.use("/invoice", invoice);
+    app.use("/invoices", invoices);
+    app.use("/settings", settings);
+    app.use("/pdf", pdf);
+    app.use("/email", email);
+    app.use("/profile", profile);
+    app.use("/user", user);
+    app.use("/users", users);
+};

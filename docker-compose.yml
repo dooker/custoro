@@ -1,0 +1,69 @@
+# Local development - not for production (see docker-compose.prod.yml).
+#
+#   npm run docker:dev    MySQL + API + web in containers, hot reload -> http://localhost:3000
+#   npm run dev           MySQL in a container, API + web natively on the host
+#
+# SQL files in apps/api/db/ are loaded on the database's first start (empty volume).
+# Reload them with `npm run docker:reset`. After changing dependencies: `npm run docker:dev -- --renew-anon-volumes`.
+name: custoro
+
+services:
+    db:
+        image: mysql:8.4
+        restart: unless-stopped
+        environment:
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-custoro}
+            MYSQL_DATABASE: ${DB_NAME:-custoro}
+        ports:
+            - "${DB_PORT:-3306}:3306"
+        volumes:
+            - dbdata:/var/lib/mysql
+            - ./apps/api/db:/docker-entrypoint-initdb.d:ro
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+            interval: 5s
+            timeout: 3s
+            retries: 20
+
+    api:
+        build:
+            context: ./apps/api
+            target: dev
+        environment:
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_USERNAME: root
+            DB_PASSWORD: ${DB_PASSWORD:-custoro}
+            DB_NAME: ${DB_NAME:-custoro}
+            JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret}
+            JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+            # File watching on macOS/Windows bind mounts
+            CHOKIDAR_USEPOLLING: "true"
+        ports:
+            - "3999:3999"
+        volumes:
+            - ./apps/api:/app
+            # Keep the container's Linux node_modules separate from the host's
+            - /app/node_modules
+        depends_on:
+            db:
+                condition: service_healthy
+
+    web:
+        build:
+            context: ./apps/web
+            target: dev
+        environment:
+            # Called from the browser on the host, so localhost - not the container name
+            VITE_API_ENDPOINT: http://localhost:3999
+            CHOKIDAR_USEPOLLING: "true"
+        ports:
+            - "3000:3000"
+        volumes:
+            - ./apps/web:/app
+            - /app/node_modules
+        depends_on:
+            - api
+
+volumes:
+    dbdata:

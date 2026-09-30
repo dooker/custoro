@@ -1,0 +1,15 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.actionsWrapper
+    border-top: 1px solid variables.$green-sea
+    // TODO [KAN-153]  !important to oweride the styles from the general-table class
+    justify-content: flex-end !important
+    display: flex
+
+.actions
+    display: flex
+    gap: 12px
+
+.zBoost
+    // TODO [KAN-153]  !important to oweride the styles from the general-table class
+    z-index: 12 !important

@@ -1,0 +1,161 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+@use "sass:color"
+@use "sass:string"
+@use "sass:math"
+
+$nephritis: color.scale(variables.$nephritis, $lightness: 5%)
+$belize-hole: color.scale(variables.$belize-hole, $lightness: 5%)
+$alizarin: color.scale(variables.$alizarin, $lightness: 5%)
+$concrete: color.scale(variables.$concrete, $lightness: 5%)
+$asbestos: color.scale(variables.$asbestos, $lightness: 5%)
+
+.button
+    padding: variables.$grid-gutter variables.$grid-gutter*2
+    border-radius: math.div(variables.$grid, 2)
+    position: relative
+    overflow: hidden
+    cursor: pointer
+    border: 0 solid transparent
+    transition: .3s
+    box-sizing: border-box
+    display: flex
+    justify-content: center
+    align-items: center
+    min-width: 60px
+    user-select: none
+    font-family: Roboto, Verdana, sans-serif
+    font-size: 12px
+
+    > span
+        position: absolute
+        text-align: center
+        line-height: 1
+        color: variables.$white
+        font-weight: 700
+
+        a
+            color: variables.$white
+            text-decoration: none
+
+    > span
+        font-size: 18px
+
+    &:not(.small):not(.large)
+        min-height: 34px
+        min-width: 80px
+
+    &:active:not(.loading)
+        top: 1px
+
+    &.disabled,
+    &:disabled
+        background: variables.$concrete
+        pointer-events: none
+
+        > span
+            text-shadow: mixins.md-text-shadow(variables.$button-default-height, $asbestos)
+
+            @include mixins.for-tablet-landscape-up
+                text-shadow: mixins.md-text-shadow(variables.$button-desktop-height, $asbestos)
+
+.large
+    min-height: string.unquote(variables.$button-default-height + 'px')
+    min-width: variables.$button-min-width
+
+    @include mixins.for-tablet-landscape-up
+        min-height: string.unquote(variables.$button-desktop-height + 'px')
+
+    &:hover:not(.loading)
+        border: 3px solid rgba(white, .3)
+
+        @include mixins.for-tablet-landscape-up
+            border: 9px solid rgba(white, .3)
+
+.small
+    > span
+        font-size: 14px
+
+.primary
+    background: variables.$nephritis
+
+    > span
+        text-shadow: mixins.md-text-shadow(variables.$button-default-height, $color: $nephritis)
+
+        @include mixins.for-tablet-landscape-up
+            text-shadow: mixins.md-text-shadow(variables.$button-desktop-height, $color: $nephritis)
+
+.secondary
+    background: variables.$belize-hole
+
+    > span
+        text-shadow: mixins.md-text-shadow(variables.$button-default-height, $color: $belize-hole)
+
+        @include mixins.for-tablet-landscape-up
+            text-shadow: mixins.md-text-shadow(variables.$button-desktop-height, $color: $belize-hole)
+
+.tertiary
+    background: variables.$alizarin
+    color: variables.$white
+
+    > span
+        text-shadow: mixins.md-text-shadow(variables.$button-default-height, $color: $alizarin)
+
+.quaternary
+    background: variables.$concrete
+
+    > span
+        text-shadow: mixins.md-text-shadow(variables.$button-default-height, $color: $concrete)
+
+.icon
+    min-width: 0
+    padding: variables.$grid-gutter
+    width: string.unquote(variables.$button-default-height + 'px')
+    color: white
+
+    @include mixins.for-tablet-landscape-up
+        width: string.unquote(variables.$button-desktop-height + 'px')
+
+    svg
+        fill: currentColor
+        width: 20px
+        position: absolute
+
+        @include mixins.for-tablet-landscape-up
+            width: 30px
+
+.loading
+    cursor: default
+
+    span
+        pointer-events: none
+        opacity: 0.5
+
+.buttonContainer
+    position: relative
+
+.buttonDropdown
+    position: absolute
+    margin-top: -1px
+    left: 0
+    right: 0
+    z-index: 1
+    background: variables.$white
+    list-style: none
+    border: 1px solid variables.$silver
+
+
+    ul
+        list-style: none
+        overflow-y: scroll
+        max-height: 175px
+
+        li
+            padding: variables.$grid 0 variables.$grid variables.$grid
+            cursor: pointer
+
+            &:hover
+                background: variables.$li-hover
+
+.top
+    bottom: 50px

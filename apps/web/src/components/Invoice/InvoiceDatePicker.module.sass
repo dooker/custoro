@@ -1,0 +1,27 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.picker :global(.rdp)
+    position: absolute
+    z-index: 13
+    left: -4px
+    background: variables.$white
+    padding: variables.$grid-gutter
+    box-shadow: inset 0 0 0 1px variables.$emerald
+    margin-top: 0
+
+    .rdp-months
+        display: block
+
+    .rdp-table
+        width: 100%
+        max-width: 100%
+
+    .rdp-day_selected
+        &,
+        :focus-visible,
+        :hover
+            background: variables.$turquoise
+            font-weight: bold
+
+    .rdp-button:hover:not([disabled]):not(.rdp-day_selected)
+        background: variables.$clouds

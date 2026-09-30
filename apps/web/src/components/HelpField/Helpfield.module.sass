@@ -1,0 +1,19 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.help
+    border: 1px solid variables.$sun-flower
+    border-radius: 12px
+    padding: 8px 16px
+    font-size: 14px
+    text-align: center
+    background: rgba(variables.$sun-flower, 0.2)
+
+    &.top
+        margin-top: 12px
+
+    &:not(.top)
+        margin-bottom: 12px
+
+    &.warning
+        border-color: variables.$alizarin
+        background: rgba(variables.$alizarin, 0.2)

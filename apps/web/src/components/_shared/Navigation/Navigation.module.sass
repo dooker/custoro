@@ -1,0 +1,108 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.sidebar
+    position: relative
+    z-index: 1
+
+    .container
+        position: fixed
+        width: 200px
+        height: 100dvh
+        display: grid
+    
+    div.profile
+        padding: 0 variables.$grid-gutter
+        color: variables.$white
+        display: grid
+        grid-template-columns: 40px 1fr 10px
+        gap: 12px
+        align-items: center
+        background: #3E5871
+        cursor: pointer
+        height: variables.$header-height
+
+        svg.avatar
+            border-radius: 100px
+            border: 2px solid currentColor
+
+    svg
+        fill: currentColor
+
+    a,
+    span
+        user-select: none
+        padding: variables.$grid variables.$grid-gutter
+        text-decoration: none
+        display: block
+        color: variables.$turquoise
+        text-align: left
+        font-size: 16px
+        position: relative
+
+    div.profile + ul a,
+    .header a,
+    span
+        font-size: 14px
+        font-weight: 600
+
+    .menu li
+        a
+            @apply flex gap-10 font-bold
+
+        svg
+            width: 16px
+            fill: currentColor
+
+    div.profile + ul,
+    .menu
+        li
+            .users-stroke
+                stroke: variables.$midnight-blue
+                stroke-width: 0
+                fill: none
+
+            &.active
+                background: variables.$turquoise
+                font-weight: 600
+
+            &:hover:not(.active):not(.header)
+                background: variables.$wet-asphalt
+
+            &.active
+                a
+                    color: variables.$midnight-blue
+
+            &:hover:not(.active)
+                a
+                    color: variables.$white
+
+    .footer
+        margin-top: auto
+
+    .actions
+        margin: variables.$grid*2 variables.$grid
+        display: flex
+        height: 50px
+
+        button
+            width: 100%
+
+            span
+                color: variables.$white
+
+    .version
+        color: variables.$white
+        text-align: center
+        font-size: 12px
+        padding-bottom: variables.$grid-gutter
+
+        span
+            color: variables.$white
+            font-weight: normal
+            text-align: center
+
+        a
+            text-align: center
+            font-size: 11px
+            color: variables.$white
+            padding: 0

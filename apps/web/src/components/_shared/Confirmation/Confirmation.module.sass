@@ -1,0 +1,39 @@
+@use "src/assets/stylesheets/variables" as variables
+
+:global
+    .MuiDialogContent-root
+        display: flex
+        align-items: center
+
+        svg
+            width: 40px
+            margin-right: variables.$grid-gutter
+
+        span
+            text-transform: lowercase
+
+    .MuiDialogActions-root
+        display: flex
+        padding: 0 !important
+
+button.confirm,
+button.cancel
+    flex: 1 0 50%
+    margin: 0 !important
+    border: none
+    background: none
+    height: 50px
+    font-size: 18px
+    cursor: pointer
+
+    &.confirm
+        background: rgba(variables.$nephritis, 0.7)
+
+        &:hover
+            background: variables.$nephritis
+
+    &.cancel
+        background: rgba(variables.$alizarin, 0.7)
+
+        &:hover
+            background: variables.$alizarin

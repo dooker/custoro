@@ -1,0 +1,294 @@
+{
+    "button": {
+        "logout": "Logi välja",
+        "comment": "Kommentaar",
+        "view": "Vaata",
+        "delete": "Kustuta",
+        "add": "Lisa",
+        "save": "Salvesta",
+        "goBack": "Tagasi",
+        "invoice": "Arve",
+        "login": "Logi sisse",
+        "close": "Sulge",
+        "list": "Nimekiri",
+        "toInvoice": "Lisa arvele",
+        "paid": "Märgi makstuks",
+        "pdf": "PDF",
+        "generatePdf": "Genereeri PDF",
+        "send": "Saada arve",
+        "upload": "Vali fail"
+    },
+    "products": {
+        "singular": "Toode",
+        "plural": "Tooted",
+        "form": {
+            "code": "Kood",
+            "name": "Nimi",
+            "price": "Hind",
+            "discountPrice": "Minu hind",
+            "unit": "Ühik",
+            "comment": "Kommentaar",
+            "pc": "tk",
+            "set": "komplekt",
+            "hour": "tund",
+            "placeholder": "Vali toode...",
+            "priceHelp": "Palun sisesta hinnad ilma KMita",
+            "duplicate": "Sellise koodiga toode juba eksisteerib",
+            "duplicateSave": "Sellise koodiga toode juba eksisteerib, salvesta duplikaat 'salvesta' nupuga"
+        }
+    },
+    "customers": {
+        "singular": "Klient",
+        "plural": "Kliendid",
+        "form": {
+            "name": "Nimi / Firma",
+            "contact": "Kontaktisik",
+            "regNumber": "Reg number",
+            "phone": "Telefon",
+            "phone2": "Lisatelefon",
+            "address": "Aadress",
+            "email": "E-post",
+            "invoiceEmail": "Arve Email",
+            "www": "Veebileht",
+            "additionalInfo": "Lisainfo",
+            "shippingInfo": "Saatmise täpsustused",
+            "placeholder": "Vali klient...",
+            "vatNumber": "KM number",
+            "paymentPeriod": "Makseperiood (päevades)",
+            "department": "Osakond"
+        }
+    },
+    "worksheets": {
+        "singular": "Tööleht",
+        "plural": "Töölehed",
+        "form": {
+            "name": "Nimi",
+            "customer": "Klient",
+            "product_id": "Toode",
+            "products": "Tooteid",
+            "quantity": "Kogus",
+            "price": "Hind",
+            "discountPrice": "Minu hind",
+            "customerRequired": "Klient on kohustuslik",
+            "productRequired": "Toode on kohustuslik"
+        },
+        "newInvoice": "Uus nr"
+    },
+    "invoices": {
+        "singular": "Arve",
+        "plural": "Arved",
+        "form": {
+            "customer": "Klient",
+            "invoice-receiver": "Arve saada",
+            "create-date": "Loomise kuupäev",
+            "change-date": "Muutmise kuupäev",
+            "invoice-date": "Kuupäev arvel",
+            "name": "Nimetus",
+            "unit": "Ühik",
+            "quantity": "Kogus",
+            "price": "Hind",
+            "discountPrice": "Minu hind",
+            "total": "Kokku",
+            "discountTotal": "Minu Kokku",
+            "payment": "Tasumine",
+            "transfer": "Pangaülekanne",
+            "cash": "Sularaha",
+            "type": "Pakkumus / arve",
+            "offer": "Pakkumus",
+            "invoice": "Arve",
+            "products": "Tooteid",
+            "vatNumber": "Kliendil on välismaine KM number, seega tehakse arve ilma KMita"
+        },
+        "total": "Kokku",
+        "vat": "Käibemaks",
+        "toPay": "Maksta",
+        "win": "Võit",
+        "view": "Vaata",
+        "regenerate": "Regenereeri"
+    },
+    "worksheets-per-customer": {
+        "plural": "Töölehed"
+    },
+    "profile": {
+        "singular": "Profiil",
+        "plural": "Profiil",
+        "form": {
+            "name": "Nimi",
+            "email": "E-post",
+            "password": "Parool",
+            "theme": "Teema",
+            "avatar": "Avatar"
+        }
+    },
+    "pdf": {
+        "client": "Klient",
+        "invoiceNr": "Arve nr",
+        "date": "Kuupäev",
+        "due": "Tasumise tähtaeg",
+        "penalty": "Viivis",
+        "perDay": "päevas",
+        "code": "Kood",
+        "name": "Nimetus",
+        "unit": "Ühik",
+        "quantity": "Kogus",
+        "price": "Hind",
+        "total": "Kokku",
+        "totalTotal": "Summa",
+        "vat": "Käibemaks",
+        "toPay": "Tasuda (EUR)",
+        "regNr": "Registrikood",
+        "vatNr": "KMKR"
+    },
+    "login": {
+        "title": "Sisene",
+        "form": {
+            "username": "Kasutajanimi",
+            "usernameRequired": "Kasutajanimi on kohustuslik",
+            "usernameFormat": "E-post address queue on ebakorrektne",
+            "password": "Parool",
+            "passwordRequired": "Parool on kohustuslik",
+            "passwordConfirmation": "Parooli kinnitud",
+            "passwordRequiredForgot": "Parool on kohustuslik",
+            "passwordConfirmationRequired": "Parooli kinnitus on kohustuslik",
+            "passwordsDoNotMatch": "Paroolid on erinevad"
+        },
+        "error": {
+            "missingInfo": "Parooli taastamise e-kirja saatmisel tekkis viga",
+            "noToken": "Märgist ei tuntud ära. Palun saatke uus parooli taastamise e-kiri",
+            "noUpdate": "Parooli uuendamine ebaõnnestus"
+        },
+        "forgot": "Unustasid parooli?",
+        "forgotTitle": "Taasta parool",
+        "forgotSent": "Sulle on saadetud e-kiri juhistega, kuidas edasi toimida",
+        "forgotTokenTitle": "Loo uus parool",
+        "forgotNoToken": "Tundmatu märgis",
+        "login": "Logi sisse"
+    },
+    "new": "Uus",
+    "latest": "Viimased",
+    "search": "Alusta trükkimist...",
+    "modal": {
+        "delete": {
+            "title": "Kustuta?",
+            "text": "Oled kindel, et tahad kustutada selle "
+        },
+        "paid": {
+            "title": "Märgi makstuks?",
+            "text": "Arve läheb lukku ja seda ei saa rohkem muuta"
+        },
+        "text": "Oled kindel, et tahad kustutada selle ",
+        "yes": "Jah",
+        "no": "Ei",
+        "bigError": {
+            "header": "Viga",
+            "imageAlt": "Serveri viga",
+            "footer": "Tekkis suurem viga"
+        },
+        "pdfError": {
+            "header": "PDFi viga",
+            "footer": "PDFi laadimine ebaõnnestus"
+        },
+        "notFound": {
+            "footer": "Lehte ei leitud"
+        },
+        "order": "tellimuse",
+        "product": "toote",
+        "customer": "kliendi",
+        "worksheet": "töölehe",
+        "profile": "avatari",
+        "settings": "logo",
+        "invoice": "toote"
+    },
+    "notification": {
+        "saved": "Salvestatud...",
+        "pdfGenerated": "PDF on genereeritud...",
+        "invoiceSend": "E-kiri saadetud",
+        "invoiceSendFail": "E-kiri saatmine ebaõnnestus...",
+        "error": "Süsteemis tekkis viga...",
+        "deleted": "Kustutatud...",
+        "added": "Lisatud...",
+        "session_expired": "Sessioon on aegunug",
+        "invalid_token": "Tundmatu sessiooni märgis",
+        "pdfGeneratorError": "Viga PDFi genereerimisel",
+        "missingInfo": "E-kirja saatmine ebaõnnestus",
+        "user.exists": "Sellise e-postiga kasutaja on juba olemas"
+    },
+    "settings": {
+        "singular": "Seaded",
+        "plural": "Seaded",
+        "emailSettings": "E-posti Seaded",
+        "form": {
+            "vat": "Käibemaks",
+            "lastInvoiceId": "Viimase arve number",
+            "invoiceFilenamePrefix": "Arve failinime eesliide",
+            "companyName": "Ettevõtte nimi",
+            "companyEmail": "Ettevõtte e-post",
+            "companyPhone": "Ettevõtte telefon",
+            "companyAddress1": "Ettevõtte aadress",
+            "companyAddress2": "Ettevõtte aadress (lisa)",
+            "companyWebsite": "Ettevõtte veebileht",
+            "companyRegNr": "Ettevõtte registrinumber",
+            "companyVatNumber": "Ettevõtte käibemaksukohuslase number",
+            "companyBankAccount": "Ettevõtte pangakonto",
+            "companyBankAccount2": "Ettevõtte pangakonto (lisa)",
+            "pdfDisclaimer": "Selgitustekst",
+            "logo": "Logo",
+            "host": "Host",
+            "port": "Port",
+            "user": "Kasutajanimi",
+            "password": "Parool",
+            "invoiceSubject": "Arve kirja pealkiri",
+            "invoiceText": "Arve kirja tekst sisu",
+            "invoiceHtml": "Arve kirja HMTL sisu",
+            "forgotSubject": "Unustasid parooli kirja pealkiri",
+            "forgotText": "Unustasid parooli kirja tekst sisu",
+            "forgotHtml": "Unustasid parooli kirja HTML sisu",
+            "website": "Veebilehe aadress"
+        },
+        "titles": {
+            "generalSettings": "Üldised settings",
+            "pdfSettings": "Pdf seaded",
+            "invoiceSettings": "Arve e-kirja seaded",
+            "forgotSettings": "Taasta parool e-kirja seaded",
+            "serverSettings": "E-posti serveri seaded"
+        },
+        "help": {
+            "forgotHelp": "Kasuta [RESTORE_LINK] e-kirja sees, et viidata uue parooli loomise lehe lingile - süsteem vahetab selle korrektse URLi vastu",
+            "invoiceHelp": "Kasuta [INVOICE_LINK] e-kirja sees, et viidata arve avamisele uues tabis - süsteem vahetab selle korrektse URLi vastu"
+        }
+    },
+    "users": {
+        "singular": "Kasutaja",
+        "plural": "Kasutajad",
+        "form": {
+            "name": "Nimi",
+            "username": "Kasutajanimi",
+            "discount": "Luba allahindlushind",
+            "offer": "Luba pakkumised",
+            "1": "Jah",
+            "0": "Ei",
+            "avatar": "Avatar",
+            "role": "Roll",
+            "user": "Kasutaja",
+            "admin": "Administraator"
+        },
+        "avatar": {
+            "singular": "avatari"
+        }
+    },
+    "home": {
+        "plural": "Avaleht",
+        "dashboard": "Avaleht"
+    },
+    "menu": {
+        "plural": "Nimekiri",
+        "add": "Lisa uus"
+    },
+    "emptyList": "Nimekiri on tühi",
+    "languages": {
+        "en": "English",
+        "et": "Eesti",
+        "fun": "English (fun)"
+    },
+    "changelog": "Muudatuste logi"
+}

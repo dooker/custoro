@@ -1,0 +1,293 @@
+{
+    "button": {
+        "logout": "Logout",
+        "comment": "Comment",
+        "view": "View",
+        "delete": "Delete",
+        "add": "Add",
+        "save": "Save",
+        "goBack": "Go Back",
+        "invoice": "Invoice",
+        "login": "Login",
+        "close": "Close",
+        "list": "List",
+        "toInvoice": "Add to invoice",
+        "paid": "Mark as paid",
+        "pdf": "PDF",
+        "generatePdf": "Generate PDF",
+        "send": "Send email",
+        "upload": "Pick file"
+    },
+    "products": {
+        "singular": "Product",
+        "plural": "Products",
+        "form": {
+            "code": "Code",
+            "name": "Name",
+            "price": "Price",
+            "discountPrice": "My price",
+            "unit": "Unit",
+            "comment": "Comment",
+            "pc": "pc",
+            "set": "set",
+            "hour": "hour",
+            "placeholder": "Select product...",
+            "priceHelp": "Please enter prices without VAT",
+            "duplicate": "Product with this code already exists",
+            "duplicateSave": "Product with this code already exists, please save manually if you are sure"
+        }
+    },
+    "customers": {
+        "singular": "Customer",
+        "plural": "Customers",
+        "form": {
+            "name": "Name / Company",
+            "contact": "Contact Person",
+            "regNumber": "Reg number",
+            "phone": "Phone",
+            "phone2": "Additional Phone",
+            "address": "Address",
+            "email": "Email",
+            "invoiceEmail": "Invoice Email",
+            "www": "Website",
+            "additionalInfo": "Additional info",
+            "shippingInfo": "Shipping info",
+            "placeholder": "Select customer...",
+            "vatNumber": "VAT number",
+            "paymentPeriod": "Payment Period (days)",
+            "department": "Department"
+        }
+    },
+    "worksheets": {
+        "singular": "Worksheet",
+        "plural": "Worksheets",
+        "form": {
+            "name": "Name",
+            "customer": "Customer",
+            "product_id": "Product",
+            "products": "Products",
+            "quantity": "Quantity",
+            "price": "Price",
+            "discountPrice": "My price",
+            "customerRequired": "Customer is required",
+            "productRequired": "Product is required"
+        },
+        "newInvoice": "New nr"
+    },
+    "invoices": {
+        "singular": "Invoice",
+        "plural": "Invoices",
+        "form": {
+            "customer": "Customer",
+            "invoice-receiver": "Invoice receiver",
+            "create-date": "Create Date",
+            "change-date": "Change Date",
+            "invoice-date": "Invoice Date",
+            "name": "Name",
+            "unit": "Unit",
+            "quantity": "Quantity",
+            "price": "Price",
+            "discountPrice": "My price",
+            "total": "Total",
+            "discountTotal": "My Total",
+            "payment": "Payment Type",
+            "transfer": "Bank transfer",
+            "cash": "Cash",
+            "type": "Invoice Type",
+            "offer": "Offer",
+            "invoice": "Invoice",
+            "products": "Products",
+            "vatNumber": "Customer has foreign VAT number so invoice will be made without VAT"
+        },
+        "total": "Total",
+        "vat": "VAT",
+        "toPay": "To pay",
+        "win": "Win",
+        "view": "View",
+        "regenerate": "Regenerate"
+    },
+    "profile": {
+        "singular": "Profile",
+        "plural": "Profile",
+        "form": {
+            "name": "Name",
+            "email": "Email",
+            "password": "Password",
+            "theme": "Theme",
+            "avatar": "Avatar"
+        }
+    },
+    "worksheets-per-customer": {
+        "plural": "Worksheets"
+    },
+    "pdf": {
+        "client": "Client",
+        "invoiceNr": "Invoice nr",
+        "date": "Date",
+        "due": "Due date",
+        "penalty": "Fine for delay",
+        "perDay": "per day",
+        "code": "Code",
+        "name": "Name",
+        "unit": "Unit",
+        "quantity": "Quantity",
+        "price": "Price",
+        "total": "Total",
+        "totalTotal": "Total",
+        "vat": "VAT",
+        "toPay": "To pay (EUR)",
+        "regNr": "Register code",
+        "vatNr": "VAT number"
+    },
+    "login": {
+        "title": "Login",
+        "form": {
+            "username": "Username",
+            "usernameRequired": "Username is required",
+            "usernameFormat": "Email format is incorrect",
+            "password": "Password",
+            "passwordRequired": "Password is required",
+            "passwordConfirmation": "Password confirmation",
+            "passwordRequiredForgot": "Password is required",
+            "passwordConfirmationRequired": "Password confirmation is required",
+            "passwordsDoNotMatch": "Passwords do not mach"
+        },
+        "error": {
+            "missingInfo": "Error while trying to send reminder email",
+            "noToken": "Token is not recognized. Please send new forgot password email",
+            "noUpdate": "Updating password failed"
+        },
+        "forgot": "Forgot password?",
+        "forgotTitle": "Restore password",
+        "forgotSent": "We sent an email to your email address. Please follow the instructions there",
+        "forgotTokenTitle": "Create new password",
+        "forgotNoToken": "Unknown token",
+        "login": "Login"
+    },
+    "new": "New",
+    "latest": "Latest",
+    "search": "Start typing...",
+    "modal": {
+        "delete": {
+            "title": "Delete?",
+            "text": "Are you sure you want to delete this "
+        },
+        "paid": {
+            "title": "Mark as paid?",
+            "text": "Invoice will be locked and cannot be edited anymore"
+        },
+        "yes": "Yes",
+        "no": "No",
+        "bigError": {
+            "header": "Error",
+            "imageAlt": "Server Error",
+            "footer": "We encountered an error"
+        },
+        "pdfError": {
+            "header": "This PDF ran away",
+            "footer": "Our highly advanced technology has failed you once again"
+        },
+        "notFound": {
+            "footer": "Page Not Found"
+        },
+        "order": "order",
+        "product": "product",
+        "customer": "customer",
+        "worksheet": "worksheet",
+        "profile": "avatar",
+        "settings": "logo",
+        "invoice": "product"
+    },
+    "notification": {
+        "saved": "Saved...",
+        "pdfGenerated": "PDF generated...",
+        "invoiceSend": "Email sent",
+        "invoiceSendFail": "Error while sending email",
+        "error": "We encountered an error...",
+        "deleted": "Deleted...",
+        "added": "Added...",
+        "session_expired": "Session expired",
+        "invalid_token": "Invalid token",
+        "pdfGeneratorError": "Error while generating PDF",
+        "missingInfo": "Missing some info to send email",
+        "user.exists": "User with this email already exists"
+    },
+    "settings": {
+        "singular": "Settings",
+        "plural": "Settings",
+        "emailSettings": "Email Settings",
+        "form": {
+            "vat": "VAT",
+            "lastInvoiceId": "Last Invoice ID",
+            "invoiceFilenamePrefix": "Invoice Filename Prefix",
+            "companyName": "Company Name",
+            "companyEmail": "Company Email",
+            "companyPhone": "Company Phone",
+            "companyAddress1": "Company Address",
+            "companyAddress2": "Company Address (additional)",
+            "companyWebsite": "Company Website",
+            "companyRegNr": "Company Register number",
+            "companyVatNumber": "Company VAT number",
+            "companyBankAccount": "Company Bank Account",
+            "companyBankAccount2": "Company Bank Account (additional)",
+            "pdfDisclaimer": "Disclaimer",
+            "logo": "Logo",
+            "host": "Host",
+            "port": "Port",
+            "username": "Username",
+            "password": "Password",
+            "invoiceSubject": "Invoice email subject",
+            "invoiceText": "Invoice email text",
+            "invoiceHtml": "Invoice email HTML",
+            "forgotSubject": "Forgot password email subject",
+            "forgotText": "Forgot password email text",
+            "forgotHtml": "Forgot password email HTML",
+            "website": "Website url"
+        },
+        "titles": {
+            "generalSettings": "General settings",
+            "pdfSettings": "Pdf settings",
+            "invoiceSettings": "Invoice email settings",
+            "forgotSettings": "Forgot email settings",
+            "serverSettings": "Email server settings"
+        },
+        "help": {
+            "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
+            "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
+        }
+    },
+    "users": {
+        "singular": "User",
+        "plural": "Users",
+        "form": {
+            "name": "Name",
+            "username": "Username",
+            "discount": "Allow discount",
+            "offer": "Allow offer",
+            "1": "Yes",
+            "0": "No",
+            "avatar": "Avatar",
+            "role": "Role",
+            "user": "User",
+            "admin": "Admin"
+        },
+        "avatar": {
+            "singular": "avatar"
+        }
+    },
+    "home": {
+        "plural": "Home",
+        "dashboard": "Dashboard"
+    },
+    "menu": {
+        "plural": "List",
+        "add": "Add new"
+    },
+    "emptyList": "No entries",
+    "languages": {
+        "en": "English",
+        "et": "Eesti",
+        "fun": "English (fun)"
+    },
+    "changelog": "Changelog"
+}

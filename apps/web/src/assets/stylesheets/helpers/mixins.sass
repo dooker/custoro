@@ -1,0 +1,50 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "sass:string"
+
+@function md-text-shadow($n, $color)
+    $value: '0 0 0 transparent'
+
+    @for $i from 1 through $n*2
+        $value: '#{$value}, #{$i * .25}px #{$i * .25}px 0 ' + $color
+
+    @return string.unquote($value)
+
+@mixin generalList
+    .list-item
+        cursor: pointer
+
+        .info
+            min-width: 200px
+            flex: 1 0 auto
+            align-items: center
+
+        & + .list-item
+            border-top: 1px solid variables.$silver
+
+        &:nth-child(even)
+            background: lighten(variables.$wet-asphalt, 5)
+
+        &:hover
+            background: lighten(variables.$wet-asphalt, 10)
+
+        .actions
+            display: flex
+
+            .button + .button
+                margin-left: variables.$grid-gutter
+
+@mixin for-phone-only
+    @media (max-width: 599px)
+        @content
+
+@mixin for-tablet-portrait-up
+    @media (min-width: 600px)
+        @content
+
+@mixin for-tablet-landscape-up
+    @media (min-width: 900px)
+        @content
+
+@mixin for-desktop-up
+    @media (min-width: 1200px)
+        @content

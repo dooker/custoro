@@ -1,0 +1,28 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.languageSelector
+    list-style: none
+
+    li
+        cursor: pointer
+        font-size: 14px
+        border-top: 1px solid variables.$silver
+        padding: variables.$grid 0
+
+        &:hover
+            background: variables.$wet-asphalt
+
+        &.active
+            background: variables.$wet-asphalt
+            position: relative
+
+            &::before
+                content: ""
+                position: absolute
+                left: 4px
+                top: 50%
+                transform: translateY(-50%)
+                width: 15px
+                aspect-ratio: 1
+                background: variables.$white
+                clip-path: polygon(50% 0,79% 90%,2% 35%,98% 35%,21% 90%)

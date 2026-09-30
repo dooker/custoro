@@ -1,0 +1,90 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "sass:math"
+
+.form
+    width: 100%
+    border-collapse: collapse
+    margin-top: variables.$grid-gutter
+
+    border: 2px solid red !important
+
+    label
+        color: variables.$asbestos
+
+        &:not([class*="shrink"])
+            top: -7px
+
+        &[class*="shrink"]
+            padding: 0 5px
+
+    .field
+        label
+            display: block
+            padding-bottom: math.div(variables.$grid, 2)
+
+        + .field
+            padding-top: variables.$grid-gutter*2
+
+        .MuiOutlinedInput-root
+            padding: 0
+
+    svg
+        color: variables.$clouds
+
+    input,
+    textarea,
+    .fake-input
+        width: 100%
+        height: 40px
+        line-height: 40px
+        font-size: 14px
+        padding: 0 variables.$grid
+        box-sizing: border-box
+        border: 1px solid variables.$silver
+        background: variables.$white
+        color: variables.$clouds
+
+        &:focus
+            outline: none
+            border: 1px solid variables.$emerald
+
+    input:-webkit-autofill
+        -webkit-box-shadow: 0 0 0 1000px variables.$white inset
+
+    textarea
+        height: 168px !important
+        line-height: 20px
+        padding-top: 10px
+
+    .fake-input
+        background: variables.$clouds
+
+    label,
+    textarea,
+    input,
+    .fake-input
+        background: variables.$wet-asphalt
+
+        &:-webkit-autofill
+            -webkit-box-shadow: 0 0 0 1000px variables.$wet-asphalt inset
+            -webkit-text-fill-color: variables.$clouds
+
+    .MuiAutocomplete-inputRoot[class*="MuiOutlinedInput-root"]
+        padding: 0 !important
+
+        input
+            height: 39px
+
+    .MuiOutlinedInput-notchedOutline
+        border: none
+
+    .form-error
+        background: variables.$alizarin
+        color: variables.$white
+        margin: variables.$grid 0
+        padding: variables.$grid
+        text-align: center
+        flex: 1 0 auto
+
+    .MuiTextField-root
+        width: 100%

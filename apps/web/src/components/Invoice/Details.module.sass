@@ -1,0 +1,16 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.details
+    > div + div
+        padding-top: variables.$grid
+
+.split
+    display: flex
+    column-gap: variables.$grid-gutter
+
+    > div
+        flex: 1
+
+.half
+    display: grid
+    grid-template-columns: 1fr 1fr

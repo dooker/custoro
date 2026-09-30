@@ -1,0 +1,22 @@
+{
+    "client": "Client",
+    "invoiceNr": "Invoice nr",
+    "offerNr": "Offer nr",
+    "date": "Date",
+    "due": "Due date",
+    "penalty": "Fine for delay",
+    "perDay": "per day",
+    "code": "Code",
+    "name": "Name",
+    "unit": "Unit",
+    "quantity": "Quantity",
+    "price": "Price",
+    "total": "Total",
+    "totalTotal": "Total",
+    "vat": "VAT",
+    "toPay": "To pay (EUR)",
+    "regNr": "Register code",
+    "vatNr": "VAT number",
+    "regNumber": "Reg number",
+    "vatNumber": "Vat number"
+}

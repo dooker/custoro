@@ -1,0 +1,80 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.modal
+    .modal-content
+        color: variables.$black
+        position: fixed
+        top: 50%
+        left: 50%
+        transform: translateX(-50%) translateY(-50%)
+        min-width: 300px
+        display: flex
+        flex-direction: column
+        overflow: hidden
+        box-sizing: border-box
+        border-radius: 2px
+
+        .header
+            padding: variables.$grid-gutter
+            display: flex
+            justify-content: center
+            border-bottom: 1px solid variables.$green-sea
+
+        .body
+            flex: 1 0 auto
+
+            &.center
+                display: flex
+                align-items: center
+                justify-content: center
+                text-align: center
+
+            img
+                max-width: 100%
+
+            &.no-gutter
+                padding: 0
+
+        > .error
+            text-align: center
+            color: variables.$white
+            background: variables.$alizarin
+            padding: variables.$grid
+
+        .footer
+            display: grid
+            justify-content: center
+            padding: variables.$grid-gutter
+            border-top: 1px solid variables.$green-sea
+            position: relative
+            min-height: 29px
+            box-sizing: content-box
+
+            a
+                position: absolute
+                top: 50%
+                transform: translateY(-50%)
+                right: variables.$grid-gutter
+                text-decoration: none
+                color: variables.$belize-hole
+
+    &.large
+        .modal-content
+            width: 600px
+            max-width: 100%
+
+    .close
+        position: absolute
+        right: 25px
+        top: 25px
+
+.MuiPaper-root
+    border-radius: 0 !important
+
+    .MuiTypography-root
+        border-bottom: 1px solid variables.$silver
+        font-size: 18px
+
+    .MuiDialogContent-root
+        padding: 20px 24px !important
+        min-width: 400px

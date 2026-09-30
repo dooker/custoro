@@ -1,0 +1,31 @@
+# Dependencies & build output
+node_modules/
+dist/
+build/
+
+# Environment - only *.example files are committed
+.env
+.env.*
+!.env*.example
+
+# API runtime data (uploads, generated invoices)
+apps/api/uploads/
+apps/api/pdf/
+
+# Web
+apps/web/app.config.json
+apps/web/public/config.json
+apps/web/public/README.md
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+playwright/.auth/
+
+# Editors & OS
+.idea/
+.vscode/
+.DS_Store
+*.log
