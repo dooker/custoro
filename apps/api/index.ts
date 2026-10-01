@@ -12,7 +12,8 @@ if (process.env.SENTRY_DSN) {
         integrations: [nodeProfilingIntegration()],
         // Trace 100% of transactions during local development
         tracesSampleRate: 1.0,
-        profilesSampleRate: 1.0
+        profileSessionSampleRate: 1.0,
+        profileLifecycle: "trace"
     });
 }
 
@@ -21,7 +22,6 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import storage from "node-sessionstorage";
 import login from "./routes/login";
 import setupCustoroRoutes from "./config/importer";
 import pkg from "./package.json";
@@ -46,7 +46,6 @@ console.log(`${version} @ ${env}`);
 
 const app = express();
 const servicePort = process.env.SERVICE_PORT || 3999;
-storage.setItem("environment", env);
 
 app.use(
     cors({
@@ -98,7 +97,7 @@ const uploadDir = path.join(process.cwd(), "uploads");
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
     const publicPaths = ["/", "/favicon.ico"];
     const origin = req.headers.origin;
-    const isDev = storage.getItem("environment") === "development";
+    const isDev = env === development;
 
     if (publicPaths.includes(req.path) || req.path.startsWith(uploadFolder)) {
         return next();

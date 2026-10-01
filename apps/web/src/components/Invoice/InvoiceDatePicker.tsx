@@ -16,7 +16,7 @@ interface DatePickerProps {
 const InvoiceDatePicker = ({ invoiceDate, onChange, isLocked }: DatePickerProps) => {
     const { t } = useSafeTranslation();
     const [showPicker, setShowPicker] = useState(false);
-    const pickerRef = useRef(null);
+    const pickerRef = useRef<HTMLDivElement>(null);
 
     // Convert string date back to Date object if necessary
     const selectedDate = typeof invoiceDate === 'string' ? new Date(invoiceDate) : invoiceDate;

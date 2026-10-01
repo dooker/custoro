@@ -1,7 +1,7 @@
 import { RefObject, useEffect } from 'react';
 
 interface OutsideAlerterIF {
-    ref: RefObject<HTMLDivElement>;
+    ref: RefObject<HTMLDivElement | null>;
     callback: () => void;
 }
 

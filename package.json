@@ -23,6 +23,6 @@
         "check-all": "npm run lint && npm run type-check && npm run build"
     },
     "devDependencies": {
-        "concurrently": "^9.2.0"
+        "concurrently": "^10.0.5"
     }
 }

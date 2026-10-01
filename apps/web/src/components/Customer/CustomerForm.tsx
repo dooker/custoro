@@ -1,6 +1,6 @@
 import type { EntityOnChangeIF, MutateIF, SelectOptionIF } from '../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FormEvent, forwardRef, lazy, Suspense, useImperativeHandle, useState } from 'react';
+import { type Ref, FormEvent, lazy, Suspense, useImperativeHandle, useState } from 'react';
 import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -16,7 +16,14 @@ import styles from './CustomerForm.module.sass';
 const WorksheetsPerCustomer = lazy(() => import('../Worksheets/WorksheetsPerCustomer'));
 const Invoices = lazy(() => import('../Invoices/Invoices'));
 
-export const CustomerForm = forwardRef(({ initialCustomer, isNew, type }: CustomerFormIF, ref) => {
+import type { FormHandleIF } from '../../types/form';
+
+export const CustomerForm = ({
+    initialCustomer,
+    isNew,
+    type,
+    ref,
+}: CustomerFormIF & { ref?: Ref<FormHandleIF> }) => {
     const page = Number(useParams().page) || 1;
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -155,6 +162,4 @@ export const CustomerForm = forwardRef(({ initialCustomer, isNew, type }: Custom
             </Suspense>
         </div>
     );
-});
-
-CustomerForm.displayName = 'CustomerForm';
+};

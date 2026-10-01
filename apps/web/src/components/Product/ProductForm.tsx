@@ -1,6 +1,6 @@
 import type { EntityOnChangeIF, MutateIF, ProductIF, SelectOptionIF } from '../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, forwardRef, Fragment, useImperativeHandle, useState } from 'react';
+import { type Ref, type FormEvent, Fragment, useImperativeHandle, useState } from 'react';
 import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -12,13 +12,16 @@ import { Axios } from '../../Axios';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 
+import type { FormHandleIF } from '../../types/form';
+
 interface ProductFormIF {
+    ref?: Ref<FormHandleIF>;
     initialProduct: ProductIF | null;
     isNew: boolean;
     type: string;
 }
 
-export const ProductForm = forwardRef(({ initialProduct, isNew, type }: ProductFormIF, ref) => {
+export const ProductForm = ({ initialProduct, isNew, type, ref }: ProductFormIF) => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { t } = useSafeTranslation();
@@ -187,6 +190,4 @@ export const ProductForm = forwardRef(({ initialProduct, isNew, type }: ProductF
             <input type="submit" className="hidden" />
         </form>
     );
-});
-
-ProductForm.displayName = 'ProductForm';
+};

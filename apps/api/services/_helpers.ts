@@ -2,7 +2,7 @@ import { sanitize, getEmailEnvContent, normalizeDate } from "../helper";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
-import nodemailer from "nodemailer";
+import nodemailer, { type TransportOptions } from "nodemailer";
 import { query } from "../helper/query";
 import type { QueryIF, TotalRow } from "../types";
 import type { InvoiceIF, InvoiceItemIF } from "../types/invoice";
@@ -337,7 +337,7 @@ export const email = async ({ email, config, attachments, replace }: EmailIF) =>
             user: String(emailConfig.username),
             pass: String(emailConfig.password)
         }
-    } as nodemailer.TransportOptions); // Explicitly cast the whole object
+    } as TransportOptions);
 
     try {
         const mailOptions = {

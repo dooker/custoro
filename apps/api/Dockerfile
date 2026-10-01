@@ -25,7 +25,10 @@ RUN npm run build
 # --- Production dependencies only
 FROM base AS prod-deps
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+# i18next lists typescript as an optional peer, so npm keeps it even with --omit=dev.
+# It is never needed at runtime; dropping it saves ~23 MB in the image.
+RUN npm ci --omit=dev \
+    && rm -rf node_modules/typescript
 
 # --- Production runtime
 FROM base AS prod

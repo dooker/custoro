@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { type Ref, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type {
     DataResponseIF,
     EntityOnChangeIF,
@@ -25,7 +25,10 @@ import { useConfirmationHandler } from '../../hooks/useConfirmationHandler';
 import type { CustomerIF } from '../../types/customer';
 import styles from './InvoiceForm.module.sass';
 
+import type { FormHandleIF } from '../../types/form';
+
 interface InvoiceFormIF {
+    ref?: Ref<FormHandleIF>;
     initialInvoice: InvoiceIF | null;
     isNew: boolean;
     type: string;
@@ -46,7 +49,7 @@ type TypedInvoiceIF = Partial<InvoiceIF> & {
     paid?: boolean;
 };
 
-export const InvoiceForm = forwardRef(({ initialInvoice, isNew, type }: InvoiceFormIF, ref) => {
+export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF) => {
     const page = Number(useParams().page) || 1;
     const [draft, setDraft] = useState<InvoiceIF>(() => {
         if (isNew || !initialInvoice) {
@@ -83,7 +86,9 @@ export const InvoiceForm = forwardRef(({ initialInvoice, isNew, type }: InvoiceF
         ? currentCustomerVatNumber?.substring(0, 2) !== 'EE'
         : false;
 
-    draftRef.current = draft;
+    useEffect(() => {
+        draftRef.current = draft;
+    }, [draft]);
 
     const invalidator = async () => {
         await queryClient.invalidateQueries({ queryKey: [type, String(draftRef.current.id)] });
@@ -202,6 +207,4 @@ export const InvoiceForm = forwardRef(({ initialInvoice, isNew, type }: InvoiceF
             <Actions markAsPaid={markAsPaid} draft={initialInvoice} />
         </div>
     );
-});
-
-InvoiceForm.displayName = 'InvoiceForm';
+};

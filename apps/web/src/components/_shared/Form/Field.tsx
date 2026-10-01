@@ -1,4 +1,4 @@
-import { forwardRef, lazy } from 'react';
+import { lazy } from 'react';
 import { type ParseKeys, t } from 'i18next';
 import type { FieldIF } from '../../../types/form';
 import styles from '@components/_shared/Form/Error.module.sass';
@@ -12,7 +12,7 @@ const FormElements = {
     toggle: lazy(() => import('./Toggle')),
 };
 
-const Field = forwardRef<HTMLInputElement, FieldIF>((props, ref) => {
+const Field = (props: FieldIF) => {
     const { parent, name, type, error } = props;
     const elementType = (type || 'text') as keyof typeof FormElements;
     const FormElement = FormElements[elementType] || FormElements.text;
@@ -29,13 +29,11 @@ const Field = forwardRef<HTMLInputElement, FieldIF>((props, ref) => {
                 {t(translation.label)}
             </label>
 
-            <FormElement {...props} {...(ref ? { ref } : {})} />
+            <FormElement {...props} />
 
             {error && <div className={styles.error}>{t(translation.error)}</div>}
         </div>
     );
-});
-
-Field.displayName = 'Field';
+};
 
 export default Field;
