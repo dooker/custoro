@@ -31,6 +31,7 @@ import pkg from "./package.json";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
 import { getDatabaseName } from "./helper";
+import { uploadDir, pdfDir } from "./config/paths";
 import type { DBConfigMap } from "./types";
 import type { Request, Response, NextFunction } from "express";
 
@@ -95,7 +96,6 @@ app.get("/", (req, res) => {
 });
 
 const uploadFolder = "/uploads";
-const uploadDir = path.join(process.cwd(), "uploads");
 
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
     const publicPaths = ["/", "/favicon.ico"];
@@ -120,9 +120,10 @@ app.use("/login", login);
 
 setupCustoroRoutes(app);
 
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
+fs.mkdirSync(uploadDir, { recursive: true });
+fs.mkdirSync(pdfDir, { recursive: true });
+// Only the public upload folder is served statically. Invoice PDFs live in pdfDir, outside
+// this root, so they cannot be enumerated by invoice number; see routes/pdf.ts.
 app.use(uploadFolder, express.static(uploadDir));
 
 // --- Sentry Error Handler ---

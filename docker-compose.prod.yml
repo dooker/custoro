@@ -5,7 +5,7 @@
 #
 # Exposes only the web container (nginx) on WEB_PORT; it serves the SPA and proxies /api to the API.
 # Put a TLS-terminating proxy (e.g. Caddy) in front of it for HTTPS.
-# Data lives in the `dbdata` and `uploads` volumes - back both up.
+# Data lives in the `dbdata`, `uploads` and `invoices` volumes - back up all three.
 name: custoro
 
 services:
@@ -51,6 +51,8 @@ services:
             SENTRY_DSN: ${SENTRY_DSN:-}
         volumes:
             - uploads:/app/uploads
+            # Generated invoice PDFs, deliberately outside the statically served uploads/
+            - invoices:/app/storage
         depends_on:
             db:
                 condition: service_healthy
@@ -72,3 +74,4 @@ services:
 volumes:
     dbdata:
     uploads:
+    invoices:

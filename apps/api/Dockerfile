@@ -38,8 +38,9 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY --from=build /app/dist ./dist
 COPY locales ./locales
-# uploads/ is a volume; the app also writes .env.email into its working dir
-RUN mkdir -p uploads/pdf && chown -R node:node /app
+# uploads/ (public files) and storage/ (invoice PDFs) are volumes; the app also writes
+# .env.email into its working dir
+RUN mkdir -p uploads storage/pdf && chown -R node:node /app
 USER node
 EXPOSE 3999
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 \

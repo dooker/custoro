@@ -6,8 +6,9 @@ import { authorize } from "../helpers/authorize";
 const router = Router();
 
 /* GET PDF data */
+// Public by design: customers open this from the invoice email without an account.
+// The unguessable, server-generated hash is the only credential (see services/pdf.tsx).
 router.get("/:hash", async (req, res) => {
-    // unsecure as we do not need authentication
     await getSingle(req, res);
 });
 

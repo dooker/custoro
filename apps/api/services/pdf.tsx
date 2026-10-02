@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import React from "react";
 import path from "node:path";
 import { sanitize } from "../helper";
@@ -11,6 +12,7 @@ import type { PdfIF } from "../types/pdf";
 import i18n from "../i18n";
 import { Document, Page } from "@react-pdf/renderer";
 import type { Request, Response } from "express";
+import { pdfDir } from "../config/paths";
 
 export const getSingle = async (request: Request, response: Response) => {
     const {
@@ -37,13 +39,12 @@ export const getSingle = async (request: Request, response: Response) => {
     const pdf = data?.[0];
 
     if (!success || !pdf) {
-        return response.json({
+        return response.status(404).json({
             success: false
         });
     }
 
-    const projectRoot = process.cwd();
-    const pdfPath = path.join(projectRoot, "uploads", "pdf", pdf.filename);
+    const pdfPath = path.join(pdfDir, pdf.filename);
 
     // TODO have this to be based on config, not hardcoded replace
     const offer = "offer";
@@ -73,7 +74,7 @@ export const getSingle = async (request: Request, response: Response) => {
 export const putSingle = async (request: Request) => {
     const {
         database,
-        body: { hash, language },
+        body: { language },
         params: { id }
     } = request;
 
@@ -119,6 +120,9 @@ export const putSingle = async (request: Request) => {
     }
 
     const filename = `${settings.invoiceFilenamePrefix}${invoice?.number}.pdf`;
+    // The hash is the only thing protecting the public link, so it is generated here, never
+    // taken from the client. Regenerating the PDF keeps the hash so emailed links stay valid.
+    const hash = invoice.hash || crypto.randomBytes(16).toString("hex");
 
     // Generate PDF and save it
     const generatePDF = async () => {
@@ -138,14 +142,9 @@ export const putSingle = async (request: Request) => {
             </Document>
         );
         const stream = await renderToStream(element);
-        const UPLOAD_BASE = path.join(process.cwd(), "uploads");
-        const pdfFolder = path.join(UPLOAD_BASE, "pdf");
+        fs.mkdirSync(pdfDir, { recursive: true });
 
-        if (!fs.existsSync(pdfFolder)) {
-            fs.mkdirSync(pdfFolder, { recursive: true });
-        }
-
-        const fullFilePath = path.join(pdfFolder, filename);
+        const fullFilePath = path.join(pdfDir, filename);
         const writeStream = fs.createWriteStream(fullFilePath);
 
         return new Promise<void>((resolve, reject) => {
@@ -163,10 +162,7 @@ export const putSingle = async (request: Request) => {
                 });
 
                 if (!success) {
-                    return {
-                        success: false,
-                        message: "pdfGeneratorError"
-                    };
+                    return reject(new Error("Failed to store PDF hash and filename"));
                 }
 
                 resolve();
@@ -180,9 +176,20 @@ export const putSingle = async (request: Request) => {
     };
 
     await i18n.changeLanguage(language);
-    await generatePDF();
+
+    try {
+        await generatePDF();
+    } catch (error) {
+        console.error("PDF generation failed", error);
+
+        return {
+            success: false,
+            message: "pdfGeneratorError"
+        };
+    }
 
     return {
-        success: true
+        success: true,
+        hash
     };
 };

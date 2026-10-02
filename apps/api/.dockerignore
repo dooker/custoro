@@ -9,5 +9,6 @@ dist
 .env.*
 !.env*.example
 uploads
+storage
 pdf
 db

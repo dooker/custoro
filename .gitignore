@@ -10,6 +10,7 @@ build/
 
 # API runtime data (uploads, generated invoices)
 apps/api/uploads/
+apps/api/storage/
 apps/api/pdf/
 
 # Web
