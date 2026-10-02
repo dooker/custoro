@@ -210,6 +210,9 @@
         "session_expired": "Sessioon on aegunug",
         "invalid_token": "Tundmatu sessiooni märgis",
         "pdfGeneratorError": "Viga PDFi genereerimisel",
+        "uploadType": "Üles saab laadida ainult PNG, JPEG, GIF või WebP pilte",
+        "uploadSize": "Pilt on liiga suur (max 5 MB)",
+        "uploadFailed": "Üleslaadimine ebaõnnestus",
         "missingInfo": "E-kirja saatmine ebaõnnestus",
         "user.exists": "Sellise e-postiga kasutaja on juba olemas"
     },

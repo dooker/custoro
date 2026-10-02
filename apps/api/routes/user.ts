@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getSingle, postSingle, putSingle, deleteSingle } from "../services/user";
-import { deleteImage, upload } from "../services/_helpers";
+import { deleteImage } from "../services/_helpers";
+import { imageUpload } from "../helpers/imageUpload";
 import { authorize } from "../helpers/authorize";
 import { authenticate } from "../helpers/authenticate";
 
@@ -15,7 +16,7 @@ router.get("/:id", authenticate, authorize(["admin"]), async (req, res) => {
 });
 
 /* POST new user */
-router.post("/", authenticate, authorize(["admin"]), upload.single("avatar"), async (req, res) => {
+router.post("/", authenticate, authorize(["admin"]), ...imageUpload("avatar"), async (req, res) => {
     res.json(await postSingle(req));
 });
 
@@ -24,7 +25,7 @@ router.put(
     "/:id",
     authenticate,
     authorize(["admin"]),
-    upload.single("avatar"),
+    ...imageUpload("avatar"),
     async (req, res) => {
         res.json(await putSingle(req));
     }

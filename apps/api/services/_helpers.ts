@@ -1,5 +1,4 @@
 import { sanitize, getEmailEnvContent, normalizeDate } from "../helper";
-import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
 import nodemailer, { type TransportOptions } from "nodemailer";
@@ -120,18 +119,6 @@ export const sanitizeFilename = (filename: string) => {
 
     return sanitized;
 };
-
-export const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "./uploads"); // Save files to "uploads" directory
-    },
-    filename: (req, file, cb) => {
-        const filename = `${Date.now()}-${sanitizeFilename(file.originalname)}`;
-        cb(null, filename);
-    }
-});
-
-export const upload = multer({ storage });
 
 export const deleteImageFile = (filename: string) => {
     if (!filename) {

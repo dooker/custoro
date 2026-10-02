@@ -124,7 +124,19 @@ fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(pdfDir, { recursive: true });
 // Only the public upload folder is served statically. Invoice PDFs live in pdfDir, outside
 // this root, so they cannot be enumerated by invoice number; see routes/pdf.ts.
-app.use(uploadFolder, express.static(uploadDir));
+// Uploads are validated images (helpers/imageUpload.ts); the headers make sure a browser
+// never treats one as anything else, and never runs scripts from this path.
+app.use(
+    uploadFolder,
+    express.static(uploadDir, {
+        dotfiles: "deny",
+        index: false,
+        setHeaders: (res) => {
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+        }
+    })
+);
 
 // --- Sentry Error Handler ---
 // Must be registered after all controllers/routes, but before custom error middleware
