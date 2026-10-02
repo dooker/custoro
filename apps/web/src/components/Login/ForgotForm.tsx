@@ -10,7 +10,7 @@ import Button from '../_shared/Form/Button';
 
 interface ForgotFormIF {
     onSubmit: (params: OnSubmitIF) => void;
-    usernameRef: RefObject<HTMLInputElement>;
+    usernameRef: RefObject<HTMLInputElement | null>;
     errors: LoginErrorsIF;
     isLoading: boolean;
 }

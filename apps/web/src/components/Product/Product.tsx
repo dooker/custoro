@@ -9,6 +9,7 @@ import '@css/shared/Form.sass';
 import { PATHS, RESOURCE } from '../../variables';
 import Header from '../_shared/Header/Header';
 import { useEffect, useRef } from 'react';
+import type { FormHandleIF } from '../../types/form';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { visibleRowCount } from '../../shared/helpers';
@@ -21,7 +22,7 @@ const Product = () => {
     const { id: productId, page: rawPage } = useParams();
     const page = Number(rawPage || 1);
     const isNew = productId === '0';
-    const formRef = useRef<{ submitSave: () => void }>(null);
+    const formRef = useRef<FormHandleIF>(null);
     const { promptDelete } = useDeleteItem([RESOURCE.CUSTOMERS]);
     const queryClient = useQueryClient();
     const limit = visibleRowCount(false);

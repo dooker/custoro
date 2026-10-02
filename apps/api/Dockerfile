@@ -11,7 +11,7 @@ ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
 
 # --- Development: all dependencies, source comes from the bind mount
 FROM base AS dev
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 ENV NODE_ENV=development
 EXPOSE 3999
@@ -24,8 +24,12 @@ RUN npm run build
 
 # --- Production dependencies only
 FROM base AS prod-deps
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+COPY package.json package-lock.json .npmrc ./
+# i18next lists typescript as an optional peer, so --omit=dev alone keeps it (~23 MB).
+# --omit=optional drops it the npm way. The only other optional package in the tree is
+# the oxc-parser native binding behind @sentry/node's vite/rollup/webpack/esbuild
+# entry points, which this app never imports.
+RUN npm ci --omit=dev --omit=optional
 
 # --- Production runtime
 FROM base AS prod

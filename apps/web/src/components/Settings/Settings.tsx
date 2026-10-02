@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { FormHandleIF } from '../../types/form';
 import Loader from '../_shared/Loader/Loader';
 import { getGeneral } from '../../utils/Getters/getGeneral';
 import '@css/shared/Form.sass';
@@ -27,7 +28,7 @@ const Settings = () => {
     const [activeTab, setActiveTab] = useState<TabKey>(
         tabType || (Object.values(tabs)[0] as TabKey)
     );
-    const formRef = useRef<{ submitSave: () => void }>(null);
+    const formRef = useRef<FormHandleIF>(null);
     const updateTitle = useHeadlineHandler();
     const updateButtons = useButtonsHandler();
 

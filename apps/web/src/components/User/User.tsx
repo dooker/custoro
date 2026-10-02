@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { FormHandleIF } from '../../types/form';
 import { UserForm } from './UserForm';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getSingle } from '../../utils/Getters/getSingle';
@@ -20,7 +21,7 @@ const User = () => {
     const { id: userId, page: rawPage } = useParams();
     const page = Number(rawPage || 1);
     const isNew = userId === '0';
-    const formRef = useRef<{ submitSave: () => void }>(null);
+    const formRef = useRef<FormHandleIF>(null);
     const { promptDelete } = useDeleteItem([RESOURCE.USERS]);
     const updateTitle = useHeadlineHandler();
     const updateButtons = useButtonsHandler();

@@ -1,7 +1,8 @@
-import { ComponentType, forwardRef, lazy, MouseEventHandler, RefObject, useRef } from 'react';
+import { ComponentType, lazy, MouseEventHandler, type Ref } from 'react';
 import styles from './Button.module.sass';
 
 interface ButtonIF {
+    ref?: Ref<HTMLButtonElement>;
     additionalClassName: string;
     text?: string;
     Element?: ComponentType;
@@ -13,52 +14,52 @@ interface ButtonIF {
 
 const Loader = lazy(() => import('../Loader/Loader'));
 
-const Button = forwardRef(
-    (
-        { additionalClassName, text, Element, onClick, loading, disabled, dataTestId }: ButtonIF,
-        ref
-    ) => {
-        const buttonRef = useRef(null);
-
-        if (!text && !Element) {
-            return null;
-        }
-
-        const extraClasses =
-            additionalClassName
-                ?.split(' ')
-                .map((key) => styles[key])
-                .filter(Boolean) ?? [];
-
-        const className = [
-            styles.button,
-            loading ? styles.loading : '',
-            Element ? styles.icon : '',
-            ...extraClasses,
-        ]
-            .filter(Boolean)
-            .join(' ');
-
-        const params = {
-            className,
-            type: 'button' as const,
-            ref: ref ? (ref as RefObject<HTMLButtonElement>) : buttonRef,
-            ...(onClick ? { onClick } : null),
-            ...(disabled ? { disabled: true } : null),
-            ...(dataTestId ? { 'data-testid': dataTestId } : null),
-        };
-
-        return (
-            <button {...params}>
-                {text && <span>{text}</span>}
-                {Element && <Element />}
-
-                {loading && <Loader additionalClass="button" />}
-            </button>
-        );
+const Button = ({
+    additionalClassName,
+    text,
+    Element,
+    onClick,
+    loading,
+    disabled,
+    dataTestId,
+    ref,
+}: ButtonIF) => {
+    if (!text && !Element) {
+        return null;
     }
-);
 
-Button.displayName = 'Button';
+    const extraClasses =
+        additionalClassName
+            ?.split(' ')
+            .map((key) => styles[key])
+            .filter(Boolean) ?? [];
+
+    const className = [
+        styles.button,
+        loading ? styles.loading : '',
+        Element ? styles.icon : '',
+        ...extraClasses,
+    ]
+        .filter(Boolean)
+        .join(' ');
+
+    const params = {
+        className,
+        type: 'button' as const,
+        ref,
+        ...(onClick ? { onClick } : null),
+        ...(disabled ? { disabled: true } : null),
+        ...(dataTestId ? { 'data-testid': dataTestId } : null),
+    };
+
+    return (
+        <button {...params}>
+            {text && <span>{text}</span>}
+            {Element && <Element />}
+
+            {loading && <Loader additionalClass="button" />}
+        </button>
+    );
+};
 
 export default Button;

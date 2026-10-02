@@ -1,3 +1,5 @@
+import type { Ref } from 'react';
+
 export interface ToggleIF {
     items: string[];
     onChange: (item: string) => void;
@@ -11,6 +13,7 @@ export interface SelectIF {
 
 // TODO partly duplicates, should merge
 export interface FieldIF {
+    ref?: Ref<HTMLInputElement>;
     parent: string;
     name: string;
     value?: FieldValue;
@@ -35,4 +38,12 @@ export interface InputFieldsIF {
     resource?: string;
     callbackParam?: number;
     invalidators?: string[][];
+}
+
+export interface FormHandleIF {
+    submitSave: () => void;
+}
+
+export interface FormRefIF {
+    ref?: Ref<FormHandleIF>;
 }

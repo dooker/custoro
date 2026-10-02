@@ -1,4 +1,4 @@
-import { forwardRef, type ReactElement } from 'react';
+import { type ReactElement, type Ref } from 'react';
 import DeleteIcon from '@images/delete.svg?react';
 import PaidIcon from '../../../assets/images/paid.svg?react';
 import MaterialDialog from '@mui/material/Dialog';
@@ -12,15 +12,14 @@ import DOMPurify from 'dompurify';
 import { useConfirmation } from '../../../store/confirmation';
 import styles from './Confirmation.module.sass';
 
-const Transition = forwardRef<unknown, TransitionProps & { children: ReactElement }>(
-    ({ children, ...props }, ref) => (
-        <Slide direction="up" ref={ref} {...props}>
-            {children}
-        </Slide>
-    )
+const Transition = ({
+    children,
+    ...props
+}: TransitionProps & { children: ReactElement; ref?: Ref<unknown> }) => (
+    <Slide direction="up" {...props}>
+        {children}
+    </Slide>
 );
-
-Transition.displayName = 'DialogTransition';
 
 const Confirmation = () => {
     const show = useConfirmation((state) => state.show);

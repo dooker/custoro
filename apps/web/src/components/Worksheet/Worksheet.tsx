@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { FormHandleIF } from '../../types/form';
 import Loader from '../_shared/Loader/Loader';
 import type { DataResponseIF, ProductIF, WorksheetIF } from '../../types';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -19,7 +20,7 @@ const Worksheet = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
     const isNew = !worksheetId || worksheetId === '0';
-    const formRef = useRef<{ submitSave: () => void }>(null);
+    const formRef = useRef<FormHandleIF>(null);
     const updateTitle = useHeadlineHandler();
     const updateButtons = useButtonsHandler();
 

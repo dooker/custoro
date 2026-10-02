@@ -1,4 +1,4 @@
-import { forwardRef, lazy, useImperativeHandle, useRef, useState } from 'react';
+import { lazy, useImperativeHandle, useState } from 'react';
 import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { Axios } from '../../Axios';
 import { handleError } from '../../shared/helpers';
@@ -10,6 +10,7 @@ import { Tabs } from './Tabs';
 import General from './Views/General';
 import type { AxiosResponse } from 'axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
+import type { FormRefIF } from '../../types/form';
 
 const Pdf = lazy(() => import('./Views/Pdf'));
 const Invoice = lazy(() => import('./Views/Invoice'));
@@ -30,80 +31,79 @@ export interface SettingsViewIF {
     onChange: ({ name, value }: EntityOnChangeIF) => void;
 }
 
-interface SettingsFormIF {
+interface SettingsFormIF extends FormRefIF {
     initialData: SettingsIF;
     type: string;
     activeTab: TabKey | null;
     setActiveTab: (tab: TabKey) => void;
 }
 
-export const SettingsForm = forwardRef(
-    ({ initialData, type, activeTab, setActiveTab }: SettingsFormIF, ref) => {
-        const queryClient = useQueryClient();
-        const [draft, setDraft] = useState<SettingsIF>(initialData);
-        const draftRef = useRef<SettingsIF>(draft);
-        const notification = useNotificationHandler();
+export const SettingsForm = ({
+    initialData,
+    type,
+    activeTab,
+    setActiveTab,
+    ref,
+}: SettingsFormIF) => {
+    const queryClient = useQueryClient();
+    const [draft, setDraft] = useState<SettingsIF>(initialData);
+    const notification = useNotificationHandler();
 
-        draftRef.current = draft;
+    const invalidator = async () => {
+        await queryClient.invalidateQueries({ queryKey: [type] });
+    };
 
-        const invalidator = async () => {
-            await queryClient.invalidateQueries({ queryKey: [type] });
+    const { mutate: doSave } = useMutation<AxiosResponse, Error, MutateIF<SettingsIF>>({
+        mutationFn: ({ data }) => {
+            return Axios.put(`${endpoint}${PATHS.SETTINGS}`, data, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+        },
+        onSuccess: async (response, variables) => {
+            const { success, message } = response.data;
+
+            await notification({ success, message, invalidator, show: variables.show });
+        },
+        onError: (err: Error) => handleError(err.message),
+    });
+
+    const debouncedAutoSave = useDebounce<[SettingsIF]>((data) => {
+        doSave({ data });
+    }, debounceTimer);
+
+    const onChange = ({ name, value }: EntityOnChangeIF) => {
+        const updated: SettingsIF = {
+            ...draft,
+            [name]: value,
         };
 
-        const { mutate: doSave } = useMutation<AxiosResponse, Error, MutateIF<SettingsIF>>({
-            mutationFn: ({ data }) => {
-                return Axios.put(`${endpoint}${PATHS.SETTINGS}`, data, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
-                });
-            },
-            onSuccess: async (response, variables) => {
-                const { success, message } = response.data;
+        setDraft(updated);
+        debouncedAutoSave(updated);
+    };
 
-                await notification({ success, message, invalidator, show: variables.show });
-            },
-            onError: (err: Error) => handleError(err.message),
-        });
+    useImperativeHandle(ref, () => ({
+        submitSave() {
+            doSave({ data: draft, show: true });
+        },
+    }));
 
-        const debouncedAutoSave = useDebounce<[SettingsIF]>((data) => {
-            doSave({ data });
-        }, debounceTimer);
+    return (
+        <section className="component customer">
+            <Tabs
+                doSave={() => doSave({ data: draft })}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+            />
 
-        const onChange = ({ name, value }: EntityOnChangeIF) => {
-            const updated: SettingsIF = {
-                ...draft,
-                [name]: value,
-            };
-
-            setDraft(updated);
-            debouncedAutoSave(updated);
-        };
-
-        useImperativeHandle(ref, () => ({
-            submitSave() {
-                doSave({ data: draft, show: true });
-            },
-        }));
-
-        return (
-            <section className="component customer">
-                <Tabs
-                    doSave={() => doSave({ data: draft })}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                />
-
-                <form className="general-form settings">
-                    {activeTab === tabs.general && <General settings={draft} onChange={onChange} />}
-                    {activeTab === tabs.pdf && <Pdf settings={draft} onChange={onChange} />}
-                    {activeTab === tabs.invoice && <Invoice settings={draft} onChange={onChange} />}
-                    {activeTab === tabs.forgot && <Forgot settings={draft} onChange={onChange} />}
-                    {activeTab === tabs.server && <Server settings={draft} onChange={onChange} />}
-                </form>
-            </section>
-        );
-    }
-);
-
-SettingsForm.displayName = 'SettingsForm';
+            <form className="general-form settings">
+                {activeTab === tabs.general && <General settings={draft} onChange={onChange} />}
+                {activeTab === tabs.pdf && <Pdf settings={draft} onChange={onChange} />}
+                {activeTab === tabs.invoice && <Invoice settings={draft} onChange={onChange} />}
+                {activeTab === tabs.forgot && <Forgot settings={draft} onChange={onChange} />}
+                {activeTab === tabs.server && <Server settings={draft} onChange={onChange} />}
+            </form>
+        </section>
+    );
+};

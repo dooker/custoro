@@ -1,6 +1,6 @@
 import type { EntityOnChangeIF, MutateIF, SelectOptionIF } from '../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FormEvent, forwardRef, lazy, Suspense, useImperativeHandle, useState } from 'react';
+import { FormEvent, lazy, Suspense, useImperativeHandle, useState } from 'react';
 import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -10,13 +10,13 @@ import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import type { CustomerFormIF, CustomerIF } from '../../types/customer';
-import type { InputFieldsIF } from '../../types/form';
+import type { InputFieldsIF, FormRefIF } from '../../types/form';
 import styles from './CustomerForm.module.sass';
 
 const WorksheetsPerCustomer = lazy(() => import('../Worksheets/WorksheetsPerCustomer'));
 const Invoices = lazy(() => import('../Invoices/Invoices'));
 
-export const CustomerForm = forwardRef(({ initialCustomer, isNew, type }: CustomerFormIF, ref) => {
+export const CustomerForm = ({ initialCustomer, isNew, type, ref }: CustomerFormIF & FormRefIF) => {
     const page = Number(useParams().page) || 1;
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -155,6 +155,4 @@ export const CustomerForm = forwardRef(({ initialCustomer, isNew, type }: Custom
             </Suspense>
         </div>
     );
-});
-
-CustomerForm.displayName = 'CustomerForm';
+};

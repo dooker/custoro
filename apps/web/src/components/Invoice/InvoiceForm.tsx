@@ -1,12 +1,5 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import type {
-    DataResponseIF,
-    EntityOnChangeIF,
-    InvoiceIF,
-    MutateIF,
-    ProductIF,
-    WorksheetIF,
-} from '../../types';
+import { useImperativeHandle, useState } from 'react';
+import type { DataResponseIF, EntityOnChangeIF, InvoiceIF, MutateIF, ProductIF } from '../../types';
 import { useNavigate, useParams } from 'react-router-dom';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -24,8 +17,9 @@ import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import { useConfirmationHandler } from '../../hooks/useConfirmationHandler';
 import type { CustomerIF } from '../../types/customer';
 import styles from './InvoiceForm.module.sass';
+import type { FormRefIF } from '../../types/form';
 
-interface InvoiceFormIF {
+interface InvoiceFormIF extends FormRefIF {
     initialInvoice: InvoiceIF | null;
     isNew: boolean;
     type: string;
@@ -46,7 +40,7 @@ type TypedInvoiceIF = Partial<InvoiceIF> & {
     paid?: boolean;
 };
 
-export const InvoiceForm = forwardRef(({ initialInvoice, isNew, type }: InvoiceFormIF, ref) => {
+export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF) => {
     const page = Number(useParams().page) || 1;
     const [draft, setDraft] = useState<InvoiceIF>(() => {
         if (isNew || !initialInvoice) {
@@ -58,7 +52,6 @@ export const InvoiceForm = forwardRef(({ initialInvoice, isNew, type }: InvoiceF
     const isLocked = locked === 1;
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const draftRef = useRef<WorksheetIF>(draft);
     const addString = 'add';
     const updateString = 'update';
     const notification = useNotificationHandler();
@@ -83,10 +76,8 @@ export const InvoiceForm = forwardRef(({ initialInvoice, isNew, type }: InvoiceF
         ? currentCustomerVatNumber?.substring(0, 2) !== 'EE'
         : false;
 
-    draftRef.current = draft;
-
     const invalidator = async () => {
-        await queryClient.invalidateQueries({ queryKey: [type, String(draftRef.current.id)] });
+        await queryClient.invalidateQueries({ queryKey: [type, String(draft.id)] });
         await queryClient.invalidateQueries({ queryKey: [RESOURCE.INVOICES, page, undefined, ''] });
     };
 
@@ -202,6 +193,4 @@ export const InvoiceForm = forwardRef(({ initialInvoice, isNew, type }: InvoiceF
             <Actions markAsPaid={markAsPaid} draft={initialInvoice} />
         </div>
     );
-});
-
-InvoiceForm.displayName = 'InvoiceForm';
+};

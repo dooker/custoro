@@ -19,7 +19,7 @@ interface PdfButtonIF {
 
 export const PdfButton = ({ draft, isDisabled, onToggle }: PdfButtonIF) => {
     const [showPdfDropdown, setShowPdfDropdown] = useState(false);
-    const showPdfDropdownRef = useRef(null);
+    const showPdfDropdownRef = useRef<HTMLDivElement>(null);
     const queryClient = useQueryClient();
     const notification = useNotificationHandler();
 

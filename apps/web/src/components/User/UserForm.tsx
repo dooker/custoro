@@ -1,6 +1,6 @@
 import type { EntityOnChangeIF, MutateIF, SelectOptionIF } from '../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FormEvent, forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { FormEvent, useImperativeHandle, useState } from 'react';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { Formify, handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -10,12 +10,12 @@ import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import type { UserFormIF, UserIF } from '../../types/user';
-import type { InputFieldsIF } from '../../types/form';
+import type { InputFieldsIF, FormRefIF } from '../../types/form';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useAuth } from '../../contexts/Auth';
 import style from './UserForm.module.sass';
 
-export const UserForm = forwardRef(({ initialUser, isNew, type }: UserFormIF, ref) => {
+export const UserForm = ({ initialUser, isNew, type, ref }: UserFormIF & FormRefIF) => {
     const page = Number(useParams().page) || 1;
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -27,14 +27,15 @@ export const UserForm = forwardRef(({ initialUser, isNew, type }: UserFormIF, re
     });
     const { user, setUser } = useAuth();
 
-    useEffect(() => {
-        if (!isNew) {
-            setDraft((prev) => ({
-                ...prev,
-                avatar: initialUser?.avatar ?? '',
-            }));
-        }
-    }, [initialUser?.avatar, isNew]);
+    // Pick up a freshly uploaded avatar from the refetched user without an effect
+    const [syncedAvatar, setSyncedAvatar] = useState<string | undefined>(undefined);
+    if (!isNew && initialUser?.avatar !== syncedAvatar) {
+        setSyncedAvatar(initialUser?.avatar);
+        setDraft((prev) => ({
+            ...prev,
+            avatar: initialUser?.avatar ?? '',
+        }));
+    }
 
     const notification = useNotificationHandler();
     const { t } = useSafeTranslation();
@@ -187,6 +188,4 @@ export const UserForm = forwardRef(({ initialUser, isNew, type }: UserFormIF, re
             </section>
         </div>
     );
-});
-
-UserForm.displayName = 'UserForm';
+};

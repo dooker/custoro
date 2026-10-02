@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { FormHandleIF } from '../../types/form';
 import Loader from '../_shared/Loader/Loader';
 import type { InvoiceIF } from '../../types';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -19,7 +20,7 @@ const Invoice = () => {
     const navigate = useNavigate();
     const { invoiceId, page } = useParams();
     const isNew = invoiceId === '0';
-    const formRef = useRef<{ submitSave: () => void }>(null);
+    const formRef = useRef<FormHandleIF>(null);
     const updateTitle = useHeadlineHandler();
     const updateButtons = useButtonsHandler();
 
