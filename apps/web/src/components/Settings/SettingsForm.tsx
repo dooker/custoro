@@ -1,4 +1,4 @@
-import { type Ref, lazy, useImperativeHandle, useState } from 'react';
+import { lazy, useImperativeHandle, useState } from 'react';
 import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { Axios } from '../../Axios';
 import { handleError } from '../../shared/helpers';
@@ -10,6 +10,7 @@ import { Tabs } from './Tabs';
 import General from './Views/General';
 import type { AxiosResponse } from 'axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
+import type { FormRefIF } from '../../types/form';
 
 const Pdf = lazy(() => import('./Views/Pdf'));
 const Invoice = lazy(() => import('./Views/Invoice'));
@@ -30,10 +31,7 @@ export interface SettingsViewIF {
     onChange: ({ name, value }: EntityOnChangeIF) => void;
 }
 
-import type { FormHandleIF } from '../../types/form';
-
-interface SettingsFormIF {
-    ref?: Ref<FormHandleIF>;
+interface SettingsFormIF extends FormRefIF {
     initialData: SettingsIF;
     type: string;
     activeTab: TabKey | null;

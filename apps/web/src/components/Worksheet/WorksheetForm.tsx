@@ -1,4 +1,4 @@
-import { type Ref, type FormEvent, useImperativeHandle, useState } from 'react';
+import { type FormEvent, useImperativeHandle, useState } from 'react';
 import { endpoint, PATHS, RESOURCE } from '../../variables';
 import type {
     ProductIF,
@@ -18,11 +18,9 @@ import { Axios } from '../../Axios';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import type { CustomerIF } from '../../types/customer';
+import type { FormRefIF } from '../../types/form';
 
-import type { FormHandleIF } from '../../types/form';
-
-interface WorksheetFormIF {
-    ref?: Ref<FormHandleIF>;
+interface WorksheetFormIF extends FormRefIF {
     initialWorksheet: WorksheetIF | null;
     customers: CustomerIF[];
     products: ProductIF[];

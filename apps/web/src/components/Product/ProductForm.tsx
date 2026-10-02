@@ -1,6 +1,6 @@
 import type { EntityOnChangeIF, MutateIF, ProductIF, SelectOptionIF } from '../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type Ref, type FormEvent, Fragment, useImperativeHandle, useState } from 'react';
+import { type FormEvent, Fragment, useImperativeHandle, useState } from 'react';
 import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -11,11 +11,9 @@ import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
+import type { FormRefIF } from '../../types/form';
 
-import type { FormHandleIF } from '../../types/form';
-
-interface ProductFormIF {
-    ref?: Ref<FormHandleIF>;
+interface ProductFormIF extends FormRefIF {
     initialProduct: ProductIF | null;
     isNew: boolean;
     type: string;

@@ -1,4 +1,4 @@
-import { ComponentType, lazy, MouseEventHandler, type Ref, useRef } from 'react';
+import { ComponentType, lazy, MouseEventHandler, type Ref } from 'react';
 import styles from './Button.module.sass';
 
 interface ButtonIF {
@@ -24,8 +24,6 @@ const Button = ({
     dataTestId,
     ref,
 }: ButtonIF) => {
-    const buttonRef = useRef<HTMLButtonElement>(null);
-
     if (!text && !Element) {
         return null;
     }
@@ -48,7 +46,7 @@ const Button = ({
     const params = {
         className,
         type: 'button' as const,
-        ref: ref ?? buttonRef,
+        ref,
         ...(onClick ? { onClick } : null),
         ...(disabled ? { disabled: true } : null),
         ...(dataTestId ? { 'data-testid': dataTestId } : null),

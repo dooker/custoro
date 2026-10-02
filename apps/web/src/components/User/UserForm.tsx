@@ -1,6 +1,6 @@
 import type { EntityOnChangeIF, MutateIF, SelectOptionIF } from '../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type Ref, FormEvent, useImperativeHandle, useState } from 'react';
+import { FormEvent, useImperativeHandle, useState } from 'react';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { Formify, handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -10,19 +10,12 @@ import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import type { UserFormIF, UserIF } from '../../types/user';
-import type { InputFieldsIF } from '../../types/form';
+import type { InputFieldsIF, FormRefIF } from '../../types/form';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useAuth } from '../../contexts/Auth';
 import style from './UserForm.module.sass';
 
-import type { FormHandleIF } from '../../types/form';
-
-export const UserForm = ({
-    initialUser,
-    isNew,
-    type,
-    ref,
-}: UserFormIF & { ref?: Ref<FormHandleIF> }) => {
+export const UserForm = ({ initialUser, isNew, type, ref }: UserFormIF & FormRefIF) => {
     const page = Number(useParams().page) || 1;
     const queryClient = useQueryClient();
     const navigate = useNavigate();

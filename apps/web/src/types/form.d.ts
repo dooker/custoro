@@ -43,3 +43,7 @@ export interface InputFieldsIF {
 export interface FormHandleIF {
     submitSave: () => void;
 }
+
+export interface FormRefIF {
+    ref?: Ref<FormHandleIF>;
+}

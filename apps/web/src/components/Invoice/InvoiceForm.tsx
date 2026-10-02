@@ -1,12 +1,5 @@
-import { type Ref, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import type {
-    DataResponseIF,
-    EntityOnChangeIF,
-    InvoiceIF,
-    MutateIF,
-    ProductIF,
-    WorksheetIF,
-} from '../../types';
+import { useImperativeHandle, useState } from 'react';
+import type { DataResponseIF, EntityOnChangeIF, InvoiceIF, MutateIF, ProductIF } from '../../types';
 import { useNavigate, useParams } from 'react-router-dom';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -24,11 +17,9 @@ import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import { useConfirmationHandler } from '../../hooks/useConfirmationHandler';
 import type { CustomerIF } from '../../types/customer';
 import styles from './InvoiceForm.module.sass';
+import type { FormRefIF } from '../../types/form';
 
-import type { FormHandleIF } from '../../types/form';
-
-interface InvoiceFormIF {
-    ref?: Ref<FormHandleIF>;
+interface InvoiceFormIF extends FormRefIF {
     initialInvoice: InvoiceIF | null;
     isNew: boolean;
     type: string;
@@ -61,7 +52,6 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
     const isLocked = locked === 1;
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    const draftRef = useRef<WorksheetIF>(draft);
     const addString = 'add';
     const updateString = 'update';
     const notification = useNotificationHandler();
@@ -86,12 +76,8 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
         ? currentCustomerVatNumber?.substring(0, 2) !== 'EE'
         : false;
 
-    useEffect(() => {
-        draftRef.current = draft;
-    }, [draft]);
-
     const invalidator = async () => {
-        await queryClient.invalidateQueries({ queryKey: [type, String(draftRef.current.id)] });
+        await queryClient.invalidateQueries({ queryKey: [type, String(draft.id)] });
         await queryClient.invalidateQueries({ queryKey: [RESOURCE.INVOICES, page, undefined, ''] });
     };
 
