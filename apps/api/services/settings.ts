@@ -7,6 +7,7 @@ import type { QueryResult } from "../types/query";
 import type { FrontRequestIF, UploadFileIF } from "../types/express";
 import path from "path";
 import { deleteImageFile } from "./_helpers";
+import { isAdmin } from "../helpers/authorize";
 import type { Request } from "express";
 
 const password = "password";
@@ -80,7 +81,8 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
         return acc;
     }, {} as SettingsIF);
 
-    if (!fields) {
+    // Mail server settings are only shown to, and editable by, admins
+    if (!fields && isAdmin(request)) {
         const envConfig = getEmailEnvContent();
 
         for (const [key, value] of Object.entries(envConfig)) {
@@ -112,6 +114,12 @@ export const putAll = async (request: Request) => {
     };
 
     let filename;
+
+    // Only admins may change the mail server; for anyone else these fields are dropped so
+    // the .env.email file below is never written (the web app hides the tab for them too)
+    if (!isAdmin(request)) {
+        emailEnvFields.forEach((item) => delete body[item]);
+    }
 
     // memorize & remove email config IF set
     emailEnvFields.forEach((item) => {

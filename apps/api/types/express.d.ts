@@ -2,6 +2,7 @@ import type { JwtPayload } from "jsonwebtoken";
 
 export interface AuthPayload extends JwtPayload {
     id: number;
+    role: string;
 }
 
 declare module "express-serve-static-core" {

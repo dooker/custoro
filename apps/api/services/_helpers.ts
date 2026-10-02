@@ -361,19 +361,24 @@ export const email = async ({ email, config, attachments, replace }: EmailIF) =>
     }
 };
 
-export const deleteImage = async (request: Request) => {
+/**
+ * Clears a user's avatar. `userId` overrides the id from the request (used by the profile
+ * route so a user can only ever clear their own); the admin user route leaves it unset.
+ */
+export const deleteImage = async (request: Request, userId?: number | string) => {
     const {
         database,
-        params: { id },
+        params: { id: paramId },
         body: { id: bodyId }
     } = request;
+    const id = userId ?? bodyId ?? paramId;
 
     const { success: getAvatarSuccess, data } = await query<UserIF>({
         database,
         sql: `SELECT avatar
               FROM users
               WHERE id = ?;`,
-        params: [String(bodyId || id)],
+        params: [String(id)],
         logger: "Get avatar filename"
     });
     const filename = data?.[0].avatar;
@@ -394,7 +399,7 @@ export const deleteImage = async (request: Request) => {
         sql: `UPDATE users
               SET avatar= ''
               WHERE id = ?;`,
-        params: [String(bodyId || id)],
+        params: [String(id)],
         logger: "Set empty avatar"
     });
 
