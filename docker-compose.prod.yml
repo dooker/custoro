@@ -60,7 +60,9 @@ services:
     web:
         image: ${WEB_IMAGE:-custoro-web:latest}
         build:
-            context: ./apps/web
+            # Root context so the build can copy CHANGELOG.md (see apps/web/Dockerfile)
+            context: .
+            dockerfile: apps/web/Dockerfile
             target: prod
             args:
                 VITE_API_ENDPOINT: /api

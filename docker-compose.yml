@@ -51,7 +51,9 @@ services:
 
     web:
         build:
-            context: ./apps/web
+            # Root context so the build can copy CHANGELOG.md (see apps/web/Dockerfile)
+            context: .
+            dockerfile: apps/web/Dockerfile
             target: dev
         environment:
             # Called from the browser on the host, so localhost - not the container name
@@ -60,8 +62,9 @@ services:
         ports:
             - "3000:3000"
         volumes:
-            - ./apps/web:/app
-            - /app/node_modules
+            - ./apps/web:/app/apps/web
+            - /app/apps/web/node_modules
+            - ./CHANGELOG.md:/app/CHANGELOG.md:ro
         depends_on:
             - api
 

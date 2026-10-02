@@ -1,7 +1,7 @@
 {
     "name": "custoro",
     "type": "module",
-    "version": "3.0.16",
+    "version": "4.0.0",
     "private": true,
     "dependencies": {
         "@emotion/react": "^11.14.0",
@@ -33,8 +33,10 @@
         "check-all": "npm run format && npm run lint && npm run type-check",
         "playwright": "npx playwright test",
         "playwright-ui": "npx playwright test --ui",
+        "predev": "cp ../../CHANGELOG.md public/CHANGELOG.md",
         "dev": "vite",
-        "build": "cp README.md public/README.md && vite build",
+        "prebuild": "cp ../../CHANGELOG.md public/CHANGELOG.md",
+        "build": "vite build",
         "preview": "vite preview",
         "test": "vitest",
         "type-check": "tsc --noEmit"

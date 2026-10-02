@@ -16,7 +16,7 @@ apps/api/pdf/
 # Web
 apps/web/app.config.json
 apps/web/public/config.json
-apps/web/public/README.md
+apps/web/public/CHANGELOG.md
 
 # Playwright
 test-results/

@@ -78,7 +78,7 @@ const Navigation = () => {
                     <div className={styles.version}>
                         <LanguageSelector></LanguageSelector>
 
-                        <span>v {import.meta.env.VITE_API_VERSION}</span>
+                        <span>v {__APP_VERSION__}</span>
 
                         <Link to={PATHS.CHANGELOG}>{t('changelog')}</Link>
                     </div>

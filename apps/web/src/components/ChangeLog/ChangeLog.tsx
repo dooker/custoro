@@ -15,12 +15,12 @@ const ChangeLog = () => {
     }, [t, updateTitle]);
 
     useEffect(() => {
-        fetch('/README.md')
+        // Copied from the repository root by the build (see package.json scripts)
+        fetch('/CHANGELOG.md')
             .then((res) => res.text())
             .then((text) => {
-                const match = text.match(/## Log\s*([\s\S]*)/);
-
-                setContent(match ? match[1].trim() : '');
+                // The page already has a title, so drop the file's own heading
+                setContent(text.replace(/^# .*\n/, '').trim());
             });
     }, []);
 

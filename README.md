@@ -19,6 +19,7 @@ apps/
   web/                  React + Vite + TypeScript frontend (port 3000)
 docker-compose.yml      Local development: MySQL + API + web
 docker-compose.prod.yml Production: MySQL + API + nginx (serves web, proxies /api)
+CHANGELOG.md            Release history; one version for both apps since 4.0.0, old per-app logs below
 ```
 
 The two apps are installed independently (each has its own `package-lock.json`).
