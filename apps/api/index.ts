@@ -19,6 +19,9 @@ if (process.env.SENTRY_DSN) {
 
 import dotenv from "dotenv";
 import express from "express";
+// Express 4 does not catch rejected promises from async handlers: without this, any
+// thrown error in an async route becomes an unhandled rejection and kills the process.
+import "express-async-errors";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
@@ -127,8 +130,14 @@ app.use(uploadFolder, express.static(uploadDir));
 Sentry.setupExpressErrorHandler(app);
 
 // Custom Error handler
-app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
     console.error("Unhandled error:", error);
+
+    // If a response was already partially sent, let Express close the connection
+    if (res.headersSent) {
+        return next(error);
+    }
+
     return res.status(500).json({ message: error500 });
 });
 
