@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { getSingle, putSingle } from "../services/profile";
-import { deleteImage, upload } from "../services/_helpers";
+import { deleteImage } from "../services/_helpers";
+import { imageUpload } from "../helpers/imageUpload";
 import { authenticate } from "../helpers/authenticate";
-import { authorize } from "../helpers/authorize";
+import { authorize, authUser } from "../helpers/authorize";
 
 const router = Router();
 
@@ -16,15 +17,15 @@ router.put(
     "/",
     authenticate,
     authorize(["admin", "user"]),
-    upload.single("avatar"),
+    ...imageUpload("avatar"),
     async (req, res) => {
         res.json(await putSingle(req));
     }
 );
 
-// delete profile avatar
+// delete profile avatar (always the caller's own, whatever :id says)
 router.delete("/:id", authenticate, authorize(["admin", "user"]), async (req, res) => {
-    res.json(await deleteImage(req));
+    res.json(await deleteImage(req, authUser(req)?.id));
 });
 
 export default router;

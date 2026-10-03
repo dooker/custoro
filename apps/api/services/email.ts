@@ -4,6 +4,7 @@ import { email, getConfig } from "./_helpers";
 import { EmailCustomerIF } from "../types/email";
 import fs from "fs";
 import type { Request } from "express";
+import { pdfDir } from "../config/paths";
 
 export const postSingle = async (request: Request) => {
     const {
@@ -11,7 +12,6 @@ export const postSingle = async (request: Request) => {
         body: { id },
         headers: { referer }
     } = request;
-    const projectRoot = process.cwd();
 
     const { success: customerSuccess, data: customerData } = await query<EmailCustomerIF>({
         database,
@@ -61,7 +61,7 @@ export const postSingle = async (request: Request) => {
 
     const attachments = {
         filename: filename,
-        path: path.join(projectRoot, "uploads/pdf", filename)
+        path: path.join(pdfDir, filename)
     };
 
     if (!fs.existsSync(attachments.path)) {

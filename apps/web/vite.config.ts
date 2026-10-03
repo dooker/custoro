@@ -2,8 +2,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import svgr from "vite-plugin-svgr";
+import { readFileSync } from "fs";
 
 export default defineConfig({
+  // Shown in the navigation; one version for the whole monorepo
+  define: {
+    __APP_VERSION__: JSON.stringify(
+      JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version
+    ),
+  },
   plugins: [
     react(),
     svgr()

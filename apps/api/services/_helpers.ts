@@ -1,5 +1,4 @@
 import { sanitize, getEmailEnvContent, normalizeDate } from "../helper";
-import multer from "multer";
 import path from "node:path";
 import fs from "node:fs";
 import nodemailer, { type TransportOptions } from "nodemailer";
@@ -120,18 +119,6 @@ export const sanitizeFilename = (filename: string) => {
 
     return sanitized;
 };
-
-export const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "./uploads"); // Save files to "uploads" directory
-    },
-    filename: (req, file, cb) => {
-        const filename = `${Date.now()}-${sanitizeFilename(file.originalname)}`;
-        cb(null, filename);
-    }
-});
-
-export const upload = multer({ storage });
 
 export const deleteImageFile = (filename: string) => {
     if (!filename) {
@@ -374,19 +361,24 @@ export const email = async ({ email, config, attachments, replace }: EmailIF) =>
     }
 };
 
-export const deleteImage = async (request: Request) => {
+/**
+ * Clears a user's avatar. `userId` overrides the id from the request (used by the profile
+ * route so a user can only ever clear their own); the admin user route leaves it unset.
+ */
+export const deleteImage = async (request: Request, userId?: number | string) => {
     const {
         database,
-        params: { id },
+        params: { id: paramId },
         body: { id: bodyId }
     } = request;
+    const id = userId ?? bodyId ?? paramId;
 
     const { success: getAvatarSuccess, data } = await query<UserIF>({
         database,
         sql: `SELECT avatar
               FROM users
               WHERE id = ?;`,
-        params: [String(bodyId || id)],
+        params: [String(id)],
         logger: "Get avatar filename"
     });
     const filename = data?.[0].avatar;
@@ -407,7 +399,7 @@ export const deleteImage = async (request: Request) => {
         sql: `UPDATE users
               SET avatar= ''
               WHERE id = ?;`,
-        params: [String(bodyId || id)],
+        params: [String(id)],
         logger: "Set empty avatar"
     });
 

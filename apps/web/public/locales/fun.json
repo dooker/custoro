@@ -209,6 +209,9 @@
         "session_expired": "Session got old and died, log in again",
         "invalid_token": "That is some unrecognizable token, man",
         "pdfGeneratorError": "PDF generator spits sparks, something is wrong",
+        "uploadType": "That is not a picture, friend. PNG, JPEG, GIF or WebP only",
+        "uploadSize": "Whoa, that image is huge (max 5 MB)",
+        "uploadFailed": "The upload tripped over its own feet",
         "missingInfo": "It seems we are missing some vital info to actually send the email",
         "user.exists": "Well well well, there is already user with this email"
     },

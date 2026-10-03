@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { upload } from "../services/_helpers";
+import { imageUpload } from "../helpers/imageUpload";
 import { getAll, putAll, deleteLogo } from "../services/settings";
 import { authorize } from "../helpers/authorize";
 import { authenticate } from "../helpers/authenticate";
@@ -16,7 +16,7 @@ router.put(
     "/",
     authenticate,
     authorize(["admin", "user"]),
-    upload.single("logo"),
+    ...imageUpload("logo"),
     async (req, res) => {
         res.json(await putAll(req));
     }

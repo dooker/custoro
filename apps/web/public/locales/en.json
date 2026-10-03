@@ -209,6 +209,9 @@
         "session_expired": "Session expired",
         "invalid_token": "Invalid token",
         "pdfGeneratorError": "Error while generating PDF",
+        "uploadType": "Only PNG, JPEG, GIF or WebP images can be uploaded",
+        "uploadSize": "Image is too large (max 5 MB)",
+        "uploadFailed": "Upload failed",
         "missingInfo": "Missing some info to send email",
         "user.exists": "User with this email already exists"
     },

@@ -47,27 +47,12 @@ export const PdfButton = ({ draft, isDisabled, onToggle }: PdfButtonIF) => {
         window.open(`${PATHS.PDF}${draft.hash}/`, 'CustoroInvoicePdf');
     };
 
-    const generateRandomHashFromString = async (input: string) => {
-        const salt = Math.random().toString(36).substring(2, 10);
-        const inputWithSalt = input + salt;
-        const encoder = new TextEncoder();
-        const data = encoder.encode(inputWithSalt);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
-
-        return hashHex.substring(0, 32);
-    };
-
     const { mutate: generatePdf, isPending } = useMutation({
-        mutationFn: async () => {
-            const hash = await generateRandomHashFromString(`${draft.number}${draft.id}`);
-
-            return Axios.put(`${endpoint}${PATHS.PDF}${draft.id}/`, {
-                hash,
+        // The API generates and returns the hash for the public PDF link
+        mutationFn: () =>
+            Axios.put(`${endpoint}${PATHS.PDF}${draft.id}/`, {
                 language: localStorage.getItem(languageStorage),
-            });
-        },
+            }),
         onSuccess: async ({ data: { success, message } }) => {
             await notification({
                 success,

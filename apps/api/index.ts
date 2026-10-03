@@ -19,6 +19,9 @@ if (process.env.SENTRY_DSN) {
 
 import dotenv from "dotenv";
 import express from "express";
+// Express 4 does not catch rejected promises from async handlers: without this, any
+// thrown error in an async route becomes an unhandled rejection and kills the process.
+import "express-async-errors";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
@@ -28,6 +31,7 @@ import pkg from "./package.json";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
 import { getDatabaseName } from "./helper";
+import { uploadDir, pdfDir } from "./config/paths";
 import type { DBConfigMap } from "./types";
 import type { Request, Response, NextFunction } from "express";
 
@@ -92,7 +96,6 @@ app.get("/", (req, res) => {
 });
 
 const uploadFolder = "/uploads";
-const uploadDir = path.join(process.cwd(), "uploads");
 
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
     const publicPaths = ["/", "/favicon.ico"];
@@ -117,18 +120,37 @@ app.use("/login", login);
 
 setupCustoroRoutes(app);
 
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
-app.use(uploadFolder, express.static(uploadDir));
+fs.mkdirSync(uploadDir, { recursive: true });
+fs.mkdirSync(pdfDir, { recursive: true });
+// Only the public upload folder is served statically. Invoice PDFs live in pdfDir, outside
+// this root, so they cannot be enumerated by invoice number; see routes/pdf.ts.
+// Uploads are validated images (helpers/imageUpload.ts); the headers make sure a browser
+// never treats one as anything else, and never runs scripts from this path.
+app.use(
+    uploadFolder,
+    express.static(uploadDir, {
+        dotfiles: "deny",
+        index: false,
+        setHeaders: (res) => {
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+        }
+    })
+);
 
 // --- Sentry Error Handler ---
 // Must be registered after all controllers/routes, but before custom error middleware
 Sentry.setupExpressErrorHandler(app);
 
 // Custom Error handler
-app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
     console.error("Unhandled error:", error);
+
+    // If a response was already partially sent, let Express close the connection
+    if (res.headersSent) {
+        return next(error);
+    }
+
     return res.status(500).json({ message: error500 });
 });
 

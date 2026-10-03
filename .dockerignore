@@ -1,0 +1,18 @@
+# Applies to builds with the repository root as context (the web image).
+# The API image builds with apps/api as context and has its own .dockerignore.
+# Keep the build context small and never bake secrets or local data into the image.
+.git
+.github
+.idea
+**/node_modules
+**/dist
+**/build
+**/.DS_Store
+*.log
+**/.env
+**/.env.*
+!**/.env*.example
+apps/api
+apps/web/test-results
+apps/web/playwright-report
+apps/web/blob-report

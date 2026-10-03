@@ -4,6 +4,7 @@ import { query } from "../helper/query";
 import bcrypt from "bcryptjs";
 import type { UserIF } from "../types/user";
 import type { Request } from "express";
+import { authUser } from "../helpers/authorize";
 
 const saltRounds = 10;
 
@@ -55,11 +56,21 @@ export const getSingle = async (request: Request) => {
 
 export const putSingle = async (request: Request) => {
     const {
-        body: { id, name, email, password },
+        body: { name, email, password },
         file,
         database
     } = request;
+    // The profile is always the caller's own: the id comes from the token, never the body
+    const id = authUser(request)?.id;
     const fileExists = file && file.filename;
+
+    if (!id) {
+        return {
+            success: false,
+            message: "get.user"
+        };
+    }
+
     let avatar = fileExists ? sanitizeFilename(file.filename) : null;
     let hashedPassword;
 
