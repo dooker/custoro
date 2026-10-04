@@ -157,7 +157,7 @@ export const putSingle = async (request: Request) => {
                           SET hash     = ?,
                               filename = ?
                           WHERE id = ?;`,
-                    params: [hash, filename, id],
+                    params: [hash, filename, Number(id)],
                     logger: "Update invoice with hash & filename"
                 });
 

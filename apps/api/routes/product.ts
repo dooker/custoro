@@ -11,7 +11,7 @@ router.get("/:id", authenticate, authorize(["admin", "user"]), async (req, res) 
 });
 
 /* GET product by code */
-router.get("", authenticate, authorize(["admin", "user"]), async (req, res) => {
+router.get("/", authenticate, authorize(["admin", "user"]), async (req, res) => {
     res.json(await getByCode(req));
 });
 

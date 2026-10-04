@@ -44,7 +44,7 @@ export const formatDateTime = (date: string | Date) => {
 
 export const getEmailEnvContent = () => {
     const envPath = path.join(process.cwd(), ".env.email");
-    dotenv.config({ path: envPath });
+    dotenv.config({ path: envPath, quiet: true });
 
     return {
         host: process.env.EMAIL_HOST,

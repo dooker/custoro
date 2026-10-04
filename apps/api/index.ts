@@ -18,10 +18,8 @@ if (process.env.SENTRY_DSN) {
 }
 
 import dotenv from "dotenv";
+// Express 5 forwards rejected promises from async handlers to the error middleware below.
 import express from "express";
-// Express 4 does not catch rejected promises from async handlers: without this, any
-// thrown error in an async route becomes an unhandled rejection and kills the process.
-import "express-async-errors";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
@@ -41,8 +39,9 @@ const envFile = env === "production" ? ".env.production" : ".env.development";
 const error500 = "500 - Internal Server Booboo.";
 
 // Precedence: real environment (e.g. Docker) > .env.<env> > .env
-dotenv.config({ path: path.join(rootPath, envFile) });
-dotenv.config({ path: path.join(rootPath, ".env") });
+// quiet: dotenv 17+ otherwise logs an "injected env" line on every start
+dotenv.config({ path: path.join(rootPath, envFile), quiet: true });
+dotenv.config({ path: path.join(rootPath, ".env"), quiet: true });
 
 console.log(`System: Running in ${env} mode`);
 console.log(`Root Path: ${rootPath}`);
@@ -83,7 +82,8 @@ app.use(
     })
 );
 
-app.options("*", cors());
+// Express 5 path syntax: "{*splat}" also matches the root path
+app.options("/{*splat}", cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
