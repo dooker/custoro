@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router';
 import '@css/shared/Modal.sass';
 import '@css/shared/Form.sass';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';

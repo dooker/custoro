@@ -5,7 +5,7 @@ import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { Formify, handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
 import Field from '../_shared/Form/Field';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';

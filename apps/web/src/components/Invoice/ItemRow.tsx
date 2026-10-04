@@ -3,7 +3,7 @@ import type { EntityOnChangeIF, InvoiceProductIF } from '../../types';
 import DeleteIcon from '../../assets/images/x.svg?react';
 import { useAuth } from '../../contexts/Auth';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 
 interface ItemRowIF {
     item: InvoiceProductIF;

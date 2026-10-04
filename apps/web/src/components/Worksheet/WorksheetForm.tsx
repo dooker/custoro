@@ -12,7 +12,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { debounceTimer } from '../../variables';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { handleError } from '../../shared/helpers';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';

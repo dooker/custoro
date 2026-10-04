@@ -1,7 +1,7 @@
 import { RESOURCE } from '../../variables';
 import Loader from '../_shared/Loader/Loader';
 import BiggerError from '../BiggerError/BiggerError';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { getSingle } from '../../utils/Getters/getSingle';
 import { type AxiosResponse } from 'axios';

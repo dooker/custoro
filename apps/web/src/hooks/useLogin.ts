@@ -4,7 +4,7 @@ import { Axios } from '../Axios';
 import { tokenName, useAuth } from '../contexts/Auth';
 import { validateEmail } from '../utils/_helpers';
 import type { CredentialsIF, LoginErrorsIF, OnSubmitIF, SetPasswordIF } from '../types/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { endpoint, PATHS, RESOURCE } from '../variables';
 import type { AxiosError, AxiosResponse } from 'axios';
 import type { ApiErrorResponse } from '../types/api';

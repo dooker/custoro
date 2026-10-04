@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RESOURCE, endpoint, PATHS } from '../../variables';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import DefaultList from '../_shared/DefaultList';
 import NoEntries from '../_shared/NoEntries/NoEntries';
 import type { DataResponseIF, InvoiceIF, WorksheetIF } from '../../types';

@@ -1,6 +1,6 @@
 import { useImperativeHandle, useState } from 'react';
 import type { DataResponseIF, EntityOnChangeIF, InvoiceIF, MutateIF, ProductIF } from '../../types';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { useDebounce } from '../../hooks/useDebounce';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

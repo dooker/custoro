@@ -2,7 +2,7 @@ import { lazy, useEffect } from 'react';
 import DefaultList from '../_shared/DefaultList';
 import NoEntries from '../_shared/NoEntries/NoEntries';
 import type { DataResponseIF, InvoiceIF, InvoiceWithCustomerIF } from '../../types';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getMultiple } from '../../utils/Getters/getMultiple';
 import Loader from '../_shared/Loader/Loader';

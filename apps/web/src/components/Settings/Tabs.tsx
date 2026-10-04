@@ -2,7 +2,7 @@ import Button from '../_shared/Form/Button';
 import { useAuth } from '../../contexts/Auth';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { PATHS } from '../../variables';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import styles from './Tabs.module.sass';
 
 export const tabs = {

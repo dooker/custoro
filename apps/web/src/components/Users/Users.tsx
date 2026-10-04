@@ -1,5 +1,5 @@
 import type { DataResponseIF } from '../../types';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getMultiple } from '../../utils/Getters/getMultiple';
 import DeleteIcon from '../../assets/images/x.svg?react';

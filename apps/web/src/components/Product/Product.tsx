@@ -1,5 +1,5 @@
 import { ProductForm } from './ProductForm';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { ProductIF } from '../../types';
 import { getSingle } from '../../utils/Getters/getSingle';
 import Loader from '../_shared/Loader/Loader';
