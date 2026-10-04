@@ -179,7 +179,6 @@ const WorksheetsPerCustomer = ({ existingCustomer, compact }: WorksheetsIF) => {
                 listButton,
             ],
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         updateButtons,
         navigate,

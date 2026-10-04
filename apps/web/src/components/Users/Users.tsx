@@ -24,6 +24,11 @@ import style from './Users.module.sass';
 
 const PageNotFound = lazy(() => import('../PageNotFound/PageNotFound'));
 
+const UserAvatar = ({ src, alt }: UserAvatarIF) => {
+    const image = useImage({ src, alt });
+    return <>{image}</>;
+};
+
 const Users = ({ compact }: ComponentIF) => {
     const page = Number(useParams().page) || 1;
     const navigate = useNavigate();
@@ -70,11 +75,6 @@ const Users = ({ compact }: ComponentIF) => {
         placeholderData: keepPreviousData,
     });
     const { resource: users, meta } = data || {};
-
-    const UserAvatar = ({ src, alt }: UserAvatarIF) => {
-        const image = useImage({ src, alt });
-        return <>{image}</>;
-    };
 
     const usersTable = () => {
         if (!users) {

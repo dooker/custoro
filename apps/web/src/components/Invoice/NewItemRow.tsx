@@ -23,7 +23,7 @@ const NewItemRow = ({ onAdd }: NewItemRowIF) => {
     });
     const productsOptions =
         products?.map((item) => ({
-            label: `${item.code} - ${item.name}` || '',
+            label: `${item.code} - ${item.name}`,
             value: String(item.id),
         })) || [];
 

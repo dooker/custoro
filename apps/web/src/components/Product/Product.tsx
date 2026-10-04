@@ -76,7 +76,6 @@ const Product = () => {
             dataTestId: 'delete-product',
         };
         updateButtons({ buttons: [saveButton, goBackButton, ...(product ? [deleteButton] : [])] });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [updateButtons, navigate, page, product, invalidateCache]);
 
     if (isLoading) return <Loader />;

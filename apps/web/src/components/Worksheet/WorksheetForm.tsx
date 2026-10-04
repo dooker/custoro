@@ -66,7 +66,7 @@ export const WorksheetForm = ({
     const selectedCustomer = customersOptions.find((c) => Number(c.value) === Number(customerId));
 
     const productsOptions: SelectOptionIF[] = products.map((item) => ({
-        label: `${item.code} - ${item.name}` || '',
+        label: `${item.code} - ${item.name}`,
         value: String(item.id),
     }));
     const selectedProduct = productsOptions.find((opt) => Number(opt.value) === draft.product_id);
