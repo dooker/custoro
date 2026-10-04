@@ -3,6 +3,20 @@
 All notable changes to Custoro, the API and the web app together. Since 4.0.0 both apps share one
 version number, kept in each app's `package.json`. The web app shows this file on its changelog page.
 
+## Unreleased
+
+### Changed
+
+- API runs on Express 5, which handles errors from async routes itself; `express-async-errors` is gone.
+  Also dotenv 18, i18next 26 and TypeScript 6
+- Web app on react-router 8, MUI 9, react-day-picker 10 (date-fns is no longer a direct dependency),
+  Tailwind 4 with a CSS-based theme, Vite React plugin 6, i18next 26 / react-i18next 17, vitest 5,
+  TypeScript 6 and ESLint 10 with a flat config, matching the API
+- Five issues the stricter lint rules found are fixed: two always-true fallbacks on product labels, a
+  user avatar component re-created on every render of the users list, and two stale disable comments
+- TypeScript stays on 6.0 for now: TypeScript 7 has no compiler API yet, so typescript-eslint cannot
+  run on it
+
 ## 4.0.0 - 2026-10-02
 
 First release from the combined repository.
