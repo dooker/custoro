@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import '@css/application.sass';
 import './tailwind.css';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 // import ThemeContext from './contexts/Theme';
 import { AuthProvider } from './contexts/Auth';
 import AppContent from './AppContent';
@@ -34,12 +34,7 @@ const App = () => {
 
     return (
         <AuthProvider>
-            <BrowserRouter
-                future={{
-                    v7_startTransition: true,
-                    v7_relativeSplatPath: true,
-                }}
-            >
+            <BrowserRouter>
                 {/*<ThemeContext />*/}
                 <Logo />
                 <AppContent />

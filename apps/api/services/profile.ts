@@ -1,16 +1,25 @@
-import crypto from "crypto";
+import * as Sentry from "@sentry/node";
 import { email, getConfig, sanitizeFilename } from "./_helpers";
 import { query } from "../helper/query";
-import bcrypt from "bcryptjs";
 import type { UserIF } from "../types/user";
 import type { Request } from "express";
 import { authUser } from "../helpers/authorize";
-
-const saltRounds = 10;
+import { hashPassword, isValidNewPassword, verifyPassword } from "../helpers/credentials";
+import { checkResetToken, requestPasswordReset, resetPassword } from "../helpers/passwordReset";
+import { getLoginThrottle, getResetThrottle } from "../helpers/rateLimit";
+import { isUsernameTaken } from "../helpers/users";
+import { getTokenSigner } from "./login";
 
 export const getSingle = async (request: Request) => {
-    const { user, database } = request;
-    const { id } = user as UserIF;
+    const { database } = request;
+    const id = authUser(request)?.id;
+
+    if (!id) {
+        return {
+            success: false,
+            message: "get.user"
+        };
+    }
 
     // This pick out "theme", it is disabled for now
     //
@@ -54,14 +63,24 @@ export const getSingle = async (request: Request) => {
     };
 };
 
+// Simple shape check; the address is only used as the login name and for reset emails
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface ProfileUserIF {
+    username: string | null;
+    password: string | null;
+    avatar: string | null;
+}
+
 export const putSingle = async (request: Request) => {
     const {
-        body: { name, email, password },
+        body: { name, email, password, currentPassword },
         file,
         database
     } = request;
     // The profile is always the caller's own: the id comes from the token, never the body
-    const id = authUser(request)?.id;
+    const caller = authUser(request);
+    const id = caller?.id;
     const fileExists = file && file.filename;
 
     if (!id) {
@@ -71,12 +90,82 @@ export const putSingle = async (request: Request) => {
         };
     }
 
-    let avatar = fileExists ? sanitizeFilename(file.filename) : null;
-    let hashedPassword;
-
-    if (password) {
-        hashedPassword = await bcrypt.hash(password, saltRounds);
+    if (typeof email !== "string" || !emailPattern.test(email.trim())) {
+        return {
+            success: false,
+            message: "emailFormat"
+        };
     }
+
+    const newEmail = email.trim();
+
+    if (password && !isValidNewPassword(password)) {
+        return {
+            success: false,
+            message: "passwordLength"
+        };
+    }
+
+    const { success: currentSuccess, data: currentData } = await query<ProfileUserIF>({
+        database,
+        sql: `SELECT username,
+                     password,
+                     avatar
+              FROM users
+              WHERE id = ?;`,
+        params: [id],
+        logger: "Get profile for update"
+    });
+    const current = currentData?.[0];
+
+    if (!currentSuccess || !current) {
+        return {
+            success: false,
+            message: "get.user"
+        };
+    }
+
+    // A new password or email can take over the account (the email receives reset links), so
+    // both need the current password, not just a token that may have been stolen
+    const changesEmail = newEmail !== current.username;
+    const changesCredentials = !!password || changesEmail;
+
+    if (changesCredentials) {
+        const throttle = getLoginThrottle();
+        const ip = request.ip ?? "unknown";
+        const accountName = current.username ?? String(id);
+
+        if (throttle.retryAfterSeconds(ip, accountName) > 0) {
+            return {
+                success: false,
+                message: "tooManyAttempts"
+            };
+        }
+
+        const isCurrentPassword =
+            typeof currentPassword === "string" &&
+            !!currentPassword &&
+            !!current.password &&
+            (await verifyPassword(currentPassword, current.password));
+
+        if (!isCurrentPassword) {
+            if (currentPassword) throttle.recordFailure(ip, accountName);
+
+            return {
+                success: false,
+                message: "currentPassword"
+            };
+        }
+    }
+
+    if (changesEmail && (await isUsernameTaken(database, newEmail, id))) {
+        return {
+            success: false,
+            message: "user.exists"
+        };
+    }
+
+    let avatar = fileExists ? sanitizeFilename(file.filename) : null;
 
     // import theme from req.body
     // sql - theme    = ?`;
@@ -84,14 +173,19 @@ export const putSingle = async (request: Request) => {
     let sql = `UPDATE users
                SET username = ?,
                    name     = ?`;
-    const params = [email, name];
+    const params: (string | number)[] = [newEmail, typeof name === "string" ? name : ""];
 
     if (password) {
         sql += `, password = ?`;
-        params.push(hashedPassword);
+        params.push(await hashPassword(password));
     }
 
-    if (fileExists) {
+    // Ends every other session; the caller gets a fresh token below
+    if (changesCredentials) {
+        sql += `, token_version = token_version + 1`;
+    }
+
+    if (fileExists && avatar) {
         sql += `, avatar = ?`;
         params.push(avatar);
     }
@@ -99,7 +193,7 @@ export const putSingle = async (request: Request) => {
     sql += ` WHERE id = ?;`;
     params.push(id);
 
-    const { success } = await query({
+    const { success, code } = await query({
         database,
         sql,
         params,
@@ -109,151 +203,128 @@ export const putSingle = async (request: Request) => {
     if (!success) {
         return {
             success: false,
-            message: "put.profile"
+            message: code === "ER_DUP_ENTRY" ? "user.exists" : "put.profile"
         };
     }
 
     if (!fileExists) {
-        const { success, data } = await query<UserIF>({
-            database,
-            sql: `SELECT avatar
-                  FROM users
-                  WHERE id = ?;`,
-            params: [id],
-            logger: "Get avatar"
-        });
-
-        if (!success) {
-            return {
-                success: false,
-                message: "get.avatar"
-            };
-        }
-
-        avatar = data?.[0].avatar || null;
+        avatar = current.avatar || null;
     }
 
     return {
         success: true,
-        filename: avatar
+        filename: avatar,
+        ...(changesCredentials
+            ? { token: getTokenSigner()({ id, tv: (caller?.tv ?? 0) + 1 }) }
+            : {})
     };
 };
 
-export const forgot = async (username: string, request: Request) => {
-    const baseUrl = request.get("origin");
+// Answers before any work is done, so the response never shows whether the address has an
+// account; failures only reach the server log and Sentry
+export const forgot = (username: string, request: Request) => {
     const { database } = request;
-    const {
-        success: configSuccess,
-        data: config,
-        message
-    } = await getConfig({
-        database,
-        fields: ["forgotSubject", "forgotText", "forgotHtml"],
-        mapper: ["subject", "text", "html"]
-    });
+    // The link always points at the configured app, never at the request's Origin header
+    const appOrigin = process.env.APP_ORIGIN || "http://localhost:3000";
+    const reportError = (message: string) => {
+        console.error(message);
+        Sentry.captureMessage(message, "error");
+    };
 
-    if (!configSuccess) {
-        return {
-            success: false,
-            message
-        };
+    // Limits reset emails per address and per account. Over the limit the answer is still
+    // success, so it says nothing about the account; the request is only logged.
+    if (!getResetThrottle().allow(request.ip ?? "unknown", username)) {
+        reportError("Password reset: request refused, too many requests");
+
+        return { success: true };
     }
 
-    // check if we even have that email address in DB
-    const { success: userSuccess, data: userData } = await query<UserIF>({
-        database,
-        sql: `SELECT id
-              FROM users
-              WHERE username = ?`,
-        params: [username],
-        logger: "Check if user exists"
+    void requestPasswordReset(username, appOrigin, {
+        findUserId: async (name) => {
+            const { data } = await query<UserIF>({
+                database,
+                sql: `SELECT id
+                      FROM users
+                      WHERE username = ?`,
+                params: [name],
+                logger: "Check if user exists"
+            });
+
+            return data?.[0]?.id ?? null;
+        },
+        saveToken: async (userId, tokenHash, expiresAt) => {
+            const { success } = await query({
+                database,
+                sql: `UPDATE users
+                      SET forgot_token         = ?,
+                          forgot_token_expires = ?
+                      WHERE id = ?;`,
+                params: [tokenHash, expiresAt.toISOString().slice(0, 19).replace("T", " "), userId],
+                logger: "Update user reset token"
+            });
+
+            return success;
+        },
+        sendEmail: async (to, link) => {
+            const config = await getConfig({
+                database,
+                fields: ["forgotSubject", "forgotText", "forgotHtml"],
+                mapper: ["subject", "text", "html"]
+            });
+
+            if (!config.success) {
+                return { success: false, message: config.message };
+            }
+
+            return email({ email: to, config: config.data, replace: { "[RESTORE_LINK]": link } });
+        },
+        reportError
     });
-    const user = userData?.[0]?.id;
 
-    // send fake true as there is no such user but use early return to not proceed
-    if (!userSuccess || !user) {
-        return {
-            success: true
-        };
-    }
-
-    // generate token
-    const token = crypto.randomBytes(32).toString("hex"); // 32 bytes × 2 hex chars = 64 characters
-    const link = `${baseUrl}/restore/${token}`;
-
-    // add reset token to DB
-    const { success: tokenSuccess } = await query({
-        database,
-        sql: `UPDATE users
-              SET forgot_token = ?
-              WHERE username = ?;`,
-        params: [token, username],
-        logger: "Update user reset token"
-    });
-
-    if (!tokenSuccess) {
-        return {
-            success: false,
-            message: "put.token"
-        };
-    }
-
-    // inject reset token to email
-    return await email({
-        email: username,
-        config,
-        replace: {
-            "[RESTORE_LINK]": link
-        }
-    });
+    return { success: true };
 };
 
-export const getToken = async (request: Request, returnId = false) => {
-    const {
-        body: { token },
-        database
-    } = request;
-
-    // check if we even have that token in DB
-    const { success, data } = await query<UserIF>({
+const findUserIdByTokenHash = async (database: string, tokenHash: string) => {
+    const { data } = await query<UserIF>({
         database,
         sql: `SELECT id
               FROM users
-              WHERE forgot_token = ?;`,
-        params: [token],
+              WHERE forgot_token = ?
+                AND forgot_token_expires > UTC_TIMESTAMP();`,
+        params: [tokenHash],
         logger: "Check if token exists"
     });
-    const userId = data?.[0]?.id;
 
-    if (!success || !userId) {
-        return false;
-    }
+    return data?.[0]?.id ?? null;
+};
 
-    return returnId ? userId : true;
+export const getToken = async (request: Request) => {
+    const { body, database } = request;
+
+    return checkResetToken(body?.token, {
+        findUserIdByTokenHash: (tokenHash) => findUserIdByTokenHash(database, tokenHash)
+    });
 };
 
 export const putToken = async (request: Request) => {
-    const {
-        body: { password },
-        database
-    } = request;
+    const { body, database } = request;
 
-    const id = await getToken(request, true);
+    return resetPassword(body?.token, body?.password, {
+        consumeToken: async (tokenHash, passwordHash) => {
+            const { success, affectedRows } = await query({
+                database,
+                sql: `UPDATE users
+                      SET password             = ?,
+                          forgot_token         = NULL,
+                          forgot_token_expires = NULL,
+                          token_version        = token_version + 1
+                      WHERE forgot_token = ?
+                        AND forgot_token_expires > UTC_TIMESTAMP();`,
+                params: [passwordHash, tokenHash],
+                logger: "Update user password"
+            });
 
-    if (!id) {
-        return false;
-    }
-
-    const hashed = await bcrypt.hash(password, 10);
-    const { success } = await query({
-        database,
-        sql: `UPDATE users
-              SET password    = ?,
-                  forgot_token = ''
-              WHERE id = ?`,
-        params: [hashed, id],
-        logger: "Update user password"
+            return success && affectedRows === 1;
+        }
     });
-
-    return success;
 };

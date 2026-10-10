@@ -75,7 +75,7 @@ const Confirmation = () => {
         <MaterialDialog
             onClose={() => updateShow(false)}
             open={show}
-            TransitionComponent={Transition}
+            slots={{ transition: Transition }}
             onKeyUp={(event) => handleKeyUp(event.key)}
         >
             <DialogTitle>{t(`modal.${translation.title}`)}</DialogTitle>

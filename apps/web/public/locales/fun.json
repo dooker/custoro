@@ -116,6 +116,7 @@
             "name": "Name",
             "email": "Email",
             "password": "Password",
+            "currentPassword": "Current password (prove you are you before changing email or password)",
             "theme": "Theme",
             "avatar": "Avatar"
         }
@@ -150,12 +151,14 @@
             "passwordConfirmation": "Just in case - repeat the password",
             "passwordRequiredForgot": "Password is sorta needed...",
             "passwordConfirmationRequired": "Maybe you made a typo? We need re-typed password",
-            "passwordsDoNotMatch": "Oh dear... these two do not match!"
+            "passwordsDoNotMatch": "Oh dear... these two do not match!",
+            "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73."
         },
         "error": {
             "missingInfo": "Uhm... smth went very-very wrong now...",
             "noToken": "Who you trying to get crazy with, ése?<br/>Don't you know I'm loco?<br/><br/>You cannot just type in random token...",
-            "noUpdate": "Bam! Zoom! Password did not update :("
+            "noUpdate": "Bam! Zoom! Password did not update :(",
+            "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73."
         },
         "forgot": "Wait... password?",
         "forgotTitle": "Lets get you back in the game",
@@ -213,7 +216,11 @@
         "uploadSize": "Whoa, that image is huge (max 5 MB)",
         "uploadFailed": "The upload tripped over its own feet",
         "missingInfo": "It seems we are missing some vital info to actually send the email",
-        "user.exists": "Well well well, there is already user with this email"
+        "user.exists": "Well well well, there is already user with this email",
+        "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73.",
+        "currentPassword": "Nice try. That is not your current password.",
+        "emailFormat": "That email looks like it came from another galaxy",
+        "tooManyAttempts": "Whoa there, space cadet. Too many tries, take a break."
     },
     "settings": {
         "singular": "Settings",

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getGeneral } from '../../utils/Getters/getGeneral';
 import { RESOURCE } from '../../variables';
 import styles from './Total.module.sass';
+import { getInvoiceVatRate } from '../../utils/invoiceVat';
 
 interface TotalIF {
     draft: InvoiceIF | null;
@@ -20,14 +21,14 @@ const Total = ({ noVat, draft }: TotalIF) => {
     const { locked } = draft || {};
     const isLocked = locked === 1;
 
-    // fetch settings - vat
+    // The rate stored on the invoice, as the PDF uses; the current setting only as a fallback
+    const hasStoredVat = draft?.vat !== undefined && draft?.vat !== null;
     const { data: settings } = useQuery({
         queryKey: [RESOURCE.SETTINGS, 'vat'],
         queryFn: () => getGeneral({ type: RESOURCE.SETTINGS, fields: 'vat' }),
-        enabled: !noVat,
+        enabled: !noVat && !hasStoredVat,
     });
-    const { vat: rawVat } = settings || {};
-    const vat = rawVat / 100;
+    const vat = getInvoiceVatRate(draft?.vat, settings?.vat) / 100;
 
     draft?.items?.forEach(({ quantity, price, discountPrice }: InvoiceProductIF) => {
         total = total + (quantity || 0) * price;

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { useAuth } from './contexts/Auth';
-import { Route, Routes, useMatch } from 'react-router-dom';
+import { Route, Routes, useMatch } from 'react-router';
 import { PATHS } from './variables';
 
 import Navigation from './components/_shared/Navigation/Navigation';

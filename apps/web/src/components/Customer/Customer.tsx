@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { FormHandleIF } from '../../types/form';
 import { CustomerForm } from './CustomerForm';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { getSingle } from '../../utils/Getters/getSingle';
 import Loader from '../_shared/Loader/Loader';
 import PageNotFound from '../PageNotFound/PageNotFound';

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { FormHandleIF } from '../../types/form';
 import Loader from '../_shared/Loader/Loader';
 import type { InvoiceIF } from '../../types';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import '@css/shared/Form.sass';
 import { useQuery } from '@tanstack/react-query';
 import { getSingle } from '../../utils/Getters/getSingle';

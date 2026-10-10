@@ -6,7 +6,7 @@ export const AuthTypes = {
     forgot: RESOURCE.FORGOT,
     restore: RESOURCE.RESTORE,
 } as const;
-type AuthType = (typeof AuthTypes)[keyof typeof AuthTypes];
+export type AuthType = (typeof AuthTypes)[keyof typeof AuthTypes];
 export interface CredentialsIF {
     type: AuthType;
     payload: {

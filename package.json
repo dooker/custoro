@@ -20,6 +20,7 @@
         "build": "npm run build --prefix apps/api && npm run build --prefix apps/web",
         "lint": "npm run lint --prefix apps/api && npm run lint --prefix apps/web",
         "type-check": "npm run type-check --prefix apps/api && npm run type-check --prefix apps/web",
+        "test": "npm test --prefix apps/api -- --run && npm test --prefix apps/web -- --run",
         "check-all": "npm run lint && npm run type-check && npm run build"
     },
     "devDependencies": {

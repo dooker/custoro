@@ -20,6 +20,8 @@ export interface FieldIF {
     onChange?: ({ name, value }: EntityOnChangeIF) => void;
     type?: string;
     placeholder?: string;
+    // Password fields default to "new-password"
+    autoComplete?: string;
     callback?: () => void;
     callbackParam?: number;
     error?: string | null;

@@ -1,6 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 const dotenv = require("dotenv");
+const { getDbSsl } = require("./dbSsl");
 
 dotenv.config();
 const envType = process.env.NODE_ENV || "development";
@@ -18,7 +19,9 @@ const dbConfig = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || "mysql",
     multipleStatements: true,
-    ssl: envType === "production" ? { rejectUnauthorized: false } : false
+    // Production migrations verify the server certificate unless DB_SSL says otherwise
+    // (see dbSsl.js); they used to encrypt without checking who answered
+    ssl: getDbSsl(envType === "production" ? "verify" : "off")
 };
 
 module.exports = {

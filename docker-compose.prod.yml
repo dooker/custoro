@@ -40,6 +40,7 @@ services:
             DB_USERNAME: ${DB_USERNAME}
             DB_PASSWORD: ${DB_PASSWORD}
             DB_NAME: ${DB_NAME:-custoro}
+            DB_SSL: ${DB_SSL:-}
             APP_ORIGIN: ${APP_ORIGIN:?set APP_ORIGIN in .env}
             JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
             JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
@@ -49,6 +50,11 @@ services:
             EMAIL_PASS: ${EMAIL_PASS:-}
             EMAIL_FROM: ${EMAIL_FROM:-}
             SENTRY_DSN: ${SENTRY_DSN:-}
+            TRUST_PROXY: ${TRUST_PROXY:-}
+            LOGIN_MAX_FAILURES_PER_ACCOUNT: ${LOGIN_MAX_FAILURES_PER_ACCOUNT:-}
+            LOGIN_MAX_FAILURES_PER_IP: ${LOGIN_MAX_FAILURES_PER_IP:-}
+            RESET_MAX_REQUESTS_PER_ACCOUNT: ${RESET_MAX_REQUESTS_PER_ACCOUNT:-}
+            RESET_MAX_REQUESTS_PER_IP: ${RESET_MAX_REQUESTS_PER_IP:-}
         volumes:
             - uploads:/app/uploads
             # Generated invoice PDFs, deliberately outside the statically served uploads/

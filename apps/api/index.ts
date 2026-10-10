@@ -13,15 +13,28 @@ if (process.env.SENTRY_DSN) {
         // Trace 100% of transactions during local development
         tracesSampleRate: 1.0,
         profileSessionSampleRate: 1.0,
-        profileLifecycle: "trace"
+        profileLifecycle: "trace",
+        // Request bodies carry passwords and reset tokens, and the Authorization header carries
+        // the login token, so neither is ever sent to Sentry
+        beforeSend: (event) => {
+            if (event.request) {
+                delete event.request.data;
+                delete event.request.cookies;
+
+                if (event.request.headers) {
+                    delete event.request.headers.authorization;
+                    delete event.request.headers.Authorization;
+                }
+            }
+
+            return event;
+        }
     });
 }
 
 import dotenv from "dotenv";
+// Express 5 forwards rejected promises from async handlers to the error middleware below.
 import express from "express";
-// Express 4 does not catch rejected promises from async handlers: without this, any
-// thrown error in an async route becomes an unhandled rejection and kills the process.
-import "express-async-errors";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
@@ -41,8 +54,9 @@ const envFile = env === "production" ? ".env.production" : ".env.development";
 const error500 = "500 - Internal Server Booboo.";
 
 // Precedence: real environment (e.g. Docker) > .env.<env> > .env
-dotenv.config({ path: path.join(rootPath, envFile) });
-dotenv.config({ path: path.join(rootPath, ".env") });
+// quiet: dotenv 17+ otherwise logs an "injected env" line on every start
+dotenv.config({ path: path.join(rootPath, envFile), quiet: true });
+dotenv.config({ path: path.join(rootPath, ".env"), quiet: true });
 
 console.log(`System: Running in ${env} mode`);
 console.log(`Root Path: ${rootPath}`);
@@ -50,6 +64,20 @@ console.log(`${version} @ ${env}`);
 
 const app = express();
 const servicePort = process.env.SERVICE_PORT || 3999;
+
+// req.ip feeds the login and reset limits. Behind nginx (and maybe a TLS proxy) the client
+// address is in X-Forwarded-For; trusting only private-network hops means a client cannot
+// fake it. TRUST_PROXY takes Express's "trust proxy" values: a hop count, true/false or a list.
+const parseTrustProxy = (value: string | undefined) => {
+    if (!value) return "loopback, linklocal, uniquelocal";
+    if (/^\d+$/.test(value)) return Number(value);
+    if (value === "true" || value === "false") return value === "true";
+
+    return value;
+};
+
+app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
+app.disable("x-powered-by");
 
 app.use(
     cors({
@@ -83,7 +111,8 @@ app.use(
     })
 );
 
-app.options("*", cors());
+// Express 5 path syntax: "{*splat}" also matches the root path
+app.options("/{*splat}", cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

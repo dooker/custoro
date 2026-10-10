@@ -8,7 +8,7 @@ import { SettingsForm } from './SettingsForm';
 import { RESOURCE } from '../../variables';
 import Header from '../_shared/Header/Header';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useHeadlineHandler } from '../../hooks/useHeadline';
 import { useButtonsHandler } from '../../hooks/useButtons';
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RESOURCE, endpoint, PATHS } from '../../variables';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import DefaultList from '../_shared/DefaultList';
 import NoEntries from '../_shared/NoEntries/NoEntries';
 import type { DataResponseIF, InvoiceIF, WorksheetIF } from '../../types';
@@ -179,7 +179,6 @@ const WorksheetsPerCustomer = ({ existingCustomer, compact }: WorksheetsIF) => {
                 listButton,
             ],
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         updateButtons,
         navigate,

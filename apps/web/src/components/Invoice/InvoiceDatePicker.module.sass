@@ -1,6 +1,7 @@
 @use "src/assets/stylesheets/variables" as variables
 
-.picker :global(.rdp)
+// react-day-picker 9+ class names: https://daypicker.dev/docs/styling
+.picker :global(.rdp-root)
     position: absolute
     z-index: 13
     left: -4px
@@ -12,16 +13,17 @@
     .rdp-months
         display: block
 
-    .rdp-table
+    .rdp-month_grid
         width: 100%
         max-width: 100%
 
-    .rdp-day_selected
+    .rdp-selected .rdp-day_button
         &,
-        :focus-visible,
-        :hover
+        &:focus-visible,
+        &:hover
             background: variables.$turquoise
+            border-color: variables.$turquoise
             font-weight: bold
 
-    .rdp-button:hover:not([disabled]):not(.rdp-day_selected)
+    .rdp-day_button:hover:not([disabled])
         background: variables.$clouds
