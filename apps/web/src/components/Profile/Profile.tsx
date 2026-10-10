@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { endpoint, PATHS, RESOURCE } from '../../variables';
 import { Axios } from '../../Axios';
 import { handleError } from '../../shared/helpers';
-import { type ProfileIF, useAuth } from '../../contexts/Auth';
+import { type ProfileIF, tokenName, useAuth } from '../../contexts/Auth';
 import type { EntityOnChangeIF } from '../../types';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import '@css/shared/Form.sass';
@@ -25,6 +25,8 @@ const Profile = () => {
     // ];
     const { user, setUser } = useAuth();
     const [draft, setDraft] = useState<ProfileIF | null>(user);
+    // Changing it remounts the password fields, which empties them after a save
+    const [passwordFieldsKey, setPasswordFieldsKey] = useState(0);
     // const currentTheme = themes.filter((item) => item.value === draft?.theme)[0] || themes[0];
     const queryClient = useQueryClient();
     const notification = useNotificationHandler();
@@ -42,11 +44,21 @@ const Profile = () => {
                 headers: { 'Content-Type': 'multipart/form-data' },
             }),
         onSuccess: async (response, variables) => {
-            const { success, message, filename } = response.data;
+            const { success, message, filename, token } = response.data;
+
+            // A new email or password ends every other session, this one gets a new token
+            if (success && token) {
+                localStorage.setItem(tokenName, token);
+            }
 
             await notification({ success, message, invalidator, show: true });
 
             if (success) {
+                setDraft((prev) =>
+                    prev ? { ...prev, password: undefined, currentPassword: undefined } : prev
+                );
+                setPasswordFieldsKey((key) => key + 1);
+
                 setUser({
                     ...user,
                     name: variables.name,
@@ -107,7 +119,22 @@ const Profile = () => {
 
                     <Field parent="profile" name="email" value={draft.email} onChange={onChange} />
 
-                    <Field parent="profile" name="password" onChange={onChange} type="password" />
+                    <Field
+                        key={`password-${passwordFieldsKey}`}
+                        parent="profile"
+                        name="password"
+                        onChange={onChange}
+                        type="password"
+                    />
+
+                    <Field
+                        key={`currentPassword-${passwordFieldsKey}`}
+                        parent="profile"
+                        name="currentPassword"
+                        onChange={onChange}
+                        type="password"
+                        autoComplete="current-password"
+                    />
 
                     <Field
                         parent="profile"

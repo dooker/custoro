@@ -27,7 +27,7 @@ export const sanitize = (input: string | number) => {
 
     input = input.replace(/'/g, "\\'").replace(/"/g, '\\"');
 
-    return String(safeTagsReplace(input.toString())).replaceAll("/[^-a-zA-Z0-9_@.,!?: ]/", "");
+    return String(safeTagsReplace(input.toString()));
 };
 
 export const getTotal = (itemsPerPage: number, total: number) => {

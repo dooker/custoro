@@ -5,6 +5,79 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+### Added
+
+- Database schema, config seed and demo data (`apps/api/db`); local Docker starts with demo customers,
+  invoices and two demo logins, production gets the schema and seed only
+- Unit tests for the login logic in both apps, run in CI; the Playwright suite now also tests the login
+  and forgot-password forms, and reads its login only from `E2E_USER` / `E2E_PASS` (loaded from
+  `apps/web/.env`, prefilled with the demo admin in the example file). A browserless `api` Playwright
+  project tests the API directly: concurrent invoice numbering, and authorization (tokens, admin-only
+  routes, mail server settings, profile updates) with a second, non-admin test login
+  (`E2E_REGULAR_USER` / `E2E_REGULAR_PASS`), regression tests for the upload and invoice PDF
+  security fixes from 4.0.0, and tests for unique profile emails, the current-password check, session
+  revocation and the login limit
+
+### Security
+
+- Password reset could be used by anyone to set the password of any user who had finished a reset
+  before: the API cleared used tokens to an empty string and accepted an empty token. Tokens must now
+  be well-formed, are stored only as a SHA-256 hash, expire after one hour and work once.
+  **Existing databases must run the new migration** (see `apps/api/db/README.md`), which also clears
+  all stored reset tokens
+- "Forgot password" no longer reveals whether an address has an account: it always answers the same,
+  and email failures only go to the server log and Sentry
+- The reset link in the email is built from `APP_ORIGIN` instead of the request's `Origin` header
+- A user could set their profile email to another user's address, after which login and password
+  reset picked either account. Usernames are now unique (checked by the API, case-insensitively, and
+  by a unique index). **Existing databases must run the new migrations**, which stop and list any
+  duplicate usernames that need to be resolved by hand first
+- Changing the email or password on the profile page needs the current password, so a stolen login
+  token can no longer be turned into a permanent takeover. The profile page has a field for it
+- Login tokens can be revoked: each carries the account's session version, which a password reset or
+  a password or email change raises, ending every other session. Tokens of deleted users stop working
+  at once, and the role is read from the database on every request, so a role change applies
+  immediately. Tokens from before this release are refused, so everyone logs in once more. Tokens are
+  only signed and accepted with HS256
+- Failed logins are limited to 10 per account and 50 per client address in 15 minutes (HTTP 429 after
+  that), and reset emails to 3 per account and 10 per address per hour; see `.env.production.example`
+  for the settings and `TRUST_PROXY`
+- Login takes as long for an unknown email as for a wrong password, so timing no longer shows which
+  emails have an account
+- Query parameters (emails, password hashes, reset-token hashes) are no longer sent to Sentry or
+  written to production logs; request bodies and the Authorization header are removed from Sentry
+  events, and the web app removes reset tokens from URLs before anything reaches Sentry
+- The production web server sends security headers: a Content Security Policy for the app, HSTS over
+  HTTPS, `X-Frame-Options`, `nosniff`, `Referrer-Policy` and `Permissions-Policy`. The API no longer
+  sends `X-Powered-By` and its database connections no longer allow several statements in one query
+- A failed database query no longer sends MySQL's error text to the browser, which named tables and
+  columns and could quote stored values. The web app gets a generic error, the server log keeps the
+  details, and Sentry gets them with quoted values removed
+- Production migrations now check the database server's TLS certificate and host name; they used
+  to encrypt without checking who answered. `DB_SSL` (`verify` or `off`) and `DB_SSL_CA` configure
+  TLS for both the migrations and the API, see `apps/api/db/README.md`
+
+### Fixed
+
+- Invoices created at the same time no longer get the same number: the next number is reserved and
+  the invoice inserted in one transaction, and invoice numbers have a unique index. **Existing
+  databases must run the new migration**, which stops and lists any duplicate numbers that need to
+  be resolved by hand first
+- Invoices are only made VAT-free for a real foreign VAT number. Placeholders such as "N/A", Estonian
+  numbers typed in lowercase or with spaces, and malformed numbers used to drop VAT too. EU numbers
+  are checked against their country's format; the web form and the PDF share one tested rule
+- The invoice screen uses the VAT rate stored on the invoice, like the PDF, so changing the VAT setting
+  no longer changes the totals shown for existing invoices
+- Removing a profile picture or a user's avatar works again; since the Express 5 upgrade the API
+  crashed on the web app's DELETE request because it has no body
+- "Forgot password" and "Create new password" work again: the web app called URLs with a double slash,
+  which the API answered with 404
+- Passwords containing quotes, `&`, `<` or `>` can log in: login no longer escapes the password before
+  comparing it with a hash that was made from the password as typed
+- New passwords (reset and profile) must be 8 to 72 bytes long; bcrypt ignored anything past 72 bytes
+- Login tokens use `JWT_EXPIRES_IN` instead of a fixed 24 hours
+- Removed a sanitizer step that never ran and an unused "auth message" notification in the login page
+
 ### Changed
 
 - API runs on Express 5, which handles errors from async routes itself; `express-async-errors` is gone.

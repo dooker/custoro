@@ -1,12 +1,15 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+// E2E_* settings (login, URLs) come from apps/web/.env, see .env.development.example.
+// Variables already set in the environment, e.g. CI secrets, take precedence.
+const envFile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.env');
+
+if (fs.existsSync(envFile)) {
+    process.loadEnvFile(envFile);
+}
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -34,19 +37,28 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    /* API tests (*.api.spec.ts) need no browser and run once, not once per browser */
+    {
+      name: 'api',
+      testMatch: /.*\.api\.spec\.ts/,
+    },
+
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: /.*\.api\.spec\.ts/,
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
+      testIgnore: /.*\.api\.spec\.ts/,
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+      testIgnore: /.*\.api\.spec\.ts/,
     },
 
     /* Test against mobile viewports. */

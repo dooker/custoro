@@ -13,7 +13,22 @@ if (process.env.SENTRY_DSN) {
         // Trace 100% of transactions during local development
         tracesSampleRate: 1.0,
         profileSessionSampleRate: 1.0,
-        profileLifecycle: "trace"
+        profileLifecycle: "trace",
+        // Request bodies carry passwords and reset tokens, and the Authorization header carries
+        // the login token, so neither is ever sent to Sentry
+        beforeSend: (event) => {
+            if (event.request) {
+                delete event.request.data;
+                delete event.request.cookies;
+
+                if (event.request.headers) {
+                    delete event.request.headers.authorization;
+                    delete event.request.headers.Authorization;
+                }
+            }
+
+            return event;
+        }
     });
 }
 
@@ -49,6 +64,20 @@ console.log(`${version} @ ${env}`);
 
 const app = express();
 const servicePort = process.env.SERVICE_PORT || 3999;
+
+// req.ip feeds the login and reset limits. Behind nginx (and maybe a TLS proxy) the client
+// address is in X-Forwarded-For; trusting only private-network hops means a client cannot
+// fake it. TRUST_PROXY takes Express's "trust proxy" values: a hop count, true/false or a list.
+const parseTrustProxy = (value: string | undefined) => {
+    if (!value) return "loopback, linklocal, uniquelocal";
+    if (/^\d+$/.test(value)) return Number(value);
+    if (value === "true" || value === "false") return value === "true";
+
+    return value;
+};
+
+app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
+app.disable("x-powered-by");
 
 app.use(
     cors({

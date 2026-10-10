@@ -2,10 +2,17 @@ import { useState, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Axios } from '../Axios';
 import { tokenName, useAuth } from '../contexts/Auth';
-import { validateEmail } from '../utils/_helpers';
+import {
+    buildLoginPayload,
+    emptyLoginErrors,
+    getApiErrorMessage,
+    getLoginUrl,
+    getResetTokenUrl,
+    validateLoginForm,
+} from '../utils/auth';
 import type { CredentialsIF, LoginErrorsIF, OnSubmitIF, SetPasswordIF } from '../types/auth';
 import { useNavigate } from 'react-router';
-import { endpoint, PATHS, RESOURCE } from '../variables';
+import { endpoint, RESOURCE } from '../variables';
 import type { AxiosError, AxiosResponse } from 'axios';
 import type { ApiErrorResponse } from '../types/api';
 
@@ -15,13 +22,8 @@ export const useLogin = () => {
     const passwordRef = useRef<HTMLInputElement | null>(null);
     const passwordConfirmationRef = useRef<HTMLInputElement | null>(null);
     const [isSent, setIsSent] = useState(false);
-    const [errors, setErrors] = useState<LoginErrorsIF>({
-        username: null,
-        password: null,
-        passwordConfirmation: null,
-        api: null,
-    });
-    const tokenUrl = `${endpoint}${PATHS.LOGIN}/token`;
+    const [errors, setErrors] = useState<LoginErrorsIF>(emptyLoginErrors);
+    const tokenUrl = getResetTokenUrl(endpoint);
     const navigate = useNavigate();
 
     const { mutate: login, isPending: isLoginLoading } = useMutation<
@@ -30,12 +32,7 @@ export const useLogin = () => {
         CredentialsIF
     >({
         mutationFn: ({ type, payload }: CredentialsIF) => {
-            const paths = {
-                forgot: `${endpoint}${PATHS.LOGIN}${PATHS.FORGOT}`,
-                login: `${endpoint}${PATHS.LOGIN}`,
-                restore: null,
-            };
-            const url = paths[type];
+            const url = getLoginUrl(endpoint, type);
 
             if (!url) {
                 return Promise.reject(new Error(`Unknown mutation type: ${type}`));
@@ -63,7 +60,7 @@ export const useLogin = () => {
             }
         },
         onError: (error: AxiosError<ApiErrorResponse>) => {
-            const msg = error.response?.data.message || error.message || 'general error';
+            const msg = getApiErrorMessage(error);
             setErrors((prev) => ({ ...prev, api: msg }));
             setErrorMessage(msg);
         },
@@ -82,7 +79,7 @@ export const useLogin = () => {
             }
         },
         onError: (error: AxiosError<ApiErrorResponse>) => {
-            const msg = error.response?.data.message || error.message || 'general error';
+            const msg = getApiErrorMessage(error);
             setErrors((prev) => ({ ...prev, api: msg }));
             setErrorMessage(msg);
         },
@@ -95,16 +92,19 @@ export const useLogin = () => {
     >({
         mutationFn: ({ password, token }: SetPasswordIF) =>
             Axios.put(tokenUrl, { password, token }),
-        onSuccess: ({ data: { success } }) => {
+        onSuccess: ({ data: { success, message } }) => {
             if (!success) {
-                setErrors((prev) => ({ ...prev, api: 'login.error.noToken' }));
+                // The API answers noToken or passwordLength
+                const reason = message === 'passwordLength' ? 'passwordLength' : 'noToken';
+
+                setErrors((prev) => ({ ...prev, api: `login.error.${reason}` }));
                 return;
             }
 
             navigate('/');
         },
         onError: (error: AxiosError<ApiErrorResponse>) => {
-            const msg = error.response?.data.message || error.message || 'general error';
+            const msg = getApiErrorMessage(error);
             setErrors((prev) => ({ ...prev, api: msg }));
             setErrorMessage(msg);
         },
@@ -112,59 +112,23 @@ export const useLogin = () => {
 
     const onSubmit = ({ event, type, token }: OnSubmitIF) => {
         event.preventDefault();
-        const username = usernameRef.current?.value || '';
-        const password = passwordRef.current?.value || '';
-        const passwordConfirmation = passwordConfirmationRef.current?.value || '';
+        const values = {
+            username: usernameRef.current?.value || '',
+            password: passwordRef.current?.value || '',
+            passwordConfirmation: passwordConfirmationRef.current?.value || '',
+            hasPasswordField: !!passwordRef.current,
+            hasPasswordConfirmationField: !!passwordConfirmationRef.current,
+        };
+        const { errors: formErrors, isValid } = validateLoginForm(type, values);
 
-        // Reset errors
-        setErrors({ username: null, password: null, passwordConfirmation: null, api: null });
+        setErrors(formErrors);
 
-        let hasError = false;
-        if (type !== RESOURCE.RESTORE) {
-            if (!username) {
-                setErrors((prev) => ({ ...prev, username: 'usernameRequired' }));
-                hasError = true;
-            } else if (!validateEmail(username)) {
-                setErrors((prev) => ({ ...prev, username: 'usernameFormat' }));
-                hasError = true;
-            }
-        }
-
-        if (type !== RESOURCE.FORGOT) {
-            if (passwordRef.current && !password) {
-                setErrors((prev) => ({ ...prev, password: 'passwordRequired' }));
-                hasError = true;
-            }
-        }
+        if (!isValid) return;
 
         if (type === RESOURCE.RESTORE) {
-            if (passwordConfirmationRef.current && !passwordConfirmation) {
-                setErrors((prev) => ({ ...prev, passwordConfirmation: 'passwordRequired' }));
-                hasError = true;
-            }
-
-            if (password !== passwordConfirmation) {
-                setErrors((prev) => ({
-                    ...prev,
-                    password: 'passwordsDoNotMatch',
-                    passwordConfirmation: 'passwordsDoNotMatch',
-                }));
-                hasError = true;
-            }
-        }
-
-        const payload = {
-            ...(type !== RESOURCE.RESTORE ? { username } : {}),
-            ...(type !== RESOURCE.FORGOT ? { password } : {}),
-            ...(type === RESOURCE.RESTORE ? { password } : {}),
-        };
-
-        if (!hasError) {
-            if (type === RESOURCE.RESTORE) {
-                setPassword({ password, token: token as string });
-            } else {
-                login({ type, payload });
-            }
+            setPassword({ password: values.password, token: token as string });
+        } else {
+            login({ type, payload: buildLoginPayload(type, values) });
         }
     };
 

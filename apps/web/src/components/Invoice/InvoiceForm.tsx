@@ -1,4 +1,5 @@
 import { useImperativeHandle, useState } from 'react';
+import { isForeignVatNumber } from '../../utils/foreignVatNumber';
 import type { DataResponseIF, EntityOnChangeIF, InvoiceIF, MutateIF, ProductIF } from '../../types';
 import { useNavigate, useParams } from 'react-router';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
@@ -72,9 +73,7 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
     const currentCustomerVatNumber = customers?.find(
         (customer) => Number(customer.id) === Number(customerId)
     )?.vatNumber;
-    const noVat = currentCustomerVatNumber
-        ? currentCustomerVatNumber?.substring(0, 2) !== 'EE'
-        : false;
+    const noVat = isForeignVatNumber(currentCustomerVatNumber);
 
     const invalidator = async () => {
         await queryClient.invalidateQueries({ queryKey: [type, String(draft.id)] });
