@@ -27,7 +27,7 @@ export const sanitize = (input: string | number) => {
 
     input = input.replace(/'/g, "\\'").replace(/"/g, '\\"');
 
-    return String(safeTagsReplace(input.toString())).replaceAll("/[^-a-zA-Z0-9_@.,!?: ]/", "");
+    return String(safeTagsReplace(input.toString()));
 };
 
 export const getTotal = (itemsPerPage: number, total: number) => {
@@ -44,7 +44,7 @@ export const formatDateTime = (date: string | Date) => {
 
 export const getEmailEnvContent = () => {
     const envPath = path.join(process.cwd(), ".env.email");
-    dotenv.config({ path: envPath });
+    dotenv.config({ path: envPath, quiet: true });
 
     return {
         host: process.env.EMAIL_HOST,

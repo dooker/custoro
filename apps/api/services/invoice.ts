@@ -1,4 +1,5 @@
 import { query } from "../helper/query";
+import { createInvoiceWithNextNumber } from "../helper/invoiceNumber";
 import { getInvoice } from "./_helpers";
 import { getSingle as getSingleProduct } from "./product";
 import { getSingle as getSingleCustomer } from "./customer";
@@ -130,7 +131,7 @@ const getProductsMap = async ({ database, items }: GetProductsMapIF) => {
 export const postSingle = async (request: Request) => {
     const {
         database,
-        body: { customerId, invoiceId, items }
+        body: { customerId, items }
     } = request;
 
     const { success: vatSuccess, data: vatData } = await query<{ value: number }>({
@@ -150,37 +151,16 @@ export const postSingle = async (request: Request) => {
         };
     }
 
-    const { success: lastInvoiceIdSuccess, data: lastInvoiceIdResource } = await getLast(request);
+    const invoice = await createInvoiceWithNextNumber({ database, customerId, vat });
 
-    if (!lastInvoiceIdSuccess || !lastInvoiceIdResource) {
-        return {
-            success: false,
-            message: "get.lastInvoiceId"
-        };
-    }
-
-    // Increment invoice number by one
-    const lastInvoiceId = Number(lastInvoiceIdResource) + 1;
-
-    const { success: invoiceResponseSuccess, insertId } = await query({
-        database,
-        sql: `INSERT INTO invoices
-              SET number      = ?,
-                  customer_id = ?,
-                  create_date  = NOW(),
-                  change_date  = NOW(),
-                  invoice_date = NOW(),
-                  vat         = ?`,
-        params: [lastInvoiceId, customerId, vat],
-        logger: "Add new invoice"
-    });
-
-    if (!invoiceResponseSuccess || !insertId) {
+    if (!invoice) {
         return {
             success: false,
             message: "post.newInvoice"
         };
     }
+
+    const insertId = invoice.id;
 
     if (items) {
         const productMap = await getProductsMap({ database, items });
@@ -245,19 +225,9 @@ export const postSingle = async (request: Request) => {
         }
     }
 
-    const { success: updateConfigSuccess } = await query({
-        database,
-        sql: `UPDATE config
-              SET value = ?
-              WHERE name = 'lastInvoiceId'`,
-        params: [lastInvoiceId || invoiceId],
-        logger: "Update last invoice number"
-    });
-
     return {
-        success: updateConfigSuccess,
-        lastId: insertId,
-        ...(!updateConfigSuccess ? { message: "put.updateConfig" } : {})
+        success: true,
+        lastId: insertId
     };
 };
 

@@ -1,6 +1,6 @@
 import '@css/shared/Form.sass';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { PATHS } from '../../variables';
 
 const Sent = () => {

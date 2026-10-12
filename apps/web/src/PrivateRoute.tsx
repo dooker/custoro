@@ -1,5 +1,5 @@
 import { useAuth } from './contexts/Auth';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router';
 import { PATHS } from './variables';
 import Loader from './components/_shared/Loader/Loader';
 

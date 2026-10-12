@@ -5,7 +5,7 @@ import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
 import Field from '../_shared/Form/Field';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import HelpField from '../HelpField/Helpfield';
 import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';

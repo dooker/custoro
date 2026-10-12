@@ -22,6 +22,9 @@ export interface ProfileIF {
     role?: string;
     theme: string;
     timestamp?: string;
+    // Only in the profile form; never returned by the API
+    password?: string;
+    currentPassword?: string;
 }
 
 interface AuthContextType {
@@ -33,15 +36,12 @@ interface AuthContextType {
     refreshAuth: () => void;
     errorMessage: string | null;
     setErrorMessage: (msg: string | null) => void;
-    authMessage: string | null;
-    setAuthMessage: (msg: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [token, setToken] = useState<string | null>(localStorage.getItem(tokenName));
-    const [authMessage, setAuthMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const queryClient = useQueryClient();
 
@@ -82,8 +82,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 refreshAuth,
                 errorMessage: isError ? (error as Error).message : errorMessage || null,
                 setErrorMessage,
-                authMessage,
-                setAuthMessage,
             }}
         >
             {children}

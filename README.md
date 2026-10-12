@@ -6,10 +6,6 @@ Self-hostable invoicing and worksheet app: customers, products, worksheets, invo
 > **Not production ready.** The codebase has known, unresolved security issues and is being hardened in the open.
 > Do not deploy it or use it with real data until this notice is removed.
 
-> [!NOTE]
-> **Database schema not included yet.** The schema and seed data (`apps/api/db/01-schema.sql`, `02-seed.sql`) will be added in a follow-up.
-> Until then MySQL starts with an empty database: the web app and API start, but login and data features will not work.
-
 ## Repository layout
 
 ```
@@ -60,9 +56,9 @@ npm run dev
 
 ### Database
 
-SQL files in `apps/api/db/` are loaded the first time the database volume is created. See [apps/api/db/README.md](apps/api/db/README.md). To start from scratch: `npm run docker:reset`.
+The first time the database volume is created, MySQL loads the schema, the seed and the demo data from `apps/api/db/`. Production loads the schema and seed only. See [apps/api/db/README.md](apps/api/db/README.md). To start from scratch: `npm run docker:reset`.
 
-The schema and seed files are not in the repository yet (see the note at the top), so the database is currently empty.
+Log in with the demo accounts in [apps/api/db/demo/demo-logins.md](apps/api/db/demo/demo-logins.md).
 
 ## Production (Docker)
 
@@ -88,6 +84,7 @@ Only the web container is exposed (`WEB_PORT`, default 80). It serves the built 
 | `npm run build`        | Build both apps                                      |
 | `npm run lint`         | Lint both apps                                       |
 | `npm run type-check`   | Type-check both apps                                 |
+| `npm test`             | Run both apps' unit tests once                       |
 
 ## License
 

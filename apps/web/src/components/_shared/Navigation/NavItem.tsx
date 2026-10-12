@@ -1,5 +1,5 @@
 import { type ComponentType } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { useAuth } from '../../../contexts/Auth';
 import styles from './Navigation.module.sass';

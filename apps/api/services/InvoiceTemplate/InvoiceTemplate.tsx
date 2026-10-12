@@ -6,6 +6,7 @@ import Items from "./Items";
 import Header from "./Header";
 import type { InvoiceTemplateProps } from "../../types/pdf";
 import { styles } from "./Styles";
+import { isForeignVatNumber } from "../../helpers/foreignVatNumber";
 
 Font.register({
     family: "Roboto",
@@ -22,7 +23,8 @@ Font.register({
 
 const InvoiceTemplate = ({ invoice, customer, settings }: InvoiceTemplateProps) => {
     const { vatNumber } = customer;
-    const currentVatNumber = vatNumber && vatNumber.substring(0, 2) !== "EE" ? vatNumber : null;
+    // A foreign VAT number makes the invoice VAT-free
+    const currentVatNumber = isForeignVatNumber(vatNumber) ? vatNumber : null;
     const offer = invoice.invoiceType === "offer";
 
     return (

@@ -116,6 +116,7 @@
             "name": "Nimi",
             "email": "E-post",
             "password": "Parool",
+            "currentPassword": "Praegune parool (vajalik e-posti või parooli muutmiseks)",
             "theme": "Teema",
             "avatar": "Avatar"
         }
@@ -150,12 +151,14 @@
             "passwordConfirmation": "Parooli kinnitud",
             "passwordRequiredForgot": "Parool on kohustuslik",
             "passwordConfirmationRequired": "Parooli kinnitus on kohustuslik",
-            "passwordsDoNotMatch": "Paroolid on erinevad"
+            "passwordsDoNotMatch": "Paroolid on erinevad",
+            "passwordLength": "Parool peab olema 8 kuni 72 märki pikk"
         },
         "error": {
             "missingInfo": "Parooli taastamise e-kirja saatmisel tekkis viga",
             "noToken": "Märgist ei tuntud ära. Palun saatke uus parooli taastamise e-kiri",
-            "noUpdate": "Parooli uuendamine ebaõnnestus"
+            "noUpdate": "Parooli uuendamine ebaõnnestus",
+            "passwordLength": "Parool peab olema 8 kuni 72 märki pikk"
         },
         "forgot": "Unustasid parooli?",
         "forgotTitle": "Taasta parool",
@@ -214,7 +217,11 @@
         "uploadSize": "Pilt on liiga suur (max 5 MB)",
         "uploadFailed": "Üleslaadimine ebaõnnestus",
         "missingInfo": "E-kirja saatmine ebaõnnestus",
-        "user.exists": "Sellise e-postiga kasutaja on juba olemas"
+        "user.exists": "Sellise e-postiga kasutaja on juba olemas",
+        "passwordLength": "Parool peab olema 8 kuni 72 märki pikk",
+        "currentPassword": "Praegune parool puudub või on vale",
+        "emailFormat": "E-posti aadress on vales vormingus",
+        "tooManyAttempts": "Liiga palju katseid. Proovi hiljem uuesti."
     },
     "settings": {
         "singular": "Seaded",

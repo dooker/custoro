@@ -5,12 +5,20 @@ import './i18n';
 import Loader from './components/_shared/Loader/Loader';
 import { QueryClient, QueryClientConfig, QueryClientProvider } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
+import { scrubSentryPayload } from './utils/sentryScrub';
 
 // Error tracking is enabled only when VITE_SENTRY_DSN is set at build time
 if (import.meta.env.VITE_SENTRY_DSN) {
     Sentry.init({
         dsn: import.meta.env.VITE_SENTRY_DSN,
-        integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
+        integrations: [
+            Sentry.browserTracingIntegration(),
+            Sentry.replayIntegration({ beforeAddRecordingEvent: scrubSentryPayload }),
+        ],
+        // Keeps password reset tokens out of everything sent to Sentry
+        beforeSend: scrubSentryPayload,
+        beforeSendTransaction: scrubSentryPayload,
+        beforeBreadcrumb: scrubSentryPayload,
         tracesSampleRate: 1.0,
         replaysSessionSampleRate: 0.1,
         replaysOnErrorSampleRate: 1.0,

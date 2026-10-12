@@ -1,3 +1,45 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/* Theme values carried over from the Tailwind 3 config (tailwind.config.js).
+   The spacing keys override the default scale so that e.g. pb-24 stays 24px. */
+@theme {
+    --color-white: #ffffff;
+    --color-black: #000000;
+    --color-logo: rgba(255, 255, 255, 0.8);
+    --color-turquoise: #1abc9c;
+    --color-greenSea: #16a085;
+    --color-sunFlower: #f1c40f;
+    --color-orange: #f39c12;
+    --color-emerald: #2ecc71;
+    --color-nephritis: #27ae60;
+    --color-carrot: #e67e22;
+    --color-pumpkin: #d35400;
+    --color-peterRiver: #3498db;
+    --color-belizeHole: #2980b9;
+    --color-alizarin: #e74c3c;
+    --color-pomegranate: #c0392b;
+    --color-amethyst: #9b59b6;
+    --color-wisteria: #8e44ad;
+    --color-clouds: #ecf0f1;
+    --color-silver: #bdc3c7;
+    --color-wetAsphalt: #34495e;
+    --color-midnightBlue: #2c3e50;
+    --color-concrete: #95a5a6;
+    --color-asbestos: #7f8c8d;
+    --color-hover: rgba(26, 188, 156, 0.03);
+    --color-liHover: #f7f7f7;
+
+    --spacing-8: 8px;
+    --spacing-10: 10px;
+    --spacing-12: 12px;
+    --spacing-16: 16px;
+    --spacing-24: 24px;
+}
+
+/* Tailwind 4 preflight gives buttons cursor: default; keep the v3 behaviour */
+@layer base {
+    button:not(:disabled),
+    [role='button']:not(:disabled) {
+        cursor: pointer;
+    }
+}

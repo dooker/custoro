@@ -1,7 +1,7 @@
 import { type RefObject } from 'react';
 import '@css/shared/Form.sass';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import type { LoginErrorsIF, OnSubmitIF } from '../../types/auth';
 import { PATHS, RESOURCE } from '../../variables';
 

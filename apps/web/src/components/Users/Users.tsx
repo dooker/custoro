@@ -1,5 +1,5 @@
 import type { DataResponseIF } from '../../types';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getMultiple } from '../../utils/Getters/getMultiple';
 import DeleteIcon from '../../assets/images/x.svg?react';
@@ -23,6 +23,11 @@ import type { ComponentIF } from '../../types/general';
 import style from './Users.module.sass';
 
 const PageNotFound = lazy(() => import('../PageNotFound/PageNotFound'));
+
+const UserAvatar = ({ src, alt }: UserAvatarIF) => {
+    const image = useImage({ src, alt });
+    return <>{image}</>;
+};
 
 const Users = ({ compact }: ComponentIF) => {
     const page = Number(useParams().page) || 1;
@@ -70,11 +75,6 @@ const Users = ({ compact }: ComponentIF) => {
         placeholderData: keepPreviousData,
     });
     const { resource: users, meta } = data || {};
-
-    const UserAvatar = ({ src, alt }: UserAvatarIF) => {
-        const image = useImage({ src, alt });
-        return <>{image}</>;
-    };
 
     const usersTable = () => {
         if (!users) {

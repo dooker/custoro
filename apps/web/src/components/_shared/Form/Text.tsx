@@ -3,7 +3,7 @@ import type { FieldIF } from '../../../types/form';
 
 const View = lazy(() => import('../Icons/View'));
 
-const Text = ({ name, value, onChange, type, placeholder, ref }: FieldIF) => {
+const Text = ({ name, value, onChange, type, placeholder, autoComplete, ref }: FieldIF) => {
     const password = 'password';
     const isPassword = type === password;
     const [passwordFieldType, setPasswordFieldType] = useState(password);
@@ -22,7 +22,7 @@ const Text = ({ name, value, onChange, type, placeholder, ref }: FieldIF) => {
                 defaultValue={isPassword ? '' : (value as string)}
                 onChange={(e) => (onChange ? onChange({ name, value: e.target.value }) : null)}
                 placeholder={placeholder}
-                autoComplete={isPassword ? 'new-password' : undefined}
+                autoComplete={autoComplete ?? (isPassword ? 'new-password' : undefined)}
             />
 
             {isPassword && (

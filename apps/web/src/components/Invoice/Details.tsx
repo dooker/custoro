@@ -1,5 +1,4 @@
 import { lazy, Suspense } from 'react';
-import 'react-day-picker/dist/style.css';
 import { formatDateTime } from '../../shared/helpers';
 import { useAuth } from '../../contexts/Auth';
 import type { InvoiceIF, EntityOnChangeIF } from '../../types';

@@ -4,7 +4,7 @@ import { capitalizeFirst } from '../../utils/_helpers';
 import '@css/shared/pagination.sass';
 import '@css/shared/Form.sass';
 import '@css/shared/GeneralTable.sass';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { DefaultListIF } from '../../types';
 import { RESOURCE } from '../../variables';
 import Header from './Header/Header';

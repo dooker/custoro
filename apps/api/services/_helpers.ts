@@ -2,7 +2,7 @@ import { sanitize, getEmailEnvContent, normalizeDate } from "../helper";
 import path from "node:path";
 import fs from "node:fs";
 import nodemailer, { type TransportOptions } from "nodemailer";
-import { query } from "../helper/query";
+import { query, queryErrorMessage } from "../helper/query";
 import type { QueryIF, TotalRow } from "../types";
 import type { InvoiceIF, InvoiceItemIF } from "../types/invoice";
 import type { AllowedEmailKey, EmailConfigIF, EmailConfigResult, EmailIF } from "../types/email";
@@ -199,9 +199,12 @@ export const postGeneralSingle = async ({ sql, params, logger, database }: PostG
             }
         );
     } catch (error) {
+        // The details go to the log only; the client gets the generic key
+        console.error(error);
+
         return {
             success: false,
-            message: error instanceof Error ? error.message : String(error)
+            message: queryErrorMessage
         };
     }
 };
@@ -225,9 +228,12 @@ export const putGeneralSingle = async ({ database, sql, params, logger: type }: 
             };
         }
     } catch (error) {
+        // The details go to the log only; the client gets the generic key
+        console.error(error);
+
         return {
             success: false,
-            message: error instanceof Error ? error.message : String(error)
+            message: queryErrorMessage
         };
     }
 };
@@ -368,10 +374,11 @@ export const email = async ({ email, config, attachments, replace }: EmailIF) =>
 export const deleteImage = async (request: Request, userId?: number | string) => {
     const {
         database,
-        params: { id: paramId },
-        body: { id: bodyId }
+        params: { id: paramId }
     } = request;
-    const id = userId ?? bodyId ?? paramId;
+    // Express 5 leaves req.body undefined when a request has no body, as the web app's DELETE
+    // requests do, so it must not be destructured
+    const id = userId ?? request.body?.id ?? paramId;
 
     const { success: getAvatarSuccess, data } = await query<UserIF>({
         database,

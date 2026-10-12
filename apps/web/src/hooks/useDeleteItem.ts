@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Axios } from '../Axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { endpoint, PATHS, RESOURCE } from '../variables';
 import type { AxiosResponse } from 'axios';
 import { useNotificationHandler } from './useNotificationHandler';

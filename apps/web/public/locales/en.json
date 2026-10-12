@@ -113,6 +113,7 @@
             "name": "Name",
             "email": "Email",
             "password": "Password",
+            "currentPassword": "Current password (needed to change email or password)",
             "theme": "Theme",
             "avatar": "Avatar"
         }
@@ -150,12 +151,14 @@
             "passwordConfirmation": "Password confirmation",
             "passwordRequiredForgot": "Password is required",
             "passwordConfirmationRequired": "Password confirmation is required",
-            "passwordsDoNotMatch": "Passwords do not mach"
+            "passwordsDoNotMatch": "Passwords do not mach",
+            "passwordLength": "Password must be 8 to 72 characters long"
         },
         "error": {
             "missingInfo": "Error while trying to send reminder email",
             "noToken": "Token is not recognized. Please send new forgot password email",
-            "noUpdate": "Updating password failed"
+            "noUpdate": "Updating password failed",
+            "passwordLength": "Password must be 8 to 72 characters long"
         },
         "forgot": "Forgot password?",
         "forgotTitle": "Restore password",
@@ -213,7 +216,11 @@
         "uploadSize": "Image is too large (max 5 MB)",
         "uploadFailed": "Upload failed",
         "missingInfo": "Missing some info to send email",
-        "user.exists": "User with this email already exists"
+        "user.exists": "User with this email already exists",
+        "passwordLength": "Password must be 8 to 72 characters long",
+        "currentPassword": "Current password is missing or wrong",
+        "emailFormat": "Email format is incorrect",
+        "tooManyAttempts": "Too many attempts. Please try again later."
     },
     "settings": {
         "singular": "Settings",

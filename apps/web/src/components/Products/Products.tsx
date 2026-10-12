@@ -1,5 +1,5 @@
 import type { DataResponseIF, ProductIF } from '../../types';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useAuth } from '../../contexts/Auth';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';

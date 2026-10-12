@@ -29,6 +29,7 @@ RUN npm run build
 # --- Production: nginx serving the SPA and proxying the API
 FROM nginx:1.29-alpine AS prod
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/web/nginx/ /etc/nginx/snippets/
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 \

@@ -41,7 +41,7 @@ const upload = multer({
 });
 
 // The MIME type above is declared by the client, so check the file really starts like one
-const hasImageSignature = (head: Buffer, mimetype: string) => {
+export const hasImageSignature = (head: Buffer, mimetype: string) => {
     switch (mimetype) {
         case "image/png":
             return head

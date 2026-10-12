@@ -3,8 +3,8 @@
 #   npm run docker:dev    MySQL + API + web in containers, hot reload -> http://localhost:3000
 #   npm run dev           MySQL in a container, API + web natively on the host
 #
-# SQL files in apps/api/db/ are loaded on the database's first start (empty volume).
-# Reload them with `npm run docker:reset`. After changing dependencies: `npm run docker:dev -- --renew-anon-volumes`.
+# On the database's first start (empty volume) MySQL loads the schema, the seed and the
+# demo data listed under db.volumes. Reload them with `npm run docker:reset`. After changing dependencies: `npm run docker:dev -- --renew-anon-volumes`.
 name: custoro
 
 services:
@@ -18,7 +18,12 @@ services:
             - "${DB_PORT:-3306}:3306"
         volumes:
             - dbdata:/var/lib/mysql
-            - ./apps/api/db:/docker-entrypoint-initdb.d:ro
+            # Init scripts run in file-name order. Production mounts the whole apps/api/db
+            # folder instead, so it gets the schema and seed but never the demo data.
+            # A new top-level file in apps/api/db must be added here too.
+            - ./apps/api/db/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+            - ./apps/api/db/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+            - ./apps/api/db/demo/demo-data.sql:/docker-entrypoint-initdb.d/03-demo-data.sql:ro
         healthcheck:
             test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
             interval: 5s
@@ -37,6 +42,10 @@ services:
             DB_NAME: ${DB_NAME:-custoro}
             JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret}
             JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+            # Every dev request comes from the same Docker gateway address, and the e2e tests log
+            # in with wrong passwords on purpose, so the per-address limit is raised here. The
+            # per-account limit stays at its production value.
+            LOGIN_MAX_FAILURES_PER_IP: ${LOGIN_MAX_FAILURES_PER_IP:-500}
             # File watching on macOS/Windows bind mounts
             CHOKIDAR_USEPOLLING: "true"
         ports:

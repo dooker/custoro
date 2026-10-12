@@ -1,5 +1,5 @@
 import { ProductForm } from './ProductForm';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import type { ProductIF } from '../../types';
 import { getSingle } from '../../utils/Getters/getSingle';
 import Loader from '../_shared/Loader/Loader';
@@ -76,7 +76,6 @@ const Product = () => {
             dataTestId: 'delete-product',
         };
         updateButtons({ buttons: [saveButton, goBackButton, ...(product ? [deleteButton] : [])] });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [updateButtons, navigate, page, product, invalidateCache]);
 
     if (isLoading) return <Loader />;

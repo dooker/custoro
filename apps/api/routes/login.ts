@@ -10,12 +10,20 @@ import { sanitize } from "../helper";
 const router = Router();
 
 router.post("/", async (req, res) => {
-    res.json(await postSingleLogin(req));
+    const result = await postSingleLogin(req);
+
+    if ("retryAfter" in result) {
+        res.set("Retry-After", String(result.retryAfter));
+        res.status(429).json({ success: false, message: result.message });
+        return;
+    }
+
+    res.json(result);
 });
 
 // reset password email submit
-router.post("/forgot", async (req, res) => {
-    res.json(await forgotUser(String(sanitize(req.body.username)), req));
+router.post("/forgot", (req, res) => {
+    res.json(forgotUser(String(sanitize(req.body?.username)), req));
 });
 
 // check if token exists
@@ -25,11 +33,9 @@ router.post("/token", async (req, res) => {
     });
 });
 
-// update password
+// update password; { success: false, message: "noToken" | "passwordLength" } on failure
 router.put("/token", async (req, res) => {
-    res.json({
-        success: await putUserToken(req)
-    });
+    res.json(await putUserToken(req));
 });
 
 export default router;

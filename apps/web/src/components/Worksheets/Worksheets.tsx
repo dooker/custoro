@@ -2,7 +2,7 @@ import { PATHS, RESOURCE } from '../../variables';
 import DefaultList from '../_shared/DefaultList';
 import NoEntries from '../_shared/NoEntries/NoEntries';
 import type { DataResponseIF, WorksheetIF } from '../../types';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import Loader from '../_shared/Loader/Loader';
 import { getMultiple } from '../../utils/Getters/getMultiple';

@@ -4,6 +4,7 @@ import type { QueryResult } from "../types/query";
 import type { Request } from "express";
 import { currentRoute as type } from "../routes/user";
 import type { UserIF } from "../types/user";
+import { isUsernameTaken } from "../helpers/users";
 
 export const getSingle = async (request: Request): Promise<QueryResult<UserIF>> => {
     const {
@@ -96,13 +97,24 @@ export const putSingle = async (request: Request) => {
     const fileExists = file && file.filename;
     let avatar = fileExists ? sanitizeFilename(file.filename) : null;
 
+    if (await isUsernameTaken(database, username, Number(id))) {
+        return {
+            success: false,
+            message: "user.exists"
+        };
+    }
+
+    // A new username (login email) ends the user's sessions, like a change on their own profile.
+    // token_version is set first: MySQL applies SET assignments left to right, so the
+    // comparison still sees the old username.
     let sql = `UPDATE users
-               SET name            = ?,
+               SET token_version   = token_version + IF(username <=> ?, 0, 1),
+                   name            = ?,
                    username        = ?,
                    discount        = ?,
                    offer           = ?,
                    role            = ?`;
-    const params = [name, username, discount, offer, role];
+    const params = [username, name, username, discount, offer, role];
 
     if (fileExists && avatar) {
         sql += `, avatar = ?`;

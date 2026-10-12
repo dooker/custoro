@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { tokenName, useAuth } from '../../contexts/Auth';
 import { lastUrl, PATHS, RESOURCE } from '../../variables';
+import { getRedirectAfterLogin } from '../../utils/auth';
 import '@css/shared/Modal.sass';
 import '@css/shared/Form.sass';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
@@ -9,43 +10,23 @@ import { useLogin } from '../../hooks/useLogin';
 
 import Button from '../_shared/Form/Button';
 import Field from '../_shared/Form/Field';
-import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 
 const Login = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
-    const { isAuth, authMessage, setAuthMessage } = useAuth();
+    const { isAuth } = useAuth();
     const { usernameRef, passwordRef, onSubmit, isLoading, errors } = useLogin();
-    const notification = useNotificationHandler();
 
     // Redirect Logic
     useEffect(() => {
         if (!isAuth) return;
 
         setTimeout(() => {
-            const ignoreLastUrl = [PATHS.LOGIN, PATHS.FORGOT, PATHS.RESTORE];
-            const navigateTo = localStorage.getItem(lastUrl);
-            const shouldIgnore = ignoreLastUrl.some((path) => navigateTo?.startsWith(path));
-
             if (!localStorage.getItem(tokenName)) return;
 
-            navigate(shouldIgnore ? PATHS.HOME : navigateTo || PATHS.HOME);
+            navigate(getRedirectAfterLogin(localStorage.getItem(lastUrl)));
         }, 0);
     }, [isAuth, navigate]);
-
-    // Notification Logic
-    useEffect(() => {
-        if (!authMessage) return;
-
-        void notification({
-            success: false,
-            message: authMessage,
-            show: true,
-        });
-
-        setAuthMessage(null);
-        localStorage.removeItem(tokenName);
-    }, [authMessage, notification, setAuthMessage]);
 
     return (
         <section className="modal large">

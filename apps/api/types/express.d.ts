@@ -1,8 +1,10 @@
 import type { JwtPayload } from "jsonwebtoken";
 
+// The caller, set by helpers/authenticate.ts from a verified token and the users table
 export interface AuthPayload extends JwtPayload {
     id: number;
     role: string;
+    tv: number;
 }
 
 declare module "express-serve-static-core" {
