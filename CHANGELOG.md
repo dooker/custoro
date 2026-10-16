@@ -109,6 +109,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   `x\nJWT_SECRET=y` used to add a line to the file, which the API then copied into its environment
   (admin only). Line breaks are removed, only the four `EMAIL_` settings are read back, and a setting
   nobody has set is written empty instead of as the text "undefined"
+- The API no longer picks its database from the request's `Origin` header (there is one app and one
+  database). A request without that header, or with another one, used to end in an error 500 in
+  production; nginx also no longer rewrites `Origin` from the host name. The header now only decides
+  whether the browser may read the answer: the app (`APP_ORIGIN`) and `localhost` may, other sites
+  get no CORS headers. The web image has to be rebuilt for the nginx change
 
 ### Fixed
 

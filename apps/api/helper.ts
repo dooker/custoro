@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import type { DBConfigIF, DBConfigMap } from "./types";
 import path from "path";
 
 export const tagsToReplace: Record<"&" | "<" | ">", string> = {
@@ -58,33 +57,4 @@ export const normalizeDate = (isoString: string | Date) => {
     const date = new Date(isoString);
 
     return date.toISOString().slice(0, 10);
-};
-
-export const getDatabaseByOrigin = (
-    dbConfig: DBConfigMap,
-    origin: string
-): [string, DBConfigIF] => {
-    if (origin.includes("localhost")) {
-        return ["default", dbConfig.default];
-    }
-
-    const dbNaming = Object.entries(dbConfig).find(([, cfg]) => cfg.host === origin);
-
-    if (!dbNaming) {
-        throw new Error(`Unknown origin: ${origin}`);
-    }
-
-    return dbNaming;
-};
-
-export const getDatabaseName = (dbConfig: DBConfigMap, origin: string, isDev: boolean) => {
-    const match = getDatabaseByOrigin(dbConfig, origin);
-
-    if (!match) {
-        throw new Error(`Unknown origin: ${origin}`);
-    }
-
-    const [, cfg] = match;
-
-    return isDev ? cfg.dev : cfg.prod;
 };

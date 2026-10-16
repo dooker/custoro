@@ -35,10 +35,9 @@ import setupCustoroRoutes from "./config/importer";
 import pkg from "./package.json";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
-import { getDatabaseName } from "./helper";
+import { getAppOrigin } from "./helpers/appOrigin";
 import { jwtSecretProblem } from "./helpers/startupChecks";
 import { uploadDir, pdfDir } from "./config/paths";
-import type { DBConfigMap } from "./types";
 import type { Request, Response, NextFunction } from "express";
 
 const { version } = pkg;
@@ -83,19 +82,13 @@ app.use(
     cors({
         origin: (origin, callback) => {
             const localhostRegex = /^http:\/\/localhost(:\d+)?$/;
-            const allowedHosts = Object.entries(dbConfig).map(
-                (item) => (item as unknown as DBConfigMap)[1].host
-            );
 
-            if (origin && localhostRegex.test(origin)) {
-                return callback(null, true);
-            }
+            // No Origin header: not a browser, or a same-origin GET. Anything else must be the
+            // app itself. Another origin just gets no CORS headers, so the browser blocks it;
+            // the request is not an error.
+            const allowed = !origin || localhostRegex.test(origin) || origin === getAppOrigin();
 
-            if (!origin || allowedHosts.includes(origin)) {
-                return callback(null, true);
-            }
-
-            callback(new Error("Not allowed by CORS"));
+            callback(null, allowed);
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -126,19 +119,9 @@ app.get("/", (req, res) => {
 
 const uploadFolder = "/uploads";
 
-app.use(async (req: Request, _res: Response, next: NextFunction) => {
-    const publicPaths = ["/", "/favicon.ico"];
-    const origin = req.headers.origin;
-    const isDev = env === development;
-
-    if (publicPaths.includes(req.path) || req.path.startsWith(uploadFolder)) {
-        return next();
-    }
-
-    // Fallback if origin header is missing (e.g. direct browser hits, curl, postman)
-    const effectiveOrigin = origin || (isDev ? "http://localhost:3000" : "");
-
-    req.database = getDatabaseName(dbConfig, String(effectiveOrigin), isDev);
+// One app, one database: what the request's Origin says no longer picks anything
+app.use((req: Request, _res: Response, next: NextFunction) => {
+    req.database = dbConfig.default[env === "production" ? "prod" : "dev"];
     // TODO should be removed
     req.itemsPerPage = config.itemsPerPage;
 

@@ -20,11 +20,4 @@ export interface QueryIF {
     forceLogger?: boolean;
 }
 
-export interface DBConfigIF {
-    host: string;
-    dev: string;
-    prod: string;
-}
-export type DBConfigMap = Record<string, DBConfigIF>;
-
 export type TotalRow = { total: number };
