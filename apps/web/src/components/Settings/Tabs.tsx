@@ -1,5 +1,4 @@
 import Button from '../_shared/Form/Button';
-import { useAuth } from '../../contexts/Auth';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { PATHS } from '../../variables';
 import { useNavigate } from 'react-router';
@@ -22,17 +21,9 @@ interface TabsIF {
 
 export const Tabs = ({ doSave, activeTab, setActiveTab }: TabsIF) => {
     const navigate = useNavigate();
-    const { user } = useAuth();
-    const { role } = user || {};
     const { t } = useSafeTranslation();
-    const adminOnly: (typeof tabs)[keyof typeof tabs][] = [tabs.server];
-    const isNotAllowed = (tab: TabKey) => adminOnly.includes(tab) && role !== 'admin';
 
     const onClick = (tab: TabKey) => {
-        if (isNotAllowed(tab)) {
-            return;
-        }
-
         doSave();
         setActiveTab(tab);
 
@@ -41,20 +32,14 @@ export const Tabs = ({ doSave, activeTab, setActiveTab }: TabsIF) => {
 
     return (
         <div className={styles.tabButtons}>
-            {Object.values(tabs).map((tab) => {
-                if (tab === tabs.server && role === 'user') {
-                    return '';
-                }
-
-                return (
-                    <Button
-                        key={tab}
-                        additionalClassName={activeTab === tab ? 'disabled' : 'secondary'}
-                        text={t(`settings.titles.${tab}Settings`)}
-                        onClick={() => onClick(tab)}
-                    ></Button>
-                );
-            })}
+            {Object.values(tabs).map((tab) => (
+                <Button
+                    key={tab}
+                    additionalClassName={activeTab === tab ? 'disabled' : 'secondary'}
+                    text={t(`settings.titles.${tab}Settings`)}
+                    onClick={() => onClick(tab)}
+                ></Button>
+            ))}
         </div>
     );
 };

@@ -221,7 +221,8 @@
         "passwordLength": "Parool peab olema 8 kuni 72 märki pikk",
         "currentPassword": "Praegune parool puudub või on vale",
         "emailFormat": "E-posti aadress on vales vormingus",
-        "tooManyAttempts": "Liiga palju katseid. Proovi hiljem uuesti."
+        "tooManyAttempts": "Liiga palju katseid. Proovi hiljem uuesti.",
+        "settingsInvalid": "Mõni seadistus pole kehtiv, midagi ei salvestatud"
     },
     "settings": {
         "singular": "Seaded",

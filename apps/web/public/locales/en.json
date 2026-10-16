@@ -220,7 +220,8 @@
         "passwordLength": "Password must be 8 to 72 characters long",
         "currentPassword": "Current password is missing or wrong",
         "emailFormat": "Email format is incorrect",
-        "tooManyAttempts": "Too many attempts. Please try again later."
+        "tooManyAttempts": "Too many attempts. Please try again later.",
+        "settingsInvalid": "Some settings are not valid, nothing was saved"
     },
     "settings": {
         "singular": "Settings",

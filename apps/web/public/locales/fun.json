@@ -220,7 +220,8 @@
         "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73.",
         "currentPassword": "Nice try. That is not your current password.",
         "emailFormat": "That email looks like it came from another galaxy",
-        "tooManyAttempts": "Whoa there, space cadet. Too many tries, take a break."
+        "tooManyAttempts": "Whoa there, space cadet. Too many tries, take a break.",
+        "settingsInvalid": "The settings did not pass inspection, nothing was saved"
     },
     "settings": {
         "singular": "Settings",

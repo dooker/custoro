@@ -22,7 +22,7 @@ const menuItems = [
     { selector: RESOURCE.WORKSHEETS, link: `${PATHS.WORKSHEETS}1/`, Icon: Worksheet },
     { selector: RESOURCE.INVOICES, link: `${PATHS.INVOICES}1/`, Icon: Invoice },
     { selector: RESOURCE.USERS, link: `${PATHS.USERS}1/`, Icon: Users, level: 'admin' },
-    { selector: RESOURCE.SETTINGS, link: `${PATHS.SETTINGS}`, Icon: Settings },
+    { selector: RESOURCE.SETTINGS, link: `${PATHS.SETTINGS}`, Icon: Settings, level: 'admin' },
 ];
 
 const Navigation = () => {

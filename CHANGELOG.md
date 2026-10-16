@@ -56,6 +56,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - Production migrations now check the database server's TLS certificate and host name; they used
   to encrypt without checking who answered. `DB_SSL` (`verify` or `off`) and `DB_SSL_CA` configure
   TLS for both the migrations and the API, see `apps/api/db/README.md`
+- Settings can only be changed by admins. Any logged-in user used to be able to overwrite every
+  setting, which allowed rewriting the password reset email so its link (and reset token) went to an
+  attacker, changing the bank account printed on invoices, and changing the VAT rate and invoice
+  numbering. `PUT` and `DELETE /settings` are now admin-only and refuse keys that are not settings and
+  malformed values (VAT rate, last invoice number, mail port). Regular users no longer see the
+  Settings page in the web app, though the API still lets them read the settings the invoice and PDF
+  screens use. Unset mail server settings are shown empty instead of as the text "undefined"
 
 ### Fixed
 

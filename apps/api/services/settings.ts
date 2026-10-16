@@ -8,11 +8,15 @@ import type { FrontRequestIF, UploadFileIF } from "../types/express";
 import path from "path";
 import { deleteImageFile } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
+import {
+    longFields,
+    mailFields,
+    parseSettingsInput,
+    type MailField
+} from "../helpers/settingsInput";
 import type { Request } from "express";
 
-const password = "password";
-const longFields = ["invoiceText", "invoiceHtml", "forgotText", "forgotHtml"];
-const emailEnvFields = ["host", "port", "username", password];
+const emailEnvFields: string[] = [...mailFields];
 
 const reloadEnv = (url: string) => {
     const envConfig = dotenv.parse(fs.readFileSync(url));
@@ -87,7 +91,8 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
 
         for (const [key, value] of Object.entries(envConfig)) {
             if (key !== "password") {
-                settings[key] = String(value);
+                // An unset mail setting is empty, not the text "undefined" the form would send back
+                settings[key] = value === undefined ? "" : String(value);
             }
         }
     }
@@ -102,39 +107,33 @@ export const putAll = async (request: Request) => {
     const { body, file: rawFile, database } = request as FrontRequestIF;
     const file = rawFile as UploadFileIF;
 
-    // const body = rawBody as SettingsBody;
+    // Only the setting keys the app knows are accepted, and a few of them only in a valid format
+    const parsed = parseSettingsInput(body);
+
+    if (!parsed.success) {
+        // The upload is already on disk and nothing will refer to it
+        if (file?.filename) {
+            deleteImageFile(file.filename);
+        }
+
+        return {
+            success: false,
+            message: parsed.message
+        };
+    }
+
+    const { short: shortEntries, long: longEntries, mail } = parsed.input;
     const emailEnvFileValues = getEmailEnvContent();
-    const emailEnvFields = ["host", "port", "username", "password"] as const;
-    type EmailEnvField = (typeof emailEnvFields)[number];
-    const emailEnvFieldValues: Record<EmailEnvField, string> = {
-        host: process.env.EMAIL_HOST || "",
-        port: process.env.EMAIL_PORT || "587",
-        username: process.env.EMAIL_USER || "",
-        password: process.env.EMAIL_PASSWORD || ""
+    const emailEnvFieldValues: Record<MailField, string | undefined> = {
+        host: mail.host,
+        port: mail.port,
+        username: mail.username,
+        password: mail.password
     };
 
     let filename;
 
-    // Only admins may change the mail server; for anyone else these fields are dropped so
-    // the .env.email file below is never written (the web app hides the tab for them too)
-    if (!isAdmin(request)) {
-        emailEnvFields.forEach((item) => delete body[item]);
-    }
-
-    // memorize & remove email config IF set
-    emailEnvFields.forEach((item) => {
-        emailEnvFieldValues[item] = body[item];
-
-        delete body[item];
-    });
-
-    // there is no length for this in email server data saving
-    if (Object.keys(body).length) {
-        const entries = Object.entries(body).filter(([key]: [string, string]) => key !== "logo");
-
-        const shortEntries = entries.filter(([key]: [string, string]) => !longFields.includes(key));
-        const longEntries = entries.filter(([key]: [string, string]) => longFields.includes(key));
-
+    if (shortEntries.length || longEntries.length || file?.filename) {
         // Helpers: build placeholders only
         const buildCases = (pairs: [string, string][]) =>
             pairs.map(() => `WHEN name = ? THEN ?`).join(" ");
@@ -144,13 +143,13 @@ export const putAll = async (request: Request) => {
         let shortCases = buildCases(shortEntries);
         let shortNames = buildNames(shortEntries);
         const shortCaseParams = shortEntries.flatMap(([key, value]) => [key, value]);
-        const shortInParams = shortEntries.map(([key]: [string, string]) => key);
+        const shortInParams = shortEntries.map(([key]) => key);
 
         // Long
         const longCases = buildCases(longEntries);
         const longNames = buildNames(longEntries);
         const longCaseParams = longEntries.flatMap(([key, value]) => [key, value]);
-        const longInParams = longEntries.map(([key]: [string, string]) => key);
+        const longInParams = longEntries.map(([key]) => key);
 
         // Logo
         if (file?.filename) {
@@ -183,7 +182,7 @@ export const putAll = async (request: Request) => {
             const { success } = await query({
                 database,
                 sql: sqlShort,
-                params: paramsShort as string[],
+                params: paramsShort,
                 logger: "Update settings - short values"
             });
 
@@ -207,7 +206,7 @@ export const putAll = async (request: Request) => {
             const { success } = await query({
                 database,
                 sql: sqlLong,
-                params: paramsLong as string[],
+                params: paramsLong,
                 logger: "Update settings - long values"
             });
 
