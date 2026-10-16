@@ -7,6 +7,7 @@ import { authUser } from "../helpers/authorize";
 import { hashPassword, isValidNewPassword, verifyPassword } from "../helpers/credentials";
 import { checkResetToken, requestPasswordReset, resetPassword } from "../helpers/passwordReset";
 import { accountKey, getLoginThrottle, getResetThrottle } from "../helpers/rateLimit";
+import { getAppOrigin } from "../helpers/appOrigin";
 import { isUsernameTaken } from "../helpers/users";
 import { getTokenSigner } from "./login";
 
@@ -227,7 +228,7 @@ export const putSingle = async (request: Request) => {
 export const forgot = async (username: string, request: Request) => {
     const { database } = request;
     // The link always points at the configured app, never at the request's Origin header
-    const appOrigin = process.env.APP_ORIGIN || "http://localhost:3000";
+    const appOrigin = getAppOrigin();
     const reportError = (message: string) => {
         console.error(message);
         Sentry.captureMessage(message, "error");

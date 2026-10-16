@@ -89,6 +89,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   that has used up its failures is turned away before the database is asked. Set
   `LOGIN_MAX_FAILURES_PER_ACCOUNT_ADDRESS` (new, default 10) and `LOGIN_MAX_FAILURES_PER_ACCOUNT`
   (default was 10, now 50, meaning all addresses together)
+- The invoice link in emails (`[INVOICE_LINK]`) is built from `APP_ORIGIN` instead of the request's
+  `Referer` header. The header is the sender's to choose, so anyone could put any link into an email
+  sent from the company mailbox, and in production it is the full page address, which made the link
+  wrong (`https://app/invoice/1/12/pdf/...`)
 
 ### Fixed
 

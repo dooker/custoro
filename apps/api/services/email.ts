@@ -5,12 +5,12 @@ import fs from "fs";
 import type { Request } from "express";
 import { pdfDir } from "../config/paths";
 import { resolveInside } from "../helpers/pdfFiles";
+import { getAppOrigin } from "../helpers/appOrigin";
 
 export const postSingle = async (request: Request) => {
     const {
         database,
-        body: { id },
-        headers: { referer }
+        body: { id }
     } = request;
 
     const { success: customerSuccess, data: customerData } = await query<EmailCustomerIF>({
@@ -78,7 +78,9 @@ export const postSingle = async (request: Request) => {
         config,
         attachments: [attachments],
         replace: {
-            "[INVOICE_LINK]": `${referer}pdf/${hash}`
+            // Built from the configured app origin, never from the Referer header, which is the
+            // sender's to choose (and in production the full page URL, not the site root)
+            "[INVOICE_LINK]": `${getAppOrigin()}/pdf/${hash}`
         }
     });
 };
