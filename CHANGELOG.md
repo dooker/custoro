@@ -105,6 +105,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   at 1000 rows. **Deliberately not clamped to 50**, which would silently drop entries from those
   pickers: they need to become searchable before the cap can go down. Page counts now match the
   page size actually used
+- Mail server settings are written to `.env.email` as exactly four one-line values. A value such as
+  `x\nJWT_SECRET=y` used to add a line to the file, which the API then copied into its environment
+  (admin only). Line breaks are removed, only the four `EMAIL_` settings are read back, and a setting
+  nobody has set is written empty instead of as the text "undefined"
 
 ### Fixed
 

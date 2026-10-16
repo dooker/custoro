@@ -8,6 +8,7 @@ import type { FrontRequestIF, UploadFileIF } from "../types/express";
 import path from "path";
 import { deleteImageFile } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
+import { emailEnvKeys, formatEmailEnv } from "../helpers/emailEnv";
 import {
     longFields,
     mailFields,
@@ -18,11 +19,14 @@ import type { Request } from "express";
 
 const emailEnvFields: string[] = [...mailFields];
 
+// Only the mail settings are taken from the file into the environment, whatever else it holds
 const reloadEnv = (url: string) => {
     const envConfig = dotenv.parse(fs.readFileSync(url));
 
-    for (const k in envConfig) {
-        process.env[k] = envConfig[k];
+    for (const key of Object.values(emailEnvKeys)) {
+        if (key in envConfig) {
+            process.env[key] = envConfig[key];
+        }
     }
 };
 
@@ -223,15 +227,11 @@ export const putAll = async (request: Request) => {
 
     if (!emailEnvFieldValuesSet) {
         // write email config to .env file
-        const envData = `
-    EMAIL_HOST=${emailEnvFieldValues.host || emailEnvFileValues.host}
-    EMAIL_PORT=${emailEnvFieldValues.port || emailEnvFileValues.port}
-    EMAIL_USER=${emailEnvFieldValues.username || emailEnvFileValues.username}
-    EMAIL_PASS=${emailEnvFieldValues.password || emailEnvFileValues.password}`;
+        const envData = formatEmailEnv(emailEnvFieldValues, emailEnvFileValues);
         const envEmailPath = path.resolve(process.cwd(), ".env.email");
 
         try {
-            fs.writeFileSync(envEmailPath, envData.trim());
+            fs.writeFileSync(envEmailPath, envData);
             reloadEnv(envEmailPath);
         } catch (error) {
             if (error instanceof Error) {
