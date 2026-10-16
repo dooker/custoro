@@ -13,7 +13,7 @@ export const getMultiple = async (request: Request) => {
 
     return await getGeneralMultiple({
         request,
-        sql: getFromTo(sql, Number(page), Number(limit)),
+        sql: getFromTo(sql, page, limit),
         params,
         totalSql,
         type: "products"

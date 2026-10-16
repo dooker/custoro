@@ -98,6 +98,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - Sentry no longer receives PDF links: the hash in `/pdf/<hash>` is the invoice's only credential and
   was in error and trace data (request URLs, span names). Traces are scrubbed like errors, and in
   production a tenth of them are sent instead of all (`SENTRY_TRACES_SAMPLE_RATE` changes that)
+- Lists (customers, products, invoices, worksheets, users and the search) no longer return the whole
+  table for `limit=1000000` or `page=0`: page and limit must be positive whole numbers (anything
+  else counts as missing) and the page size is at most 50. The pickers in the web app ask for a
+  list without a page or limit to get every customer and product; that still works but is cut off
+  at 1000 rows. **Deliberately not clamped to 50**, which would silently drop entries from those
+  pickers: they need to become searchable before the cap can go down. Page counts now match the
+  page size actually used
 
 ### Fixed
 

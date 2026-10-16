@@ -6,7 +6,7 @@ import { query, queryErrorMessage } from "../helper/query";
 import type { QueryIF, TotalRow } from "../types";
 import type { InvoiceIF, InvoiceItemIF } from "../types/invoice";
 import type { AllowedEmailKey, EmailConfigIF, EmailConfigResult, EmailIF } from "../types/email";
-import { config } from "../config/config";
+import { getPaging } from "../routes/_getters";
 import type { ProductIF } from "../types/product";
 import type { Request } from "express";
 import type {
@@ -143,14 +143,10 @@ export const getGeneralMultiple = async ({
 }: GetGeneralMultipleIF) => {
     const {
         database,
-        itemsPerPage,
         query: { page, limit }
     } = request;
-    const requestedLimit = Number(limit ? parseInt(limit as string, 10) : itemsPerPage);
-    const pageSize = Math.max(
-        config.minItemsPerPage,
-        Math.min(requestedLimit, config.maxItemsPerPage)
-    );
+    // The same page size the list's SQL used (see getFromTo), so the page count matches the rows
+    const { limit: pageSize } = getPaging(page, limit);
 
     const { success, data: rows } = await query({
         database,

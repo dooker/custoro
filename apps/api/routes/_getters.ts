@@ -1,4 +1,5 @@
 import { sanitize } from "../helper";
+import { config } from "../config/config";
 import { GetterIF } from "../types/getter";
 
 interface KeywordWhereIF {
@@ -7,19 +8,41 @@ interface KeywordWhereIF {
     customer?: boolean;
 }
 
-export const getFromTo = (sql: string, page: number, itemsPerPage: number) => {
-    const offset = (page - 1) * itemsPerPage;
+const positiveInteger = (value: unknown) => {
+    const text = typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
 
-    if (page) {
-        sql =
-            sql +
-            `
-            LIMIT ${offset}, ${itemsPerPage}
-        `;
+    return /^\d{1,9}$/.test(text) && Number(text) > 0 ? Number(text) : undefined;
+};
+
+// NaN is what Number(undefined) gives, so a caller that converted a missing value counts as missing
+const isGiven = (value: unknown) =>
+    value !== undefined && value !== null && value !== "" && !Number.isNaN(value);
+
+/**
+ * The page and page size a list request asks for, as numbers that are safe to put in SQL.
+ * page and limit are positive whole numbers, anything else counts as missing (page 1, the
+ * default size), and the size never goes over config.maxItemsPerPage. A request with neither
+ * gets the first config.maxListRows rows, which is what the web app's pickers rely on.
+ */
+export const getPaging = (rawPage: unknown, rawLimit: unknown) => {
+    if (!isGiven(rawPage) && !isGiven(rawLimit)) {
+        return { page: 1, limit: config.maxListRows };
     }
 
-    return sql;
+    return {
+        page: positiveInteger(rawPage) ?? 1,
+        limit: Math.min(positiveInteger(rawLimit) ?? config.itemsPerPage, config.maxItemsPerPage)
+    };
 };
+
+// Adds the LIMIT of an already checked page (see getPaging)
+export const applyPaging = (sql: string, { page, limit }: { page: number; limit: number }) =>
+    `${sql}
+            LIMIT ${(page - 1) * limit}, ${limit}
+        `;
+
+export const getFromTo = (sql: string, page: unknown, limit: unknown) =>
+    applyPaging(sql, getPaging(page, limit));
 
 export const keywordWhere = ({ keyword, table, customer }: KeywordWhereIF) => {
     if (!keyword) {

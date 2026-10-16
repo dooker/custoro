@@ -22,5 +22,8 @@ export const config = {
     ],
     itemsPerPage: 20,
     maxItemsPerPage: 50,
-    minItemsPerPage: 10
+    minItemsPerPage: 10,
+    // A list asked for without a page or limit (the web app's pickers need every customer and
+    // product) is cut off here instead of returning the whole table
+    maxListRows: 1000
 };

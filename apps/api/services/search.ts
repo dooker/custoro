@@ -1,6 +1,7 @@
 import {
+    applyPaging,
     getCustomers,
-    getFromTo,
+    getPaging,
     getInvoices,
     getProducts,
     getUsers,
@@ -81,10 +82,14 @@ export const getMultiple = async (request: Request) => {
         };
     }
 
-    const total = getTotal(Number(limit), totalData?.[0].total || 0);
-    const totalVsPage = total < Number(page);
+    const { page: currentPage, limit: pageSize } = getPaging(page, limit);
+    const total = getTotal(pageSize, totalData?.[0].total || 0);
+    const totalVsPage = total < currentPage;
 
-    sql = getFromTo(sql, Number(totalVsPage ? total : page), Number(limit));
+    sql = applyPaging(sql, {
+        page: Math.max(totalVsPage ? total : currentPage, 1),
+        limit: pageSize
+    });
 
     const { success, data } = await query({
         database,
@@ -112,7 +117,7 @@ export const getMultiple = async (request: Request) => {
         ...(total
             ? {
                   meta: {
-                      page: totalVsPage ? total : page,
+                      page: totalVsPage ? total : currentPage,
                       total,
                       ...(totalVsPage ? { redirect: true } : {})
                   }
