@@ -1,10 +1,10 @@
-import path from "path";
 import { query } from "../helper/query";
 import { email, getConfig } from "./_helpers";
 import { EmailCustomerIF } from "../types/email";
 import fs from "fs";
 import type { Request } from "express";
 import { pdfDir } from "../config/paths";
+import { resolveInside } from "../helpers/pdfFiles";
 
 export const postSingle = async (request: Request) => {
     const {
@@ -59,12 +59,14 @@ export const postSingle = async (request: Request) => {
         };
     }
 
+    // The file name comes from the database; only a file directly inside pdfDir is attached
+    const pdfPath = resolveInside(pdfDir, filename);
     const attachments = {
         filename: filename,
-        path: path.join(pdfDir, filename)
+        path: pdfPath ?? ""
     };
 
-    if (!fs.existsSync(attachments.path)) {
+    if (!pdfPath || !fs.existsSync(pdfPath)) {
         return {
             success: false,
             message: "missing.pdf"

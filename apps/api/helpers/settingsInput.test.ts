@@ -101,6 +101,31 @@ describe("parseSettingsInput", () => {
         }
     });
 
+    it("accepts only a short plain-text prefix for invoice file names", () => {
+        for (const value of ["", "invoice_", "Arve-2026_"]) {
+            expect(parseSettingsInput({ invoiceFilenamePrefix: value }).success, value).toBe(true);
+        }
+
+        // Escapes the PDF folder, breaks a header, or is not plain ASCII
+        for (const value of [
+            "../",
+            "../../tmp/x",
+            "a/b",
+            "arve_š",
+            "x\r\nSet-Cookie: a=b",
+            "a.b",
+            "a".repeat(33)
+        ]) {
+            expect(
+                parseSettingsInput({ invoiceFilenamePrefix: value }),
+                JSON.stringify(value)
+            ).toEqual({
+                success: false,
+                message: "filenamePrefix"
+            });
+        }
+    });
+
     it("refuses short values that do not fit their column", () => {
         expect(parseSettingsInput({ companyName: "x".repeat(250) }).success).toBe(true);
         expect(parseSettingsInput({ companyName: "x".repeat(251) })).toEqual(invalid);

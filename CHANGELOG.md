@@ -63,6 +63,14 @@ version number, kept in each app's `package.json`. The web app shows this file o
   malformed values (VAT rate, last invoice number, mail port). Regular users no longer see the
   Settings page in the web app, though the API still lets them read the settings the invoice and PDF
   screens use. Unset mail server settings are shown empty instead of as the text "undefined"
+- The invoice file name prefix could hold a path such as `../`, which made the API write and read
+  PDFs (and attach them to emails) outside its PDF folder, and a character a header cannot carry
+  (such as "š" or a line break) crashed the whole API process through the public PDF link. The prefix
+  may now only have letters, digits, `_` and `-` (up to 32), is checked when it is saved, and PDF
+  paths are checked again whenever a PDF is written, opened or emailed, so a value saved earlier
+  cannot leave the folder. The download name is sent as `filename*` (UTF-8) with an ASCII fallback
+  and a bad name can no longer take the server down. **An existing prefix that has other characters
+  must be changed in Settings before PDFs can be generated again**
 
 ### Fixed
 

@@ -222,7 +222,8 @@
         "currentPassword": "Praegune parool puudub või on vale",
         "emailFormat": "E-posti aadress on vales vormingus",
         "tooManyAttempts": "Liiga palju katseid. Proovi hiljem uuesti.",
-        "settingsInvalid": "Mõni seadistus pole kehtiv, midagi ei salvestatud"
+        "settingsInvalid": "Mõni seadistus pole kehtiv, midagi ei salvestatud",
+        "filenamePrefix": "Arve failinime algus tohib sisaldada ainult tähti, numbreid, _ ja - (kuni 32 märki)"
     },
     "settings": {
         "singular": "Seaded",

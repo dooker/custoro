@@ -221,7 +221,8 @@
         "currentPassword": "Nice try. That is not your current password.",
         "emailFormat": "That email looks like it came from another galaxy",
         "tooManyAttempts": "Whoa there, space cadet. Too many tries, take a break.",
-        "settingsInvalid": "The settings did not pass inspection, nothing was saved"
+        "settingsInvalid": "The settings did not pass inspection, nothing was saved",
+        "filenamePrefix": "Invoice file names only like letters, digits, _ and - (32 at most). No wormholes."
     },
     "settings": {
         "singular": "Settings",

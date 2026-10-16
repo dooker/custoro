@@ -1,3 +1,5 @@
+import { invoiceFilenamePrefixPattern } from "./pdfFiles";
+
 // What PUT /settings accepts, without Express or the database, so it can be unit tested.
 // The body is checked key by key: a key that is not a setting is refused instead of ignored,
 // so nothing can be written to the config table (or the mail file) that the app does not read.
@@ -33,15 +35,22 @@ const ignoredFields = ["logo"];
 const maxShortLength = 250;
 const maxMailLength = 255;
 
-// Per setting, a rule on top of "is a string". lastInvoiceId feeds the next invoice number and
-// vat every new invoice, so a bad value there would break invoicing.
-const rules: Record<string, (value: string) => boolean> = {
-    lastInvoiceId: (value) => /^\d{1,9}$/.test(value),
-    vat: (value) => /^\d{1,3}(\.\d{1,2})?$/.test(value) && Number(value) <= 100,
-    port: (value) => value === "" || (/^\d{1,5}$/.test(value) && Number(value) <= 65535)
-};
-
 export const settingsInvalidMessage = "settingsInvalid";
+export const filenamePrefixMessage = "filenamePrefix";
+
+// Per setting, a rule on top of "is a string". lastInvoiceId feeds the next invoice number and
+// vat every new invoice, so a bad value there would break invoicing. The invoice filename prefix
+// becomes part of a file path and a download name (see helpers/pdfFiles.ts). A rule has its own
+// message when the web app should say what is wrong with that one value.
+const rules: Record<string, { test: (value: string) => boolean; message?: string }> = {
+    lastInvoiceId: { test: (value) => /^\d{1,9}$/.test(value) },
+    vat: { test: (value) => /^\d{1,3}(\.\d{1,2})?$/.test(value) && Number(value) <= 100 },
+    port: { test: (value) => value === "" || (/^\d{1,5}$/.test(value) && Number(value) <= 65535) },
+    invoiceFilenamePrefix: {
+        test: (value) => invoiceFilenamePrefixPattern.test(value),
+        message: filenamePrefixMessage
+    }
+};
 
 export interface SettingsInputIF {
     // config table rows to update, by name
@@ -93,8 +102,8 @@ export const parseSettingsInput = (body: unknown): SettingsInputResultIF => {
             return fail();
         }
 
-        if (rules[key] && !rules[key](value)) {
-            return fail();
+        if (rules[key] && !rules[key].test(value)) {
+            return fail(rules[key].message);
         }
 
         if (isMail) {

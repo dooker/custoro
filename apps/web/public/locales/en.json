@@ -221,7 +221,8 @@
         "currentPassword": "Current password is missing or wrong",
         "emailFormat": "Email format is incorrect",
         "tooManyAttempts": "Too many attempts. Please try again later.",
-        "settingsInvalid": "Some settings are not valid, nothing was saved"
+        "settingsInvalid": "Some settings are not valid, nothing was saved",
+        "filenamePrefix": "The invoice file name prefix may only have letters, digits, _ and - (up to 32 characters)"
     },
     "settings": {
         "singular": "Settings",

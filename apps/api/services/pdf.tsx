@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import crypto from "node:crypto";
 import React from "react";
-import path from "node:path";
 import { sanitize } from "../helper";
 import { getInvoice, toCamelCase } from "./_helpers";
 import { query } from "../helper/query";
@@ -13,6 +12,12 @@ import i18n from "../i18n";
 import { Document, Page } from "@react-pdf/renderer";
 import type { Request, Response } from "express";
 import { pdfDir } from "../config/paths";
+import { filenamePrefixMessage } from "../helpers/settingsInput";
+import {
+    inlineContentDisposition,
+    invoiceFilenamePrefixPattern,
+    resolveInside
+} from "../helpers/pdfFiles";
 
 export const getSingle = async (request: Request, response: Response) => {
     const {
@@ -44,7 +49,13 @@ export const getSingle = async (request: Request, response: Response) => {
         });
     }
 
-    const pdfPath = path.join(pdfDir, pdf.filename);
+    // The file name comes from the database; whatever it holds, only a file directly inside
+    // pdfDir is ever read
+    const pdfPath = resolveInside(pdfDir, String(pdf.filename ?? ""));
+
+    if (!pdfPath) {
+        return response.status(404).send("File not found");
+    }
 
     // TODO have this to be based on config, not hardcoded replace
     const offer = "offer";
@@ -53,21 +64,23 @@ export const getSingle = async (request: Request, response: Response) => {
             ? pdf.filename.replace("invoice", offer)
             : pdf.filename;
 
-    fs.stat(pdfPath, (err, stats) => {
-        if (err || stats.isDirectory()) {
-            return response.status(404).send("File not found");
-        }
+    const stats = await fs.promises.stat(pdfPath).catch(() => null);
 
-        response.setHeader("Content-Type", "application/pdf");
-        response.setHeader("Content-Disposition", `inline; filename="${displayFilename}"`);
+    if (!stats?.isFile()) {
+        return response.status(404).send("File not found");
+    }
 
-        response.sendFile(pdfPath, (err) => {
-            if (err) {
-                console.error("Error sending file:", err);
+    response.setHeader("Content-Type", "application/pdf");
+    response.setHeader("Content-Disposition", inlineContentDisposition(displayFilename));
 
-                return response.status(500).send("Error serving the file");
+    response.sendFile(pdfPath, (err) => {
+        if (err) {
+            console.error("Error sending file:", err);
+
+            if (!response.headersSent) {
+                response.status(500).send("Error serving the file");
             }
-        });
+        }
     });
 };
 
@@ -119,7 +132,27 @@ export const putSingle = async (request: Request) => {
         };
     }
 
-    const filename = `${settings.invoiceFilenamePrefix}${invoice?.number}.pdf`;
+    // The prefix is checked when it is saved; a value from before that check must not decide where
+    // the file goes
+    const prefix = String(settings.invoiceFilenamePrefix ?? "");
+
+    if (!invoiceFilenamePrefixPattern.test(prefix)) {
+        return {
+            success: false,
+            message: filenamePrefixMessage
+        };
+    }
+
+    const filename = `${prefix}${invoice?.number}.pdf`;
+    const fullFilePath = resolveInside(pdfDir, filename);
+
+    if (!fullFilePath) {
+        return {
+            success: false,
+            message: "pdfGeneratorError"
+        };
+    }
+
     // The hash is the only thing protecting the public link, so it is generated here, never
     // taken from the client. Regenerating the PDF keeps the hash so emailed links stay valid.
     const hash = invoice.hash || crypto.randomBytes(16).toString("hex");
@@ -144,7 +177,6 @@ export const putSingle = async (request: Request) => {
         const stream = await renderToStream(element);
         fs.mkdirSync(pdfDir, { recursive: true });
 
-        const fullFilePath = path.join(pdfDir, filename);
         const writeStream = fs.createWriteStream(fullFilePath);
 
         return new Promise<void>((resolve, reject) => {
