@@ -8,9 +8,17 @@ import {
 } from "../routes/_getters";
 import { getTotal } from "../helper";
 import { adjustProduct } from "./_helpers";
+import { isAdmin } from "../helpers/authorize";
 import { query } from "../helper/query";
 import type { ProductIF } from "../types/product";
+import type { GetterIF } from "../types/getter";
 import type { Request } from "express";
+
+type Getter = (getter: GetterIF) => {
+    sql: string;
+    totalSql: string;
+    params: (string | number | boolean)[];
+};
 
 export const getMultiple = async (request: Request) => {
     const {
@@ -19,18 +27,28 @@ export const getMultiple = async (request: Request) => {
     } = request;
     let sql;
 
+    // The user list is admin-only (GET /users), so searching it is too. The map only holds what
+    // the caller may search, so another resource name can never reach a getter by accident.
     const searchHandlers = {
         customers: getCustomers,
         products: getProducts,
         worksheets: getWorksheets,
         invoices: getInvoices,
-        users: getUsers
-    } as const;
+        ...(isAdmin(request) ? { users: getUsers } : {})
+    } as Record<string, Getter>;
 
-    const handler = searchHandlers[resource as keyof typeof searchHandlers];
+    const handler =
+        typeof resource === "string" && Object.hasOwn(searchHandlers, resource)
+            ? searchHandlers[resource]
+            : undefined;
 
     if (!handler) {
         console.error(`Unknown resource ${resource} for search`);
+
+        return {
+            success: false,
+            message: resource === "users" ? "forbidden" : "unknown.resource"
+        };
     }
 
     const result = handler({

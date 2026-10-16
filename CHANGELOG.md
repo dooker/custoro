@@ -71,6 +71,9 @@ version number, kept in each app's `package.json`. The web app shows this file o
   cannot leave the folder. The download name is sent as `filename*` (UTF-8) with an ASCII fallback
   and a bad name can no longer take the server down. **An existing prefix that has other characters
   must be changed in Settings before PDFs can be generated again**
+- A regular user could list every account (email, name, role, last seen) through the search, while
+  `GET /users` was admin-only. Searching users is now admin-only too (HTTP 403 otherwise), and a
+  search for an unknown resource answers with an error instead of failing inside the server
 
 ### Fixed
 

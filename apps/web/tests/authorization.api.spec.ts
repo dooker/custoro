@@ -109,6 +109,66 @@ test.describe('admin-only routes', () => {
     });
 });
 
+test.describe('searching users', () => {
+    // The user list is admin-only; the search must not be a way around that
+    const search = (resource: string, keyword = '') =>
+        `/search/?resource=${resource}&keyword=${encodeURIComponent(keyword)}&page=1&limit=10`;
+
+    test('is forbidden for a regular user, with or without a keyword', async ({ request }) => {
+        const token = await getApiToken(request, getRegularUser());
+
+        for (const path of [
+            search('users'),
+            search('users', 'admin'),
+            search('users', 'quantumdesk'),
+            '/search/?resource=users',
+        ]) {
+            const response = await call(request, 'get', path, token);
+
+            expect(response.status(), path).toBe(403);
+            expect(await response.json(), path).toEqual({ success: false, message: 'forbidden' });
+        }
+    });
+
+    test('cannot be reached by writing the resource differently', async ({ request }) => {
+        const token = await getApiToken(request, getRegularUser());
+
+        for (const path of [
+            search('Users'),
+            search('users%20'),
+            '/search/?resource=customers&resource=users&page=1&limit=10',
+            '/search/?resource[]=users&page=1&limit=10',
+            '/search/?resource=constructor&page=1&limit=10',
+            '/search/?resource=__proto__&page=1&limit=10',
+        ]) {
+            const body = await (await call(request, 'get', path, token)).json();
+
+            expect(body.success, path).toBe(false);
+            expect(body, path).not.toHaveProperty('resource');
+        }
+    });
+
+    test('still works for a regular user on the other resources', async ({ request }) => {
+        const token = await getApiToken(request, getRegularUser());
+
+        for (const resource of ['customers', 'products', 'worksheets', 'invoices']) {
+            const body = await (await call(request, 'get', search(resource), token)).json();
+
+            expect(body.success, resource).toBe(true);
+        }
+    });
+
+    test('an admin can search users', async ({ request }) => {
+        const token = await getApiToken(request);
+        const body = await (await call(request, 'get', search('users', 'cadet'), token)).json();
+
+        expect(body.success).toBe(true);
+        expect(body.resource.map((user: { username: string }) => user.username)).toContain(
+            getRegularUser().username
+        );
+    });
+});
+
 test.describe('mail server settings', () => {
     const mailFields = ['host', 'port', 'username', 'password'];
 
