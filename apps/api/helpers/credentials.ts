@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { sanitize } from "../helper";
+import { tooManyAttemptsMessage } from "./rateLimit";
 
 export interface LoginUserIF {
     id: number;
@@ -22,11 +23,15 @@ export interface TokenPayloadIF {
 
 export interface CredentialsDepsIF {
     findUser: (username: string) => Promise<{ success: boolean; user?: LoginUserIF }>;
+    // Called with the account the username found (undefined when there is none), before the
+    // password is checked. A number above 0 refuses the attempt, for that many seconds.
+    retryAfterSeconds?: (user: LoginUserIF | undefined) => number;
     comparePassword: (password: string, hash: string) => Promise<boolean>;
     signToken: (payload: TokenPayloadIF) => string;
 }
 
-export type LoginResultIF = { success: true; token: string } | { success: false; message: string };
+export type LoginResultIF =
+    { success: true; token: string } | { success: false; message: string; retryAfter?: number };
 
 export const missingInfoMessage = "Cannot login, missing vital info";
 export const loginFailedMessage = "None shall pass!";
@@ -113,6 +118,11 @@ export const checkCredentials = async (
     }
 
     const { success, user } = await deps.findUser(String(username));
+    const retryAfter = deps.retryAfterSeconds?.(success ? user : undefined) ?? 0;
+
+    if (retryAfter > 0) {
+        return { success: false, message: tooManyAttemptsMessage, retryAfter };
+    }
 
     if (!success || !user || !user.password) {
         await deps.comparePassword(password, await timingHash);

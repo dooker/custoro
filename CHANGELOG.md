@@ -78,6 +78,17 @@ version number, kept in each app's `package.json`. The web app shows this file o
   The username column ignores case, accents and trailing spaces when it compares, so asking for a
   reset for `admin@exámple.com` found the account of `admin@example.com` and mailed the reset link to
   the lookalike domain, which let anyone who could register that domain take over the account
+- The login limit could be sidestepped by typing the email differently: the limit counted per typed
+  spelling, but the database treats `admin@x.com`, `ADMIN@x.com`, `admín@x.com` and `admin@x.com `
+  as one account, so every spelling got its own 10 tries. Limits (login, reset email and the
+  current-password check on the profile page) now count an existing account by its id. Because a
+  stranger's failures could also lock the real owner out for as long as they kept trying, the
+  10 failures per 15 minutes now count per account **and client address**, so the owner is not
+  affected by another address; a larger budget of 50 per account across all addresses still stops
+  a guess spread over many addresses. An IPv6 client counts as its whole /64, and an address
+  that has used up its failures is turned away before the database is asked. Set
+  `LOGIN_MAX_FAILURES_PER_ACCOUNT_ADDRESS` (new, default 10) and `LOGIN_MAX_FAILURES_PER_ACCOUNT`
+  (default was 10, now 50, meaning all addresses together)
 
 ### Fixed
 

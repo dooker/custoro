@@ -14,6 +14,7 @@ import {
     type CredentialsDepsIF,
     type LoginUserIF
 } from "./credentials";
+import { tooManyAttemptsMessage } from "./rateLimit";
 
 const admin: LoginUserIF = { id: 1, password: "hash-of-admin", role: "admin", token_version: 3 };
 
@@ -57,6 +58,44 @@ describe("checkCredentials", () => {
 
         expect(result).toEqual({ success: false, message: missingInfoMessage });
         expect(deps.findUser).not.toHaveBeenCalled();
+    });
+
+    it("asks the limiter about the account the username found, before the password is checked", async () => {
+        const retryAfterSeconds = vi.fn(() => 120);
+        const deps = fakeDeps({ retryAfterSeconds });
+
+        const result = await checkCredentials("user@example.test", "correct-password", deps);
+
+        expect(retryAfterSeconds).toHaveBeenCalledWith(admin);
+        expect(result).toEqual({
+            success: false,
+            message: tooManyAttemptsMessage,
+            retryAfter: 120
+        });
+        expect(deps.comparePassword).not.toHaveBeenCalled();
+        expect(deps.signToken).not.toHaveBeenCalled();
+    });
+
+    it("tells the limiter when no account was found, and goes on when it allows the attempt", async () => {
+        const retryAfterSeconds = vi.fn(() => 0);
+        const deps = fakeDeps({
+            findUser: vi.fn(async () => ({ success: true })),
+            retryAfterSeconds
+        });
+
+        const result = await checkCredentials("nobody@example.test", "secret", deps);
+
+        expect(retryAfterSeconds).toHaveBeenCalledWith(undefined);
+        expect(result).toEqual({ success: false, message: loginFailedMessage });
+        expect(deps.comparePassword).toHaveBeenCalled();
+    });
+
+    it("does not ask the limiter without a username or password", async () => {
+        const retryAfterSeconds = vi.fn(() => 0);
+
+        await checkCredentials("", "secret", fakeDeps({ retryAfterSeconds }));
+
+        expect(retryAfterSeconds).not.toHaveBeenCalled();
     });
 
     it("rejects an unknown user after the same bcrypt work as a known one", async () => {

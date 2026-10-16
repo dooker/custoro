@@ -6,7 +6,7 @@ import type { Request } from "express";
 import { authUser } from "../helpers/authorize";
 import { hashPassword, isValidNewPassword, verifyPassword } from "../helpers/credentials";
 import { checkResetToken, requestPasswordReset, resetPassword } from "../helpers/passwordReset";
-import { getLoginThrottle, getResetThrottle } from "../helpers/rateLimit";
+import { accountKey, getLoginThrottle, getResetThrottle } from "../helpers/rateLimit";
 import { isUsernameTaken } from "../helpers/users";
 import { getTokenSigner } from "./login";
 
@@ -131,11 +131,12 @@ export const putSingle = async (request: Request) => {
     const changesCredentials = !!password || changesEmail;
 
     if (changesCredentials) {
+        // The same counters as the login, so guessing the password here costs the same
         const throttle = getLoginThrottle();
         const ip = request.ip ?? "unknown";
-        const accountName = current.username ?? String(id);
+        const account = accountKey(id);
 
-        if (throttle.retryAfterSeconds(ip, accountName) > 0) {
+        if (throttle.retryAfterSeconds(ip, account) > 0) {
             return {
                 success: false,
                 message: "tooManyAttempts"
@@ -149,7 +150,7 @@ export const putSingle = async (request: Request) => {
             (await verifyPassword(currentPassword, current.password));
 
         if (!isCurrentPassword) {
-            if (currentPassword) throttle.recordFailure(ip, accountName);
+            if (currentPassword) throttle.recordFailure(ip, account);
 
             return {
                 success: false,
@@ -220,9 +221,10 @@ export const putSingle = async (request: Request) => {
     };
 };
 
-// Answers before any work is done, so the response never shows whether the address has an
-// account; failures only reach the server log and Sentry
-export const forgot = (username: string, request: Request) => {
+// Always answers success, so the response never shows whether the address has an account. Only
+// the account lookup is awaited (it is the same work for any address); the token, the email and
+// every failure happen afterwards and only reach the server log and Sentry.
+export const forgot = async (username: string, request: Request) => {
     const { database } = request;
     // The link always points at the configured app, never at the request's Origin header
     const appOrigin = process.env.APP_ORIGIN || "http://localhost:3000";
@@ -231,28 +233,28 @@ export const forgot = (username: string, request: Request) => {
         Sentry.captureMessage(message, "error");
     };
 
-    // Limits reset emails per address and per account. Over the limit the answer is still
-    // success, so it says nothing about the account; the request is only logged.
-    if (!getResetThrottle().allow(request.ip ?? "unknown", username)) {
+    const { data } = await query<UserIF & { username: string }>({
+        database,
+        sql: `SELECT id, username
+              FROM users
+              WHERE username = ?`,
+        params: [username],
+        logger: "Check if user exists"
+    });
+    const found = data?.[0];
+    const user = found ? { id: found.id, email: found.username } : null;
+
+    // Limits reset emails per address and per account (counted by the account the lookup found,
+    // see accountKey). Over the limit the answer is still success, so it says nothing about the
+    // account; the request is only logged.
+    if (!getResetThrottle().allow(request.ip ?? "unknown", accountKey(user?.id, username))) {
         reportError("Password reset: request refused, too many requests");
 
         return { success: true };
     }
 
     void requestPasswordReset(username, appOrigin, {
-        findUser: async (name) => {
-            const { data } = await query<UserIF & { username: string }>({
-                database,
-                sql: `SELECT id, username
-                      FROM users
-                      WHERE username = ?`,
-                params: [name],
-                logger: "Check if user exists"
-            });
-            const user = data?.[0];
-
-            return user ? { id: user.id, email: user.username } : null;
-        },
+        findUser: async () => user,
         saveToken: async (userId, tokenHash, expiresAt) => {
             const { success } = await query({
                 database,

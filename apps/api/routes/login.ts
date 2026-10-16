@@ -22,8 +22,8 @@ router.post("/", async (req, res) => {
 });
 
 // reset password email submit
-router.post("/forgot", (req, res) => {
-    res.json(forgotUser(String(sanitize(req.body?.username)), req));
+router.post("/forgot", async (req, res) => {
+    res.json(await forgotUser(String(sanitize(req.body?.username)), req));
 });
 
 // check if token exists
