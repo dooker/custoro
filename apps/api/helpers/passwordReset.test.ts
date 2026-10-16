@@ -65,7 +65,10 @@ describe("requestPasswordReset", () => {
     };
 
     const fakeDeps = (overrides: Partial<RequestResetDepsIF> = {}) => ({
-        findUserId: vi.fn<RequestResetDepsIF["findUserId"]>(async () => 7),
+        findUser: vi.fn<RequestResetDepsIF["findUser"]>(async () => ({
+            id: 7,
+            email: "user@example.test"
+        })),
         saveToken: vi.fn<RequestResetDepsIF["saveToken"]>(async () => true),
         sendEmail: vi.fn<RequestResetDepsIF["sendEmail"]>(async () => ({ success: true })),
         reportError: vi.fn<RequestResetDepsIF["reportError"]>(),
@@ -86,8 +89,24 @@ describe("requestPasswordReset", () => {
         expect(deps.reportError).not.toHaveBeenCalled();
     });
 
+    // The username column ignores case, accents and trailing spaces, so a lookalike address finds
+    // the account; the link must still go to the address stored for it
+    it("emails the address stored for the account, not the one that was typed", async () => {
+        const deps = fakeDeps({
+            findUser: vi.fn(async () => ({ id: 7, email: "admin@example.test" }))
+        });
+
+        await requestPasswordReset("admin@exámple.test", "https://app.example.test", deps);
+
+        expect(deps.sendEmail).toHaveBeenCalledTimes(1);
+        expect(deps.sendEmail).toHaveBeenCalledWith(
+            "admin@example.test",
+            `https://app.example.test/restore/${token}`
+        );
+    });
+
     it("does nothing for an unknown address", async () => {
-        const deps = fakeDeps({ findUserId: vi.fn(async () => null) });
+        const deps = fakeDeps({ findUser: vi.fn(async () => null) });
 
         await requestPasswordReset("nobody@example.test", "https://app.example.test", deps);
 
@@ -100,7 +119,7 @@ describe("requestPasswordReset", () => {
 
         await requestPasswordReset("", "https://app.example.test", deps);
 
-        expect(deps.findUserId).not.toHaveBeenCalled();
+        expect(deps.findUser).not.toHaveBeenCalled();
     });
 
     it("reports a failed email instead of returning it", async () => {
@@ -125,7 +144,7 @@ describe("requestPasswordReset", () => {
 
     it("reports a thrown error and never rejects", async () => {
         const deps = fakeDeps({
-            findUserId: vi.fn(async () => {
+            findUser: vi.fn(async () => {
                 throw new Error("database down");
             })
         });

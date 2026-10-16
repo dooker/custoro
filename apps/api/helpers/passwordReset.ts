@@ -32,8 +32,15 @@ export const createResetToken = (now: Date = new Date()): ResetTokenIF => {
     };
 };
 
+export interface ResetUserIF {
+    id: number;
+    // The address stored for the account, which is not always the one that was typed: the
+    // username column ignores case, accents and trailing spaces when it compares
+    email: string;
+}
+
 export interface RequestResetDepsIF {
-    findUserId: (username: string) => Promise<number | null>;
+    findUser: (username: string) => Promise<ResetUserIF | null>;
     saveToken: (userId: number, tokenHash: string, expiresAt: Date) => Promise<boolean>;
     sendEmail: (to: string, link: string) => Promise<{ success: boolean; message?: string }>;
     reportError: (message: string) => void;
@@ -50,18 +57,20 @@ export const requestPasswordReset = async (
     try {
         if (!username) return;
 
-        const userId = await deps.findUserId(username);
+        const user = await deps.findUser(username);
 
-        if (!userId) return;
+        if (!user) return;
 
         const { token, tokenHash, expiresAt } = (deps.createToken ?? createResetToken)();
 
-        if (!(await deps.saveToken(userId, tokenHash, expiresAt))) {
+        if (!(await deps.saveToken(user.id, tokenHash, expiresAt))) {
             deps.reportError("Password reset: saving the token failed");
             return;
         }
 
-        const sent = await deps.sendEmail(username, `${appOrigin}/restore/${token}`);
+        // Always the stored address. Mailing the typed one would let anyone who owns a lookalike
+        // address ("admin@exámple.com" matches "admin@example.com") receive the reset link.
+        const sent = await deps.sendEmail(user.email, `${appOrigin}/restore/${token}`);
 
         if (!sent.success) {
             deps.reportError(`Password reset: sending the email failed (${sent.message})`);

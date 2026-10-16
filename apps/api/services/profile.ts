@@ -240,17 +240,18 @@ export const forgot = (username: string, request: Request) => {
     }
 
     void requestPasswordReset(username, appOrigin, {
-        findUserId: async (name) => {
-            const { data } = await query<UserIF>({
+        findUser: async (name) => {
+            const { data } = await query<UserIF & { username: string }>({
                 database,
-                sql: `SELECT id
+                sql: `SELECT id, username
                       FROM users
                       WHERE username = ?`,
                 params: [name],
                 logger: "Check if user exists"
             });
+            const user = data?.[0];
 
-            return data?.[0]?.id ?? null;
+            return user ? { id: user.id, email: user.username } : null;
         },
         saveToken: async (userId, tokenHash, expiresAt) => {
             const { success } = await query({

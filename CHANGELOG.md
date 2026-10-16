@@ -74,6 +74,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - A regular user could list every account (email, name, role, last seen) through the search, while
   `GET /users` was admin-only. Searching users is now admin-only too (HTTP 403 otherwise), and a
   search for an unknown resource answers with an error instead of failing inside the server
+- Password reset emails go to the address stored for the account instead of the one typed in the form.
+  The username column ignores case, accents and trailing spaces when it compares, so asking for a
+  reset for `admin@exámple.com` found the account of `admin@example.com` and mailed the reset link to
+  the lookalike domain, which let anyone who could register that domain take over the account
 
 ### Fixed
 
