@@ -93,6 +93,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   `Referer` header. The header is the sender's to choose, so anyone could put any link into an email
   sent from the company mailbox, and in production it is the full page address, which made the link
   wrong (`https://app/invoice/1/12/pdf/...`)
+- The API refuses to start in production when `JWT_SECRET` is missing or shorter than 32 characters
+  (`openssl rand -hex 32` makes a good one), since login tokens are only as safe as that secret
+- Sentry no longer receives PDF links: the hash in `/pdf/<hash>` is the invoice's only credential and
+  was in error and trace data (request URLs, span names). Traces are scrubbed like errors, and in
+  production a tenth of them are sent instead of all (`SENTRY_TRACES_SAMPLE_RATE` changes that)
 
 ### Fixed
 

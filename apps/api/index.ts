@@ -3,32 +3,24 @@ const env = process.env.NODE_ENV || development;
 
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
+import { scrubSentryEvent, tracesSampleRate } from "./helpers/sentryScrub";
 
 // Error tracking is enabled only when SENTRY_DSN is set in the environment
 if (process.env.SENTRY_DSN) {
+    // Traces and profiles are all kept in development and a tenth in production
+    const sampleRate = tracesSampleRate(env, process.env.SENTRY_TRACES_SAMPLE_RATE);
+
     Sentry.init({
         dsn: process.env.SENTRY_DSN,
         environment: env,
         integrations: [nodeProfilingIntegration()],
-        // Trace 100% of transactions during local development
-        tracesSampleRate: 1.0,
-        profileSessionSampleRate: 1.0,
+        tracesSampleRate: sampleRate,
+        profileSessionSampleRate: sampleRate,
         profileLifecycle: "trace",
-        // Request bodies carry passwords and reset tokens, and the Authorization header carries
-        // the login token, so neither is ever sent to Sentry
-        beforeSend: (event) => {
-            if (event.request) {
-                delete event.request.data;
-                delete event.request.cookies;
-
-                if (event.request.headers) {
-                    delete event.request.headers.authorization;
-                    delete event.request.headers.Authorization;
-                }
-            }
-
-            return event;
-        }
+        // Request bodies, the Authorization header and PDF links (the hash in /pdf/<hash> is the
+        // invoice's only credential) never leave the server, in errors and in traces
+        beforeSend: (event) => scrubSentryEvent(event),
+        beforeSendTransaction: (event) => scrubSentryEvent(event)
     });
 }
 
@@ -44,6 +36,7 @@ import pkg from "./package.json";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
 import { getDatabaseName } from "./helper";
+import { jwtSecretProblem } from "./helpers/startupChecks";
 import { uploadDir, pdfDir } from "./config/paths";
 import type { DBConfigMap } from "./types";
 import type { Request, Response, NextFunction } from "express";
@@ -57,6 +50,13 @@ const error500 = "500 - Internal Server Booboo.";
 // quiet: dotenv 17+ otherwise logs an "injected env" line on every start
 dotenv.config({ path: path.join(rootPath, envFile), quiet: true });
 dotenv.config({ path: path.join(rootPath, ".env"), quiet: true });
+
+const jwtProblem = jwtSecretProblem(process.env.JWT_SECRET, env === "production");
+
+if (jwtProblem) {
+    console.error(`Refusing to start: ${jwtProblem}`);
+    process.exit(1);
+}
 
 console.log(`System: Running in ${env} mode`);
 console.log(`Root Path: ${rootPath}`);
