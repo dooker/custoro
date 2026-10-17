@@ -5,6 +5,10 @@
 #
 # On the database's first start (empty volume) MySQL loads the schema, the seed and the
 # demo data listed under db.volumes. Reload them with `npm run docker:reset`. After changing dependencies: `npm run docker:dev -- --renew-anon-volumes`.
+#
+# Every port is published on 127.0.0.1 only. This stack has a known database password, a default
+# JWT secret and public demo logins, so it must not be reachable from the network. To open it to
+# another device on purpose, publish the port on 0.0.0.0 in a docker-compose.override.yml.
 name: custoro
 
 services:
@@ -15,7 +19,7 @@ services:
             MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-custoro}
             MYSQL_DATABASE: ${DB_NAME:-custoro}
         ports:
-            - "${DB_PORT:-3306}:3306"
+            - "127.0.0.1:${DB_PORT:-3306}:3306"
         volumes:
             - dbdata:/var/lib/mysql
             # Init scripts run in file-name order. Production mounts the whole apps/api/db
@@ -52,7 +56,7 @@ services:
             # File watching on macOS/Windows bind mounts
             CHOKIDAR_USEPOLLING: "true"
         ports:
-            - "3999:3999"
+            - "127.0.0.1:3999:3999"
         volumes:
             - ./apps/api:/app
             # Keep the container's Linux node_modules separate from the host's
@@ -72,7 +76,7 @@ services:
             VITE_API_ENDPOINT: http://localhost:3999
             CHOKIDAR_USEPOLLING: "true"
         ports:
-            - "3000:3000"
+            - "127.0.0.1:3000:3000"
         volumes:
             - ./apps/web:/app/apps/web
             - /app/apps/web/node_modules

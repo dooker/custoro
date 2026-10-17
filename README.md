@@ -34,6 +34,10 @@ npm run docker:dev        # or: docker compose up --build
 - API: http://localhost:3999 (restarts on change)
 - MySQL: localhost:3306, user `root`, password `custoro`
 
+The ports are published on `127.0.0.1` only, so the stack (known database password, default JWT
+secret, public demo logins) cannot be reached from the network. To open it to another device on
+purpose, see the comment at the top of `docker-compose.yml`.
+
 After changing dependencies, recreate the containers' `node_modules`: `docker compose up --build --renew-anon-volumes`.
 
 ### Option B: MySQL in Docker, apps on the host

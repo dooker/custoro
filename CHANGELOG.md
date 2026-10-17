@@ -130,6 +130,9 @@ version number, kept in each app's `package.json`. The web app shows this file o
   the first byte on port 465) and gives up instead. `EMAIL_REQUIRE_TLS=false` allows a plain
   connection to a mail server or test mail catcher on the same machine; the development compose
   file sets it
+- The development stack (`docker-compose.yml`) publishes its ports on `127.0.0.1` only. It has a
+  known database password (`root` / `custoro`), a default `JWT_SECRET` and public demo logins, and
+  used to be reachable from the whole network
 
 ### Fixed
 
