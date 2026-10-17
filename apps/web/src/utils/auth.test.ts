@@ -7,6 +7,7 @@ import {
     getLoginUrl,
     getResetTokenUrl,
     getRedirectAfterLogin,
+    isSessionEndResponse,
     validateLoginForm,
     type LoginFormValuesIF,
 } from './auth';
@@ -256,6 +257,34 @@ describe('getApiErrorMessage', () => {
     it('falls back to a generic message when both are empty', () => {
         expect(getApiErrorMessage(error('', ''))).toBe('general error');
     });
+});
+
+describe('isSessionEndResponse', () => {
+    it.each(['session.expired', 'invalid.token'])(
+        'recognises the answer the API gives for a refused token: %s',
+        (message) => {
+            expect(isSessionEndResponse({ success: false, message })).toBe(true);
+        }
+    );
+
+    it.each([
+        ['a successful answer', { success: true, message: 'session.expired' }],
+        ['another failure', { success: false, message: 'forbidden' }],
+        ['a login failure', { success: false, message: 'None shall pass!' }],
+        ['an answer without a message', { success: false }],
+        ['a message that is not text', { success: false, message: ['session.expired'] }],
+        ['a name from Object.prototype', { success: false, message: 'constructor' }],
+        ['a missing success flag', { message: 'invalid.token' }],
+    ])('ignores %s', (_case, data) => {
+        expect(isSessionEndResponse(data)).toBe(false);
+    });
+
+    it.each([null, undefined, 'session.expired', 42, []])(
+        'ignores %j, which is not an answer',
+        (data) => {
+            expect(isSessionEndResponse(data)).toBe(false);
+        }
+    );
 });
 
 describe('getRedirectAfterLogin', () => {

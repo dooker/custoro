@@ -136,6 +136,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- The web app ends the session when the API refuses the login token (it expired, or the password or
+  email was changed elsewhere): it logs the user out, goes to the login page and says the session
+  expired. The API answers such a request with HTTP 200 and `success: false`, which the app ignored,
+  so lists never loaded and forms looked as if they had saved
 - Invoices created at the same time no longer get the same number: the next number is reserved and
   the invoice inserted in one transaction, and invoice numbers have a unique index. **Existing
   databases must run the new migration**, which stops and lists any duplicate numbers that need to
