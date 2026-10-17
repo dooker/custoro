@@ -19,3 +19,13 @@ export const jwtSecretProblem = (secret: string | undefined, production: boolean
 
     return null;
 };
+
+/**
+ * A warning when production runs without TRUST_PROXY, or null. Unset, Express trusts every
+ * private-network hop, so a client on a private network (an office LAN, a VPN) can put any
+ * address in X-Forwarded-For and the login and reset limits count that instead of its own.
+ */
+export const trustProxyWarning = (value: string | undefined, production: boolean) =>
+    production && !value
+        ? "TRUST_PROXY is not set: every private-network hop is trusted, so a client on a private network can forge its address and sidestep the per-address login limits. Set it to the number of proxies in front of the API (1 = nginx only, 2 = a TLS proxy and nginx)."
+        : null;

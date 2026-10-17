@@ -36,7 +36,7 @@ import pkg from "./package.json";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
 import { getAppOrigin } from "./helpers/appOrigin";
-import { jwtSecretProblem } from "./helpers/startupChecks";
+import { jwtSecretProblem, trustProxyWarning } from "./helpers/startupChecks";
 import { uploadDir, pdfDir } from "./config/paths";
 import type { Request, Response, NextFunction } from "express";
 
@@ -57,6 +57,12 @@ if (jwtProblem) {
     process.exit(1);
 }
 
+const proxyWarning = trustProxyWarning(process.env.TRUST_PROXY, env === "production");
+
+if (proxyWarning) {
+    console.warn(`Warning: ${proxyWarning}`);
+}
+
 console.log(`System: Running in ${env} mode`);
 console.log(`Root Path: ${rootPath}`);
 console.log(`${version} @ ${env}`);
@@ -65,8 +71,11 @@ const app = express();
 const servicePort = process.env.SERVICE_PORT || 3999;
 
 // req.ip feeds the login and reset limits. Behind nginx (and maybe a TLS proxy) the client
-// address is in X-Forwarded-For; trusting only private-network hops means a client cannot
-// fake it. TRUST_PROXY takes Express's "trust proxy" values: a hop count, true/false or a list.
+// address is in X-Forwarded-For. TRUST_PROXY takes Express's "trust proxy" values: a hop count
+// (the right choice in production: only the proxies you run are believed, so a forged header
+// cannot move the address), true/false or a list. Unset it trusts private-network hops, which
+// suits development (the tests log in from several made-up addresses) but not a client on a
+// private network in production, who could then forge its address; production warns about it.
 const parseTrustProxy = (value: string | undefined) => {
     if (!value) return "loopback, linklocal, uniquelocal";
     if (/^\d+$/.test(value)) return Number(value);

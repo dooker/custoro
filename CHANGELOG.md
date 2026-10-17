@@ -114,6 +114,16 @@ version number, kept in each app's `package.json`. The web app shows this file o
   production; nginx also no longer rewrites `Origin` from the host name. The header now only decides
   whether the browser may read the answer: the app (`APP_ORIGIN`) and `localhost` may, other sites
   get no CORS headers. The web image has to be rebuilt for the nginx change
+- The per-address login and reset limits could be sidestepped in production by anyone on a private
+  network (an office network, a VPN): the API believed every private address in the
+  `X-Forwarded-For` header, so a client could claim a new address with each request. That gave an
+  attacker 40 failed guesses instead of 10 on one account, and once the account-wide limit of 50
+  was reached it locked the real owner out from every address; unknown-name logins also got past
+  the per-address cap, each costing a password hash. `docker-compose.prod.yml` now requires
+  `TRUST_PROXY`, the number of proxies in front of the API (`1` when people reach nginx directly,
+  `2` behind a TLS proxy such as Caddy), so only those proxies are believed. **Existing production
+  setups must add `TRUST_PROXY` to `.env`**: `docker compose` refuses to start without it, and an
+  API started in production without it logs a warning
 
 ### Fixed
 
