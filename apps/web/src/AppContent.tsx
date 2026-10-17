@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { useAuth } from './contexts/Auth';
 import { Route, Routes, useMatch } from 'react-router';
 import { PATHS } from './variables';
+import { useSessionEnd } from './hooks/useSessionEnd';
 
 import Navigation from './components/_shared/Navigation/Navigation';
 import PrivateRoute from './PrivateRoute';
@@ -33,6 +34,8 @@ const User = lazy(() => import('./components/User/User'));
 
 const AppContent = () => {
     const { loading, errorMessage, isAuth } = useAuth();
+
+    useSessionEnd();
 
     // pages with no menu elements
     const matchPdf = useMatch(`${PATHS.PDF}:hash/`);

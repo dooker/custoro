@@ -3,6 +3,9 @@ export const endpoint = import.meta.env.VITE_API_ENDPOINT;
 export const lastUrl = 'lastUrl';
 export const themeString = 'theme';
 export const storageChange = 'storageChange';
+// Sent on window when the API refuses the login token (expired, or the password or email was
+// changed elsewhere); useSessionEnd listens and logs the user out, see Axios.tsx
+export const sessionEndedEvent = 'sessionEnded';
 
 export const debounceTimer = 350;
 

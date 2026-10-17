@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jwtSecretProblem } from "./startupChecks";
+import { jwtSecretProblem, trustProxyWarning } from "./startupChecks";
 
 const good = "0123456789abcdef0123456789abcdef";
 
@@ -22,5 +22,23 @@ describe("jwtSecretProblem", () => {
     it("leaves development alone, where Docker sets a throwaway secret", () => {
         expect(jwtSecretProblem(undefined, false)).toBeNull();
         expect(jwtSecretProblem("dev-only-insecure-secret", false)).toBeNull();
+    });
+});
+
+describe("trustProxyWarning", () => {
+    it("warns in production when TRUST_PROXY is missing or empty", () => {
+        expect(trustProxyWarning(undefined, true)).toMatch(/TRUST_PROXY is not set/);
+        expect(trustProxyWarning("", true)).toMatch(/TRUST_PROXY is not set/);
+    });
+
+    it("stays quiet in production once it is set, whatever the value", () => {
+        expect(trustProxyWarning("1", true)).toBeNull();
+        expect(trustProxyWarning("2", true)).toBeNull();
+        expect(trustProxyWarning("0", true)).toBeNull();
+        expect(trustProxyWarning("10.0.0.0/8", true)).toBeNull();
+    });
+
+    it("leaves development alone, where the tests log in from several made-up addresses", () => {
+        expect(trustProxyWarning(undefined, false)).toBeNull();
     });
 });

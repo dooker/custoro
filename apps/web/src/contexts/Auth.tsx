@@ -3,6 +3,7 @@ import React, {
     type Dispatch,
     type ReactNode,
     type SetStateAction,
+    useCallback,
     useContext,
     useState,
 } from 'react';
@@ -58,13 +59,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         staleTime: Infinity,
     });
 
-    const logout = () => {
+    const logout = useCallback(() => {
         localStorage.removeItem(tokenName);
         setToken(null);
 
         void queryClient.removeQueries({ queryKey: [RESOURCE.PROFILE] });
         queryClient.clear();
-    };
+    }, [queryClient]);
 
     // Manually trigger the useQuery to update
     const refreshAuth = () => {

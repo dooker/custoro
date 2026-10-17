@@ -114,9 +114,32 @@ version number, kept in each app's `package.json`. The web app shows this file o
   production; nginx also no longer rewrites `Origin` from the host name. The header now only decides
   whether the browser may read the answer: the app (`APP_ORIGIN`) and `localhost` may, other sites
   get no CORS headers. The web image has to be rebuilt for the nginx change
+- The per-address login and reset limits could be sidestepped in production by anyone on a private
+  network (an office network, a VPN): the API believed every private address in the
+  `X-Forwarded-For` header, so a client could claim a new address with each request. That gave an
+  attacker 40 failed guesses instead of 10 on one account, and once the account-wide limit of 50
+  was reached it locked the real owner out from every address; unknown-name logins also got past
+  the per-address cap, each costing a password hash. `docker-compose.prod.yml` now requires
+  `TRUST_PROXY`, the number of proxies in front of the API (`1` when people reach nginx directly,
+  `2` behind a TLS proxy such as Caddy), so only those proxies are believed. **Existing production
+  setups must add `TRUST_PROXY` to `.env`**: `docker compose` refuses to start without it, and an
+  API started in production without it logs a warning
+- The mail server login (user and password) is only sent over TLS. The API used to start the
+  connection in plain text and upgrade only if the server offered STARTTLS, so a network attacker
+  who removed that offer received the login in the clear. It now requires STARTTLS (or uses TLS from
+  the first byte on port 465) and gives up instead. `EMAIL_REQUIRE_TLS=false` allows a plain
+  connection to a mail server or test mail catcher on the same machine; the development compose
+  file sets it
+- The development stack (`docker-compose.yml`) publishes its ports on `127.0.0.1` only. It has a
+  known database password (`root` / `custoro`), a default `JWT_SECRET` and public demo logins, and
+  used to be reachable from the whole network
 
 ### Fixed
 
+- The web app ends the session when the API refuses the login token (it expired, or the password or
+  email was changed elsewhere): it logs the user out, goes to the login page and says the session
+  expired. The API answers such a request with HTTP 200 and `success: false`, which the app ignored,
+  so lists never loaded and forms looked as if they had saved
 - Invoices created at the same time no longer get the same number: the next number is reserved and
   the invoice inserted in one transaction, and invoice numbers have a unique index. **Existing
   databases must run the new migration**, which stops and lists any duplicate numbers that need to
