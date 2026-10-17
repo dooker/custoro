@@ -46,6 +46,9 @@ services:
             # in with wrong passwords on purpose, so the per-address limit is raised here. The
             # per-account limit stays at its production value.
             LOGIN_MAX_FAILURES_PER_IP: ${LOGIN_MAX_FAILURES_PER_IP:-500}
+            # A local test mail catcher (MailHog, Mailpit, ...) has no TLS, so development allows a
+            # plain connection to the mail server. Production requires TLS (EMAIL_REQUIRE_TLS unset).
+            EMAIL_REQUIRE_TLS: ${EMAIL_REQUIRE_TLS:-false}
             # File watching on macOS/Windows bind mounts
             CHOKIDAR_USEPOLLING: "true"
         ports:

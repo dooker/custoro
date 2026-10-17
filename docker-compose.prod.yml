@@ -49,6 +49,7 @@ services:
             EMAIL_USER: ${EMAIL_USER:-}
             EMAIL_PASS: ${EMAIL_PASS:-}
             EMAIL_FROM: ${EMAIL_FROM:-}
+            EMAIL_REQUIRE_TLS: ${EMAIL_REQUIRE_TLS:-}
             SENTRY_DSN: ${SENTRY_DSN:-}
             SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-}
             # Required: how many proxies sit between the internet and the API, counting nginx. It

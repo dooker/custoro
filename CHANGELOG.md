@@ -124,6 +124,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
   `2` behind a TLS proxy such as Caddy), so only those proxies are believed. **Existing production
   setups must add `TRUST_PROXY` to `.env`**: `docker compose` refuses to start without it, and an
   API started in production without it logs a warning
+- The mail server login (user and password) is only sent over TLS. The API used to start the
+  connection in plain text and upgrade only if the server offered STARTTLS, so a network attacker
+  who removed that offer received the login in the clear. It now requires STARTTLS (or uses TLS from
+  the first byte on port 465) and gives up instead. `EMAIL_REQUIRE_TLS=false` allows a plain
+  connection to a mail server or test mail catcher on the same machine; the development compose
+  file sets it
 
 ### Fixed
 

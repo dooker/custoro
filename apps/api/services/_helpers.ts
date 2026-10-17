@@ -17,6 +17,7 @@ import type {
 } from "../types/general";
 import type { QueryResult } from "../types/query";
 import { allowedEmailKeys } from "../variables";
+import { mailTransportOptions } from "../helpers/mailTransport";
 import type { UserIF } from "../types/user";
 
 export const adjustProduct = (resource: ProductIF) => {
@@ -318,15 +319,10 @@ export const email = async ({ email, config, attachments, replace }: EmailIF) =>
         html = replaceVariables({ content: String(html), replacements: replace });
     }
 
-    const transporter = nodemailer.createTransport({
-        host: String(emailConfig.host),
-        port: parseInt(String(emailConfig.port), 10) || 587,
-        secure: false,
-        auth: {
-            user: String(emailConfig.username),
-            pass: String(emailConfig.password)
-        }
-    } as TransportOptions);
+    // The mail server login only goes over TLS (see helpers/mailTransport.ts)
+    const transporter = nodemailer.createTransport(
+        mailTransportOptions(emailConfig, process.env.EMAIL_REQUIRE_TLS) as TransportOptions
+    );
 
     try {
         const mailOptions = {
