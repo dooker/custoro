@@ -98,6 +98,20 @@ export const getResetTokenUrl = (apiEndpoint: string): string =>
 export const getApiErrorMessage = (error: AxiosError<ApiErrorResponse>): string =>
     error.response?.data.message || error.message || 'general error';
 
+// The API answers a login token it no longer accepts with HTTP 200 and success:false, not with 401
+// (apps/api/helpers/authenticate.ts): the token expired, or the password or email changed and ended
+// every session, or the account is gone.
+const sessionEndMessages = ['session.expired', 'invalid.token'];
+
+// Whether a response says the login session is over
+export const isSessionEndResponse = (data: unknown): boolean => {
+    if (typeof data !== 'object' || data === null) return false;
+
+    const { success, message } = data as { success?: unknown; message?: unknown };
+
+    return success === false && typeof message === 'string' && sessionEndMessages.includes(message);
+};
+
 // Where to go after login: back to the last visited page, unless that was a login page
 export const getRedirectAfterLogin = (lastVisitedUrl: string | null): string => {
     const loginPages = [PATHS.LOGIN, PATHS.FORGOT, PATHS.RESTORE];

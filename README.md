@@ -34,6 +34,10 @@ npm run docker:dev        # or: docker compose up --build
 - API: http://localhost:3999 (restarts on change)
 - MySQL: localhost:3306, user `root`, password `custoro`
 
+The ports are published on `127.0.0.1` only, so the stack (known database password, default JWT
+secret, public demo logins) cannot be reached from the network. To open it to another device on
+purpose, see the comment at the top of `docker-compose.yml`.
+
 After changing dependencies, recreate the containers' `node_modules`: `docker compose up --build --renew-anon-volumes`.
 
 ### Option B: MySQL in Docker, apps on the host
@@ -68,6 +72,8 @@ npm run docker:prod               # or: docker compose -f docker-compose.prod.ym
 ```
 
 Only the web container is exposed (`WEB_PORT`, default 80). It serves the built frontend and proxies `/api/*` to the API. Put a TLS-terminating proxy (for example Caddy) in front of it. Back up the `dbdata`, `uploads` and `invoices` volumes.
+
+Set `TRUST_PROXY` in `.env`, or the stack will not start: `1` if people reach the web container directly, `2` if a TLS proxy such as Caddy is in front of it. It tells the API how many proxies to believe when it reads a visitor's address for the login limits; a wrong value lets a client forge its address (too high) or makes all visitors share the proxy's (too low). See `.env.production.example`.
 
 ## Scripts
 

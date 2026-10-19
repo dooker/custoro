@@ -49,9 +49,12 @@ services:
             EMAIL_USER: ${EMAIL_USER:-}
             EMAIL_PASS: ${EMAIL_PASS:-}
             EMAIL_FROM: ${EMAIL_FROM:-}
+            EMAIL_REQUIRE_TLS: ${EMAIL_REQUIRE_TLS:-}
             SENTRY_DSN: ${SENTRY_DSN:-}
             SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-}
-            TRUST_PROXY: ${TRUST_PROXY:-}
+            # Required: how many proxies sit between the internet and the API, counting nginx. It
+            # decides which client address the login and reset limits see (see .env.production.example)
+            TRUST_PROXY: ${TRUST_PROXY:?set TRUST_PROXY in .env (1 = people reach nginx directly, 2 = a TLS proxy is in front)}
             LOGIN_MAX_FAILURES_PER_ACCOUNT_ADDRESS: ${LOGIN_MAX_FAILURES_PER_ACCOUNT_ADDRESS:-}
             LOGIN_MAX_FAILURES_PER_ACCOUNT: ${LOGIN_MAX_FAILURES_PER_ACCOUNT:-}
             LOGIN_MAX_FAILURES_PER_IP: ${LOGIN_MAX_FAILURES_PER_IP:-}
