@@ -94,3 +94,4 @@ jobs:
                   DB_PASSWORD: ci
                   APP_ORIGIN: http://localhost
                   JWT_SECRET: ci
+                  TRUST_PROXY: 1
