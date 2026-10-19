@@ -17,6 +17,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   (`E2E_REGULAR_USER` / `E2E_REGULAR_PASS`), regression tests for the upload and invoice PDF
   security fixes from 4.0.0, and tests for unique profile emails, the current-password check, session
   revocation and the login limit
+- API tests for the database rules (`apps/web/tests/database.api.spec.ts`): creating users, searching,
+  foreign and unique keys, worksheets on open and locked invoices, all-or-nothing invoice creation and
+  the invoice list; unit tests for the transaction helper, invoice creation, the services and the
+  search and list queries
 
 ### Security
 
@@ -158,6 +162,25 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - New passwords (reset and profile) must be 8 to 72 bytes long; bcrypt ignored anything past 72 bytes
 - Login tokens use `JWT_EXPIRES_IN` instead of a fixed 24 hours
 - Removed a sanitizer step that never ran and an unused "auth message" notification in the login page
+- An admin can create users again: the "create user" statement left out `users.token`, `users.theme`
+  and `users.avatar`, which had no default, so a MySQL server in its default strict mode refused every
+  new user ("Field 'token' doesn't have a default value")
+- Login emails and customer emails can be as long as an email address can be (254 characters); the
+  login email and the customer emails were limited to 45
+- Searching with several words finds rows that contain every word. The words were joined without
+  parentheses (`a OR b AND c OR d`), so any row that matched the first word was returned. A search for
+  `50%` or `a_b` looks for that text, and a stray `%` no longer ends in an error
+- Changing the quantity of an invoice line set the change date of the wrong invoice (the invoice whose
+  number equalled the quantity), and a line could be changed through any invoice's URL. It now only
+  changes a line of the invoice in the URL, and sets that invoice's change date with it
+- The invoice list with a customer and a search word at the same time is no longer a SQL error, and its
+  page count is filtered like the page itself (it counted all customers' invoices)
+- Changing a customer or a product no longer reports "saved" when the database refused the change; the
+  check on the result could never fail
+- Invoice numbers that are not plain digits (such as `INV-001`) sort last in a fixed order, instead of
+  as 0 in no particular order
+- A worksheet that is paid for, or whose line is on a locked invoice, can no longer be deleted: that
+  silently deleted the line from an issued invoice. The web app says why
 
 ### Changed
 
@@ -170,6 +193,35 @@ version number, kept in each app's `package.json`. The web app shows this file o
   user avatar component re-created on every render of the users list, and two stale disable comments
 - TypeScript stays on 6.0 for now: TypeScript 7 has no compiler API yet, so typescript-eslint cannot
   run on it
+- **Database structure** (new migrations, `apps/api/db/01-schema.sql` is brought up to date; MySQL 8.4 and
+  MariaDB 11.4 are both tested, a fresh install and an upgraded database end up identical).
+  **Existing databases must run the new migrations** (see `apps/api/db/README.md`); take a backup first.
+  They stop with a list, and change nothing further, if the data has duplicates or orphans that need a
+  person's decision: the same product code, setting name or invoice hash twice, a row that points at a
+  customer, product, worksheet or invoice that does not exist, or two values that only differ by what
+  the new collation ignores
+  - Indexes on the columns the API looks rows up by (`invoice_items.invoice_id` and `worksheet_id`,
+    `invoices.customer_id`, `worksheets.customer_id` and `invoice`, ...) and unique keys on
+    `config.name`, `products.code` and `invoices.hash`. With 50 000 invoices and 250 000 lines the lines
+    of one invoice took 32 ms and a public PDF link 6 ms because each read the whole table; they are
+    now a single lookup. The invoice number counter locked every row of `config` while an invoice was
+    being created; it locks one
+  - Foreign keys between invoices, lines, worksheets, customers and products. A customer who has
+    invoices or worksheets, and a product that worksheets use, cannot be deleted (the web app says so);
+    a product that is only on invoice lines can be, since each line keeps its own copy of the product's
+    code, name and prices. A second product with the same code is refused. "No invoice" on a worksheet
+    is NULL instead of 0
+  - Prices, quantities and the VAT rate are `DECIMAL` instead of `FLOAT`/`TINYINT`, so amounts are
+    stored as written (3 x 19.99 is 59.97, not 59.96999931). The API still returns numbers
+  - All tables are `utf8mb4_unicode_ci`; `products` was `utf8mb3`, which refused an emoji or any other
+    4-byte character in a product name
+  - `invoices.number_sort` (the number as a number) orders the invoice list from an index
+- Creating an invoice is all or nothing: the number, the invoice, its lines and the billing of its
+  worksheets are saved in one transaction. A product that does not exist, or a worksheet that is already
+  on an invoice, now refuses the whole request (with the reason) instead of leaving a half-built invoice
+  and a used number. Adding a line to an invoice and removing one are transactions too
+- The invoice list takes 1 ms instead of 258 ms with 50 000 invoices: it counts lines for the rows of the
+  page only, instead of joining and grouping every invoice
 
 ## 4.0.0 - 2026-10-02
 
