@@ -7,6 +7,10 @@ import { useNotificationHandler } from './useNotificationHandler';
 import { useConfirmationHandler } from './useConfirmationHandler';
 import type { PromptDeleteIF } from '../types/store';
 
+// Reasons the API gives for refusing a delete that have their own notification text; any other
+// failure shows the general error
+const deleteRefusals = ['product.inUse', 'customer.inUse', 'worksheet.locked'];
+
 export const useDeleteItem = (queryKeyToInvalidate: string[]) => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -40,7 +44,7 @@ export const useDeleteItem = (queryKeyToInvalidate: string[]) => {
             return Axios.delete(`${endpoint}${path}${id}/`);
         },
         onSuccess: async (response, variables) => {
-            const { success } = response.data;
+            const { success, message: reason } = response.data;
             await queryClient.invalidateQueries({ queryKey: queryKeyToInvalidate });
             const { resource, page, customer, parentPage, cache } = variables;
 
@@ -58,7 +62,7 @@ export const useDeleteItem = (queryKeyToInvalidate: string[]) => {
 
             await notification({
                 show: true,
-                message: success ? 'deleted' : 'error',
+                message: success ? 'deleted' : deleteRefusals.includes(reason) ? reason : 'error',
                 success,
             });
         },

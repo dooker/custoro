@@ -1,4 +1,6 @@
 import { query } from "../helper/query";
+import { TransactionRefusal, withTransaction } from "../helper/transaction";
+import type { RowDataPacket } from "mysql2/promise";
 import type { ProductIF } from "../types/product";
 import type { Request } from "express";
 
@@ -103,35 +105,60 @@ export const deleteSingle = async (request: Request) => {
         database
     } = request;
 
-    const { success: successDeletedWorksheets } = await query({
+    const deleted = await withTransaction(
         database,
-        sql: `DELETE
-              FROM worksheets
-              WHERE id = ?;`,
-        params: [id as string],
-        logger: `Delete single ${type}`
-    });
+        "Delete worksheet",
+        "delete.worksheet",
+        async (connection) => {
+            const [worksheets] = await connection.query<RowDataPacket[]>(
+                `SELECT locked
+                 FROM worksheets
+                 WHERE id = ?
+                   FOR UPDATE;`,
+                [id]
+            );
 
-    if (!successDeletedWorksheets) {
+            if (!worksheets.length) {
+                return;
+            }
+
+            const [lines] = await connection.query<RowDataPacket[]>(
+                `SELECT invoices.locked
+                 FROM invoice_items
+                          INNER JOIN invoices ON invoices.id = invoice_items.invoice_id
+                 WHERE invoice_items.worksheet_id = ?
+                   FOR UPDATE;`,
+                [id]
+            );
+
+            // A paid worksheet, or one whose line is on a locked invoice, is part of an issued
+            // invoice: deleting it would delete a line from that invoice
+            if (worksheets[0].locked === "1" || lines.some((line) => Number(line.locked) === 1)) {
+                throw new TransactionRefusal("worksheet.locked");
+            }
+
+            // Lines on invoices that are still open go with the worksheet (the foreign key
+            // would refuse to delete a worksheet that has lines)
+            await connection.query(
+                `DELETE
+                 FROM invoice_items
+                 WHERE worksheet_id = ?;`,
+                [id]
+            );
+
+            await connection.query(
+                `DELETE
+                 FROM worksheets
+                 WHERE id = ?;`,
+                [id]
+            );
+        }
+    );
+
+    if (!deleted.ok) {
         return {
             success: false,
-            message: "delete.worksheet"
-        };
-    }
-
-    const { success: successDeletedInvoiceItems } = await query({
-        database,
-        sql: ` DELETE
-               FROM invoice_items
-               WHERE worksheet_id = ?;`,
-        params: [id as string],
-        logger: "Delete single invoice items"
-    });
-
-    if (!successDeletedInvoiceItems) {
-        return {
-            success: false,
-            message: "delete.worksheet.items"
+            message: deleted.message
         };
     }
 

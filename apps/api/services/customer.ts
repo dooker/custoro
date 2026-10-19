@@ -138,7 +138,7 @@ export const deleteSingle = async (request: Request) => {
         database
     } = request;
 
-    const { success } = await query({
+    const { success, code } = await query({
         database,
         sql: `DELETE
               FROM customers
@@ -146,6 +146,14 @@ export const deleteSingle = async (request: Request) => {
         params: [id as string],
         logger: `Delete single ${type}`
     });
+
+    // Invoices and worksheets of the customer are kept, so the foreign keys refuse the delete
+    if (!success && code === "ER_ROW_IS_REFERENCED_2") {
+        return {
+            success: false,
+            message: "customer.inUse"
+        };
+    }
 
     return {
         success

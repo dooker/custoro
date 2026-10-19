@@ -222,7 +222,12 @@
         "emailFormat": "That email looks like it came from another galaxy",
         "tooManyAttempts": "Whoa there, space cadet. Too many tries, take a break.",
         "settingsInvalid": "The settings did not pass inspection, nothing was saved",
-        "filenamePrefix": "Invoice file names only like letters, digits, _ and - (32 at most). No wormholes."
+        "filenamePrefix": "Invoice file names only like letters, digits, _ and - (32 at most). No wormholes.",
+        "product.exists": "Another product already wears that code. Pick a different one.",
+        "product.inUse": "Worksheets still need this product. It stays on the ship.",
+        "customer.inUse": "This customer still has invoices or worksheets on board. They are not leaving.",
+        "worksheet.locked": "That worksheet is part of a locked invoice. No time travel here.",
+        "worksheet.invoiced": "That worksheet already flew off on an invoice."
     },
     "settings": {
         "singular": "Settings",
