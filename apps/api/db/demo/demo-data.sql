@@ -85,25 +85,6 @@ INSERT INTO `products` (`id`, `code`, `name`, `price`, `discount_price`, `unit`,
 (30, 'DMS-SVC-ARVUTIHOOLDUS', 'Arvuti hooldus', 1, 0, 'hour', ''),
 (31, 'DMS-TRN-HOOLDSUS', 'Hooldusväljakutse/transport', 8.333, 0, 'pc', '');
 
--- worksheets
-INSERT INTO `worksheets` (`id`, `product_id`, `customer_id`, `order_id`, `quantity`, `invoice`, `locked`) VALUES
-(1, 3, 1, NULL, 2, 0, '0'),
-(2, 7, 1, NULL, 1, 0, '0'),
-(3, 14, 2, NULL, 1, 0, '0'),
-(4, 5, 2, NULL, 3, 0, '0'),
-(5, 1, 3, NULL, 1, 0, '0'),
-(6, 6, 3, NULL, 2, 0, '0'),
-(7, 10, 4, NULL, 1, 0, '0'),
-(8, 12, 4, NULL, 5, 0, '0'),
-(9, 8, 5, NULL, 1, 0, '0'),
-(10, 2, 5, NULL, 2, 0, '0'),
-(11, 25, 14, 0, 1, 4, '0'),
-(12, 27, 14, 0, 2, 0, '0'),
-(13, 27, 14, 0, 2, 0, '0'),
-(14, 30, 14, 0, 3.25, 4, '0'),
-(15, 27, 14, 0, 2, 4, '0'),
-(16, 29, 15, 0, 1, 5, '0');
-
 -- invoices
 INSERT INTO `invoices` (`id`, `number`, `customer_id`, `create_date`, `change_date`, `invoice_date`, `payment_type`, `invoice_type`, `locked`, `vat`, `sent_date`, `hash`, `filename`, `payment_period`) VALUES
 (1, 'INV-SPACE-001', 1, '2025-09-10 00:00:00', '2025-09-19 00:00:00', '2025-09-11 00:00:00', 'transfer', 'invoice', 0, 24, '2025-09-11 00:00:00', 'd1ed70ce714b0950f389955f6f73f955', 'esc_invoice_INV-SPACE-001.pdf', 14),
@@ -111,6 +92,25 @@ INSERT INTO `invoices` (`id`, `number`, `customer_id`, `create_date`, `change_da
 (3, 'INV-SPACE-003', 3, '2025-09-12 00:00:00', '2026-03-31 00:00:00', '2025-09-13 00:00:00', 'transfer', 'invoice', 0, 24, '2025-09-13 00:00:00', '38c88b6cf7190a9bc68a84a9cb92ea3f', 'invoice_INV-SPACE-003.pdf', 14),
 (4, '25001', 14, '2026-09-26 19:49:29', '2026-09-26 19:49:29', '2026-09-26 19:49:29', 'transfer', 'invoice', 0, 24, NULL, 'e965b5627288bec394f3cdafb4c6b63e', 'invoice_25001.pdf', 14),
 (5, '25002', 15, '2026-09-26 19:53:18', '2026-09-28 15:18:58', '2026-09-26 00:00:00', 'transfer', 'invoice', 0, 24, NULL, '902826ad2a84a293a1fe8b480cb0b8db', 'invoice_25002.pdf', 7);
+
+-- worksheets
+INSERT INTO `worksheets` (`id`, `product_id`, `customer_id`, `order_id`, `quantity`, `invoice`, `locked`) VALUES
+(1, 3, 1, NULL, 2, NULL, '0'),
+(2, 7, 1, NULL, 1, NULL, '0'),
+(3, 14, 2, NULL, 1, NULL, '0'),
+(4, 5, 2, NULL, 3, NULL, '0'),
+(5, 1, 3, NULL, 1, NULL, '0'),
+(6, 6, 3, NULL, 2, NULL, '0'),
+(7, 10, 4, NULL, 1, NULL, '0'),
+(8, 12, 4, NULL, 5, NULL, '0'),
+(9, 8, 5, NULL, 1, NULL, '0'),
+(10, 2, 5, NULL, 2, NULL, '0'),
+(11, 25, 14, 0, 1, 4, '0'),
+(12, 27, 14, 0, 2, NULL, '0'),
+(13, 27, 14, 0, 2, NULL, '0'),
+(14, 30, 14, 0, 3.25, 4, '0'),
+(15, 27, 14, 0, 2, 4, '0'),
+(16, 29, 15, 0, 1, 5, '0');
 
 -- invoice_items
 INSERT INTO `invoice_items` (`id`, `worksheet_id`, `product_id`, `invoice_id`, `quantity`, `code`, `name`, `price`, `discount_price`, `unit`, `comment`) VALUES
