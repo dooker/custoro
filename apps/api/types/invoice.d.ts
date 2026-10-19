@@ -28,7 +28,9 @@ export interface InvoiceIF {
     customerName?: string;
 }
 
-export interface GetProductsMapIF {
-    database: string;
-    items: InvoiceItemIF[];
+// A line as the web app sends it when it adds something to an invoice
+export interface RequestedLineIF {
+    productId: number;
+    quantity: number;
+    worksheetId?: number | null;
 }

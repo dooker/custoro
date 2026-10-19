@@ -49,8 +49,10 @@ export default [
     },
 
     {
+        // CommonJS, loaded by db-migrate; they share checks through config/migrationHelpers.js
         files: ["migrations/**/*.js"],
         rules: {
+            "@typescript-eslint/no-require-imports": "off",
             "@typescript-eslint/no-unused-vars": "off"
         }
     }

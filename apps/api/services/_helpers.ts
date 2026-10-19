@@ -63,14 +63,18 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
         logger: "Get single invoice"
     });
 
-    if (!invoiceSuccess || !invoiceData) {
+    if (!invoiceSuccess || !invoiceData?.length) {
         return {
             success: false,
             message: "get.invoice"
         };
     }
 
-    const invoice = toCamelCase(invoiceData[0]);
+    // number_sort only exists for ordering the invoice list
+    const row: Record<string, unknown> = { ...invoiceData[0] };
+    delete row.number_sort;
+
+    const invoice = toCamelCase(row as unknown as InvoiceIF);
 
     // Get invoice items with product details
     const { success: itemsSuccess, data: items } = await query<InvoiceItemIF>({
@@ -206,24 +210,22 @@ export const postGeneralSingle = async ({ sql, params, logger, database }: PostG
     }
 };
 
-export const isQueryError = <T>(response: QueryResult<T>) => {
-    return Array.isArray(response) && response.length === 0;
-};
-
 export const putGeneralSingle = async ({ database, sql, params, logger: type }: QueryIF) => {
     try {
         const response = await query({ database, sql, params, logger: `Update single ${type}` });
 
-        if (isQueryError(response)) {
+        if (!response.success) {
+            // code lets the caller tell cases apart (e.g. ER_DUP_ENTRY); the text stays in the log
             return {
                 success: false,
-                message: "General Error"
-            };
-        } else {
-            return {
-                success: true
+                message: queryErrorMessage,
+                code: response.code
             };
         }
+
+        return {
+            success: true
+        };
     } catch (error) {
         // The details go to the log only; the client gets the generic key
         console.error(error);

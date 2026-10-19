@@ -3,9 +3,10 @@ import { config } from "../config/config";
 import { GetterIF } from "../types/getter";
 
 interface KeywordWhereIF {
-    keyword: string;
+    keyword?: string | null;
     table: string;
     customer?: boolean;
+    prefix?: "WHERE" | "AND";
 }
 
 const positiveInteger = (value: unknown) => {
@@ -44,64 +45,72 @@ export const applyPaging = (sql: string, { page, limit }: { page: number; limit:
 export const getFromTo = (sql: string, page: unknown, limit: unknown) =>
     applyPaging(sql, getPaging(page, limit));
 
-export const keywordWhere = ({ keyword, table, customer }: KeywordWhereIF) => {
-    if (!keyword) {
+// The keyword comes URL-encoded from older callers; a stray "%" (as in "50%") is not an encoding
+const decodeKeyword = (keyword: string) => {
+    try {
+        return decodeURIComponent(keyword);
+    } catch {
+        return keyword;
+    }
+};
+
+// A search word is text, so LIKE's own wildcards in it are escaped
+const likePattern = (value: string) => `%${value.replace(/[\\%_]/g, "\\$&")}%`;
+
+/**
+ * The WHERE part for a keyword search: every word has to match, and a word matches when any of
+ * the table's search columns contains it ("foo bar" finds rows that have foo and bar, each
+ * somewhere in the searched columns). `prefix` is "AND" to add the condition to a WHERE that
+ * already exists.
+ */
+export const keywordWhere = ({ keyword, table, customer, prefix = "WHERE" }: KeywordWhereIF) => {
+    const groups: string[] = [];
+    const params: string[] = [];
+
+    for (const word of decodeKeyword(keyword ?? "").split(" ")) {
+        if (!word) {
+            continue;
+        }
+
+        const pattern = likePattern(word);
+
+        if (table === "products") {
+            groups.push(`(${table}.code LIKE ? OR ${table}.name LIKE ?)`);
+            params.push(pattern, pattern);
+        } else if (table === "invoices") {
+            if (customer) {
+                groups.push(`(products.name LIKE ?)`);
+                params.push(pattern);
+            } else {
+                groups.push(`(customers.name LIKE ? OR invoices.number LIKE ?)`);
+                params.push(pattern, pattern);
+            }
+        } else if (table === "worksheets") {
+            if (customer) {
+                groups.push(`(products.name LIKE ? OR products.code LIKE ?)`);
+                params.push(pattern, pattern);
+            } else {
+                groups.push(`(customers.name LIKE ?)`);
+                params.push(pattern);
+            }
+        } else if (table === "users") {
+            groups.push(`(${table}.username LIKE ? OR ${table}.name LIKE ?)`);
+            params.push(pattern, pattern);
+        } else {
+            groups.push(`(${table}.name LIKE ? OR ${table}.contact LIKE ?)`);
+            params.push(pattern, pattern);
+        }
+    }
+
+    if (!groups.length) {
         return {
             sql: "",
             params: []
         };
     }
 
-    const sql = ["WHERE"];
-    const likes: string[] = [];
-    const params: string[] = [];
-    let flag = false;
-
-    decodeURIComponent(keyword)
-        .split(" ")
-        .forEach((value) => {
-            if (!value) {
-                return;
-            }
-
-            if (flag) {
-                likes.push(`AND`);
-            }
-
-            flag = true;
-
-            if (table === "products") {
-                likes.push(`${table}.code LIKE ? OR ${table}.name LIKE ?`);
-                params.push(`%${value}%`, `%${value}%`);
-            } else if (table === "invoices") {
-                if (customer) {
-                    likes.push(`products.name LIKE ?`);
-                    params.push(`%${value}%`);
-                } else {
-                    likes.push(`customers.name LIKE ? OR invoices.number LIKE ?`);
-                    params.push(`%${value}%`, `%${value}%`);
-                }
-            } else if (table === "worksheets") {
-                if (customer) {
-                    likes.push(`(products.name LIKE ? OR products.code LIKE ?)`);
-                    params.push(`%${value}%`, `%${value}%`);
-                } else {
-                    likes.push(`customers.name LIKE ?`);
-                    params.push(`%${value}%`);
-                }
-            } else if (table === "users") {
-                likes.push(`${table}.username LIKE ? OR ${table}.name LIKE ?`);
-                params.push(`%${value}%`, `%${value}%`);
-            } else {
-                likes.push(`${table}.name LIKE ? OR ${table}.contact LIKE ?`);
-                params.push(`%${value}%`, `%${value}%`);
-            }
-        });
-
-    sql.push(likes.join(" "));
-
     return {
-        sql: sql.join(" "),
+        sql: `${prefix} ${groups.join(" AND ")}`,
         params
     };
 };
@@ -304,53 +313,52 @@ export const getWorksheets = ({ keyword = null, customerId }: GetterIF) => {
 };
 
 export const getInvoices = ({ keyword = null, customerId }: GetterIF) => {
-    const sql = [];
-    const totalSql = [];
-    const params = [];
-
-    sql.push(`
-        SELECT customers.name,
-               invoices.number,
-               invoices.id,
-               invoices.locked,
-               COUNT(invoice_items.id) AS total
-        FROM invoices
-                 LEFT JOIN customers ON invoices.customer_id = customers.id
-                 LEFT JOIN invoice_items ON invoices.id = invoice_items.invoice_id
-    `);
+    const params: (string | number)[] = [];
+    const where: string[] = [];
 
     if (customerId) {
-        sql.push(`
-                WHERE invoices.customer_id = ?
-            `);
+        where.push(`WHERE invoices.customer_id = ?`);
         params.push(customerId);
     }
-
-    totalSql.push(`
-        SELECT COUNT(invoices.id) AS total
-        FROM invoices
-                 LEFT JOIN customers ON invoices.customer_id = customers.id
-    `);
 
     if (keyword) {
         const { sql: keywordSql, params: keywordParams } = keywordWhere({
             keyword,
-            table: "invoices"
+            table: "invoices",
+            prefix: customerId ? "AND" : "WHERE"
         });
 
-        sql.push(keywordSql);
-        totalSql.push(keywordSql);
+        where.push(keywordSql);
         params.push(...keywordParams);
     }
 
-    sql.push(`
-            GROUP BY invoices.id, customers.name, invoices.number
-            ORDER BY invoices.number + 0 DESC
-        `);
+    // The page and the total are filtered the same way and take the same params. Newest number
+    // first: number_sort is the number as a number (see the migration), with the id as tie-break,
+    // so the order is the same on every request and an index serves it. The line count is a
+    // subquery, evaluated for the rows of the page only, instead of a join that groups every invoice.
+    const conditions = where.join(" ");
+    const from = `
+        FROM invoices
+                 LEFT JOIN customers ON invoices.customer_id = customers.id
+        ${conditions}`;
 
     return {
-        sql: sql.join(" "),
-        totalSql: totalSql.join(" "),
+        sql: `
+        SELECT customers.name,
+               invoices.number,
+               invoices.id,
+               invoices.locked,
+               (SELECT COUNT(*)
+                FROM invoice_items
+                WHERE invoice_items.invoice_id = invoices.id) AS total
+        ${from}
+        ORDER BY invoices.number_sort DESC, invoices.id DESC`,
+        // Customers are only needed to count when the keyword searches their names
+        totalSql: `
+        SELECT COUNT(invoices.id) AS total
+        FROM invoices
+                 ${keyword ? "LEFT JOIN customers ON invoices.customer_id = customers.id" : ""}
+        ${conditions}`,
         params
     };
 };

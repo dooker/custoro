@@ -7,6 +7,18 @@ import type { Request } from "express";
 
 const type = "product";
 
+// MySQL error codes for a second product with the same code (unique key on products.code) and for
+// deleting a product that worksheets still point at (foreign key)
+const duplicateEntry = "ER_DUP_ENTRY";
+const rowIsReferenced = "ER_ROW_IS_REFERENCED_2";
+
+const withProductMessage = <T extends { success: boolean; message?: string; code?: string }>(
+    result: T
+) =>
+    !result.success && result.code === duplicateEntry
+        ? { success: false, message: "product.exists" }
+        : result;
+
 export const getSingle = async (request: Request, id?: string): Promise<QueryResult<ProductIF>> => {
     const {
         database,
@@ -95,12 +107,14 @@ export const postSingle = async (request: Request) => {
             discount_price = ?,
             unit           = ?,
             comment        = ?;`;
-    return await postGeneralSingle({
-        sql,
-        params: [code, name, price, discountPrice, unit, comment],
-        logger: type,
-        database
-    });
+    return withProductMessage(
+        await postGeneralSingle({
+            sql,
+            params: [code, name, price, discountPrice, unit, comment],
+            logger: type,
+            database
+        })
+    );
 };
 
 export const putSingle = async (request: Request) => {
@@ -122,7 +136,7 @@ export const putSingle = async (request: Request) => {
     const { currentPrice, currentDiscountPrice } = postPutPrice({ price, discountPrice });
     const params = [code, name, currentPrice, currentDiscountPrice, unit, comment, Number(id)];
 
-    return await putGeneralSingle({ database, sql, params, logger: type });
+    return withProductMessage(await putGeneralSingle({ database, sql, params, logger: type }));
 };
 
 export const deleteSingle = async (request: Request) => {
@@ -131,7 +145,7 @@ export const deleteSingle = async (request: Request) => {
         database
     } = request;
 
-    const { success } = await query<RowDataPacket>({
+    const { success, code } = await query<RowDataPacket>({
         database,
         sql: `DELETE
               FROM products
@@ -143,7 +157,7 @@ export const deleteSingle = async (request: Request) => {
     if (!success) {
         return {
             success: false,
-            message: "delete.product"
+            message: code === rowIsReferenced ? "product.inUse" : "delete.product"
         };
     }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { config } from "../config/config";
-import { applyPaging, getFromTo, getPaging } from "./_getters";
+import { applyPaging, getFromTo, getInvoices, getPaging, keywordWhere } from "./_getters";
 
 const { itemsPerPage, maxItemsPerPage, maxListRows } = config;
 
@@ -92,5 +92,120 @@ describe("applyPaging", () => {
         expect(applyPaging("SELECT 1", { page: 1, limit: maxListRows })).toMatch(
             new RegExp(`LIMIT 0, ${maxListRows}\\s*$`)
         );
+    });
+});
+
+describe("keywordWhere", () => {
+    const search = (keyword: string, table = "customers", extra = {}) =>
+        keywordWhere({ keyword, table, ...extra });
+
+    it("needs every word to match, and a word to match in any searched column", () => {
+        const { sql, params } = search("foo bar");
+
+        expect(sql).toBe(
+            "WHERE (customers.name LIKE ? OR customers.contact LIKE ?) AND (customers.name LIKE ? OR customers.contact LIKE ?)"
+        );
+        expect(params).toEqual(["%foo%", "%foo%", "%bar%", "%bar%"]);
+    });
+
+    it("keeps each word's columns together, so no word's OR escapes the AND between words", () => {
+        // Without the parentheses "a OR b AND c OR d" matched everything that had the first word
+        for (const table of ["customers", "products", "users", "invoices", "worksheets"]) {
+            const { sql } = search("one two three", table);
+            const groups = sql.replace("WHERE ", "").split(" AND ");
+
+            expect(groups, table).toHaveLength(3);
+            for (const group of groups) {
+                expect(group, table).toMatch(/^\(.*\)$/);
+            }
+        }
+    });
+
+    it("gives no condition for an empty keyword or one made of spaces", () => {
+        for (const keyword of ["", " ", "   "]) {
+            expect(search(keyword), JSON.stringify(keyword)).toEqual({ sql: "", params: [] });
+        }
+
+        expect(keywordWhere({ keyword: null, table: "customers" })).toEqual({
+            sql: "",
+            params: []
+        });
+    });
+
+    it("can continue a WHERE that already exists", () => {
+        expect(search("foo", "invoices", { prefix: "AND" }).sql).toMatch(/^AND \(/);
+    });
+
+    it("searches the columns of each table", () => {
+        expect(search("x", "products").sql).toContain(
+            "products.code LIKE ? OR products.name LIKE ?"
+        );
+        expect(search("x", "users").sql).toContain("users.username LIKE ? OR users.name LIKE ?");
+        expect(search("x", "invoices").sql).toContain(
+            "customers.name LIKE ? OR invoices.number LIKE ?"
+        );
+        expect(search("x", "worksheets", { customer: true }).sql).toContain("products.name LIKE ?");
+    });
+
+    it("treats % and _ in a word as text, not as LIKE wildcards", () => {
+        expect(search("50%").params[0]).toBe("%50\\%%");
+        expect(search("a_b").params[0]).toBe("%a\\_b%");
+        expect(search("back\\slash").params[0]).toBe("%back\\\\slash%");
+    });
+
+    it("decodes a URL-encoded keyword and survives a stray %", () => {
+        expect(search("foo%20bar").params).toEqual(["%foo%", "%foo%", "%bar%", "%bar%"]);
+        expect(() => search("100%")).not.toThrow();
+        expect(search("100%").params[0]).toBe("%100\\%%");
+    });
+});
+
+describe("getInvoices", () => {
+    const placeholders = (sql: string) => (sql.match(/\?/g) ?? []).length;
+
+    it("filters the page and the total the same way, with the params both need", () => {
+        for (const filter of [
+            {},
+            { customerId: 7 },
+            { keyword: "ann" },
+            { keyword: "ann 2024" },
+            { customerId: 7, keyword: "ann 2024" }
+        ]) {
+            const { sql, totalSql, params } = getInvoices(filter);
+
+            expect(placeholders(sql), JSON.stringify(filter)).toBe(params.length);
+            expect(placeholders(totalSql), JSON.stringify(filter)).toBe(params.length);
+        }
+    });
+
+    it("has one WHERE, also for a customer and a keyword together", () => {
+        const { sql, totalSql, params } = getInvoices({ customerId: 7, keyword: "ann 2" });
+
+        for (const statement of [sql, totalSql]) {
+            // not counting the line-count subquery, which has a WHERE of its own
+            const outer = statement.replace(/\(SELECT COUNT\(\*\)[\s\S]*?\) AS total/, "");
+
+            expect(outer.match(/\bWHERE\b/g)).toHaveLength(1);
+            expect(statement).toContain("invoices.customer_id = ? AND (customers.name LIKE ?");
+        }
+
+        expect(params).toEqual([7, "%ann%", "%ann%", "%2%", "%2%"]);
+    });
+
+    it("counts only the customer's invoices when asked for one customer", () => {
+        expect(getInvoices({ customerId: 7 }).totalSql).toContain("customer_id = ?");
+    });
+
+    it("lists the newest number first, with the id as tie-break, and counts lines per page row", () => {
+        const { sql } = getInvoices({});
+
+        expect(sql).toContain("ORDER BY invoices.number_sort DESC, invoices.id DESC");
+        expect(sql).toContain("(SELECT COUNT(*)");
+        expect(sql).not.toMatch(/GROUP BY|number \+ 0/);
+    });
+
+    it("only joins customers to count when a keyword searches their names", () => {
+        expect(getInvoices({}).totalSql).not.toContain("customers");
+        expect(getInvoices({ keyword: "ann" }).totalSql).toContain("LEFT JOIN customers");
     });
 });

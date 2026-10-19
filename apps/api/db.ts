@@ -19,6 +19,9 @@ export const getPool = (database: string) => {
             connectionLimit: 10,
             queueLimit: 0,
             dateStrings: true,
+            // Prices, quantities and VAT are DECIMAL columns, which mysql2 returns as strings
+            // unless asked; the API and the web app work with numbers
+            decimalNumbers: true,
             // Plain by default (the database sits on a private Docker network); set DB_SSL=verify
             // when it is reached over a network you do not control, see config/dbSsl.js
             ssl: getDbSsl("off")
