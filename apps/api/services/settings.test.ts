@@ -251,6 +251,20 @@ describe("the logo that came with a refused request", () => {
         expect(deleteImageFile).not.toHaveBeenCalled();
     });
 
+    it("is removed when there is no connection to the database to save it with", async () => {
+        fake.pool.getConnection.mockRejectedValueOnce(
+            Object.assign(new Error("Queue limit reached."), { code: "POOL_ENQUEUELIMIT" })
+        );
+
+        expect(await putAll(request({ lastInvoiceId: "41" }, logo))).toEqual({
+            success: false,
+            message: "put.settings.short"
+        });
+        expect(deleteImageFile).toHaveBeenCalledOnce();
+        expect(deleteImageFile).toHaveBeenCalledWith("logo-1.png");
+        expect(fake.statements(/UPDATE config/)).toHaveLength(0);
+    });
+
     it("is kept when the settings are saved", async () => {
         databaseHas("41");
 

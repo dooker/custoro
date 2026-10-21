@@ -30,19 +30,7 @@ export const withTransaction = async <T>(
     fallbackMessage: string,
     work: (connection: PoolConnection) => Promise<T>
 ): Promise<TransactionResult<T>> => {
-    const connection = await getPool(database).getConnection();
-
-    try {
-        await connection.beginTransaction();
-
-        const value = await work(connection);
-
-        await connection.commit();
-
-        return { ok: true, value };
-    } catch (error) {
-        await connection.rollback().catch(() => undefined);
-
+    const failed = (error: unknown): TransactionResult<T> => {
         if (error instanceof TransactionRefusal) {
             return { ok: false, message: error.key };
         }
@@ -60,6 +48,30 @@ export const withTransaction = async <T>(
         );
 
         return { ok: false, message: fallbackMessage, code };
+    };
+
+    let connection: PoolConnection;
+
+    // No connection (the database does not answer, or the queue for one is full) is a failure
+    // like any other, not an exception for the caller: it has files to remove and an answer to give
+    try {
+        connection = await getPool(database).getConnection();
+    } catch (error) {
+        return failed(error);
+    }
+
+    try {
+        await connection.beginTransaction();
+
+        const value = await work(connection);
+
+        await connection.commit();
+
+        return { ok: true, value };
+    } catch (error) {
+        await connection.rollback().catch(() => undefined);
+
+        return failed(error);
     } finally {
         connection.release();
     }

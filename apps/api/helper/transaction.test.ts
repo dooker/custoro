@@ -45,6 +45,38 @@ describe("withTransaction", () => {
         expect(Sentry.captureException).toHaveBeenCalledOnce();
     });
 
+    it("answers with the fallback key, not an exception, when there is no connection to start from", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        fake.pool.getConnection.mockRejectedValueOnce(
+            Object.assign(new Error("Queue limit reached."), { code: "POOL_ENQUEUELIMIT" })
+        );
+        const work = vi.fn(async () => 1);
+
+        const result = await run(work);
+
+        expect(result).toEqual({
+            ok: false,
+            message: "fallback.key",
+            code: "POOL_ENQUEUELIMIT"
+        });
+        expect(work).not.toHaveBeenCalled();
+        expect(fake.connection.beginTransaction).not.toHaveBeenCalled();
+        // there was no connection to give back
+        expect(fake.connection.release).not.toHaveBeenCalled();
+        expect(Sentry.captureException).toHaveBeenCalledOnce();
+    });
+
+    it("answers the same when the database cannot be reached at all", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        fake.pool.getConnection.mockRejectedValueOnce(new Error("connect ETIMEDOUT 10.0.0.5:3306"));
+
+        expect(await run(async () => 1)).toEqual({
+            ok: false,
+            message: "fallback.key",
+            code: undefined
+        });
+    });
+
     it("answers a refusal with its own key, without reporting it as a fault", async () => {
         const result = await run(async () => {
             throw new TransactionRefusal("worksheet.locked");
