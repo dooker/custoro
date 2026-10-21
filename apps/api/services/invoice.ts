@@ -38,7 +38,7 @@ export const getLast = async (request: Request) => {
 
     return {
         success: true,
-        data: data?.[0].lastId || null
+        data: data?.[0]?.lastId || null
     };
 };
 

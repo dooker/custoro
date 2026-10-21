@@ -121,6 +121,28 @@ export const putSingle = async (request: Request) => {
     let avatar = fileExists ? sanitizeFilename(file.filename) : null;
 
     // The user is the one in the URL, not whatever id the body says
+    const { success: currentSuccess, data: currentData } = await query<UserIF>({
+        database,
+        sql: `SELECT avatar
+              FROM users
+              WHERE id = ?;`,
+        params: [Number(id)],
+        logger: "Get user for update"
+    });
+    const current = currentData?.[0];
+
+    if (!currentSuccess || !current) {
+        // The upload is already on disk and nothing will refer to it
+        if (file?.filename) {
+            deleteImageFile(file.filename);
+        }
+
+        return {
+            success: false,
+            message: "get.user"
+        };
+    }
+
     if (await isUsernameTaken(database, username, Number(id))) {
         return {
             success: false,
@@ -163,23 +185,7 @@ export const putSingle = async (request: Request) => {
     }
 
     if (!fileExists) {
-        const { success, data } = await query<UserIF>({
-            database,
-            sql: `SELECT avatar
-                  FROM users
-                  WHERE id = ?;`,
-            params: [Number(id)],
-            logger: "Get avatar"
-        });
-
-        if (!success) {
-            return {
-                success: false,
-                message: "get.avatar"
-            };
-        }
-
-        avatar = data?.[0].avatar || null;
+        avatar = current.avatar || null;
     }
 
     return {
@@ -210,7 +216,15 @@ export const deleteSingle = async (request: Request) => {
         };
     }
 
-    const avatar = data?.[0].avatar || null;
+    // There is no such user
+    if (!data?.[0]) {
+        return {
+            success: false,
+            message: "get.user"
+        };
+    }
+
+    const avatar = data[0].avatar || null;
 
     if (avatar) {
         deleteImageFile(avatar);

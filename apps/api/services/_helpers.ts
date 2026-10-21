@@ -165,7 +165,7 @@ export const getGeneralMultiple = async ({
         params,
         logger: `Get multiple ${type}`
     });
-    const total = totalRows ? totalRows[0].total : 0;
+    const total = totalRows?.[0]?.total ?? 0;
 
     if (type === "products" && Array.isArray(rows)) {
         rows.forEach((element, index) => {
@@ -382,14 +382,17 @@ export const deleteImage = async (request: Request, userId?: number | string) =>
         params: [String(id)],
         logger: "Get avatar filename"
     });
-    const filename = data?.[0].avatar;
+    const user = data?.[0];
 
-    if (!getAvatarSuccess) {
+    // A failed query, or no such user
+    if (!getAvatarSuccess || !user) {
         return {
             success: false,
             message: "get.avatar"
         };
     }
+
+    const filename = user.avatar;
 
     if (filename) {
         deleteImageFile(filename);

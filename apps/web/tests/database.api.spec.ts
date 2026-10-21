@@ -468,6 +468,56 @@ test.describe('ids in paths', () => {
     });
 });
 
+test.describe('errors', () => {
+    const send = (path: string, data: string) =>
+        request.post(`${apiUrl}${path}`, {
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            data,
+        });
+
+    test('a body over 100 KB is a 413, and malformed JSON a 400, not a 500', async () => {
+        const large = await send('/customer', JSON.stringify({ name: 'x'.repeat(150 * 1024) }));
+
+        expect(large.status()).toBe(413);
+        expect(await large.json()).toMatchObject({ success: false });
+
+        const malformed = await send('/customer', '{"name": oops}');
+
+        expect(malformed.status()).toBe(400);
+        expect(await malformed.json()).toMatchObject({ success: false });
+        // the answer does not quote what was sent
+        expect(JSON.stringify(await malformed.json())).not.toContain('oops');
+
+        // a body that is fine is not affected
+        expect((await send('/customer', '{"name": "Fine"}')).status()).toBe(200);
+    });
+
+    test('changing, deleting or clearing the avatar of a user that does not exist is success: false, not a 500', async () => {
+        const missing = 2147483000;
+        const ann = { name: 'Nobody', username: `nobody-${unique}@example.test`, role: 'user' };
+
+        for (const [method, path, data] of [
+            ['put', `/user/${missing}`, ann],
+            ['delete', `/user/${missing}`, undefined],
+            ['delete', `/user/avatar/${missing}`, undefined],
+        ] as const) {
+            const response = await request[method](`${apiUrl}${path}`, {
+                headers,
+                ...(data ? { data } : {}),
+            });
+
+            expect(response.status(), `${method} ${path}`).toBe(200);
+            expect(await response.json(), `${method} ${path}`).toMatchObject({ success: false });
+        }
+
+        // the failed change did not create the user
+        expect(
+            (await call('get', `/search?resource=users&keyword=${ann.username}&page=1&limit=10`))
+                .resource ?? []
+        ).toHaveLength(0);
+    });
+});
+
 test.describe('references between customers, products, worksheets and invoices', () => {
     test('a second product with the same code is refused, and says why', async () => {
         const code = `DUP-${unique}`;

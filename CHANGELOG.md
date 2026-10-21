@@ -199,6 +199,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   customer 1 and `/customer/1e3` customer 1000. The customer, product, worksheet, user, invoice and PDF
   routes now answer `success: false` ("We encountered an error") for such an id without querying,
   before any upload is written
+- A request body over 100 KB is answered with HTTP 413 and malformed JSON with 400 (`success: false`,
+  without quoting the body); both were an error 500. Changing, deleting or clearing the avatar of a
+  user that does not exist, and a list whose count query failed, answer `success: false` instead of
+  ending in a TypeError and an error 500
 
 ### Changed
 
