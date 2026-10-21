@@ -228,7 +228,8 @@
         "customer.inUse": "This customer cannot be deleted because invoices or worksheets still belong to them",
         "worksheet.locked": "This worksheet is on a locked invoice and cannot be deleted",
         "worksheet.invoiced": "This worksheet is already on an invoice",
-        "invalidInput": "Some values are not valid (too long, or not the right kind of value), nothing was saved"
+        "invalidInput": "Some values are not valid (too long, or not the right kind of value), nothing was saved",
+        "lastInvoiceIdTooLow": "The last invoice ID cannot be lower than an invoice number that is already in use, nothing was saved. Reload the page if invoices were added meanwhile"
     },
     "settings": {
         "singular": "Settings",

@@ -37,6 +37,13 @@ const maxMailLength = 255;
 
 export const settingsInvalidMessage = "settingsInvalid";
 export const filenamePrefixMessage = "filenamePrefix";
+export const lastInvoiceIdTooLowMessage = "lastInvoiceIdTooLow";
+
+// A counter below the highest number that is on an invoice would hand that number out again.
+// Both are whole numbers as text: the counter is checked by parseSettingsInput, the highest
+// number comes from the database.
+export const isBelowUsedNumber = (lastInvoiceId: string, highestUsed: string) =>
+    BigInt(lastInvoiceId) < BigInt(highestUsed);
 
 // Per setting, a rule on top of "is a string". lastInvoiceId feeds the next invoice number and
 // vat every new invoice, so a bad value there would break invoicing. The invoice filename prefix

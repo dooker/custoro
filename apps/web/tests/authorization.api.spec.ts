@@ -211,6 +211,11 @@ test.describe('settings', () => {
     const readSettings = async (request: APIRequestContext, token: string) =>
         (await (await call(request, 'get', '/settings', token)).json()).data[0];
 
+    // The invoice counter moves whenever any invoice is created, also by tests running at the same
+    // time, so a settings snapshot is compared without it
+    const withoutCounter = ({ lastInvoiceId: _counter, ...settings }: Record<string, unknown>) =>
+        settings;
+
     const putSettings = (request: APIRequestContext, token: string, data: object) =>
         request.put(`${apiUrl}/settings`, { headers: apiHeaders(token), data });
 
@@ -240,7 +245,9 @@ test.describe('settings', () => {
             expect(await response.json()).toEqual({ success: false, message: 'forbidden' });
         }
 
-        expect(await readSettings(request, adminToken)).toEqual(before);
+        expect(withoutCounter(await readSettings(request, adminToken))).toEqual(
+            withoutCounter(before)
+        );
     });
 
     test('a regular user cannot upload or remove the logo', async ({ request }) => {
@@ -279,7 +286,7 @@ test.describe('settings', () => {
             });
         }
 
-        expect(await readSettings(request, token)).toEqual(before);
+        expect(withoutCounter(await readSettings(request, token))).toEqual(withoutCounter(before));
     });
 
     test('values that would break invoicing are refused', async ({ request }) => {
@@ -299,7 +306,7 @@ test.describe('settings', () => {
             });
         }
 
-        expect(await readSettings(request, token)).toEqual(before);
+        expect(withoutCounter(await readSettings(request, token))).toEqual(withoutCounter(before));
     });
 
     test('an admin can still change them', async ({ request }) => {

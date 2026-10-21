@@ -20,12 +20,14 @@ const line = (worksheetId: number | null, productId = 3) => ({
     comment: ""
 });
 
-// What the database answers: the counter row holds `counter` (null: there is no such row), the new
-// invoice gets id 7, and `billed` is how many of the asked-for worksheets were still open
+// What the database answers: the counter row holds `counter` (null: there is no such row), the
+// highest number on an invoice is `highest`, the new invoice gets id 7, and `billed` is how many of
+// the asked-for worksheets were still open
 const databaseAnswers =
-    (billed: number, counter: string | null = "41") =>
+    (billed: number, counter: string | null = "41", highest = "41") =>
     (sql: string) => {
         if (/FOR UPDATE/.test(sql)) return counter === null ? [] : [{ value: counter }];
+        if (/MAX\(number_sort\)/.test(sql)) return [{ highest }];
         if (/INSERT INTO invoices/.test(sql)) return { insertId: 7, affectedRows: 1 };
         if (/UPDATE worksheets/.test(sql)) return { affectedRows: billed };
 
@@ -117,6 +119,7 @@ describe("createInvoiceWithNextNumber", () => {
         vi.spyOn(console, "error").mockImplementation(() => undefined);
         fake.respondWith((sql) => {
             if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
+            if (/MAX\(number_sort\)/.test(sql)) return [{ highest: "41" }];
             if (/INSERT INTO invoices/.test(sql)) return { insertId: 7 };
             if (/INSERT INTO invoice_items/.test(sql)) {
                 throw Object.assign(new Error("fk"), { code: "ER_NO_REFERENCED_ROW_2" });
@@ -139,6 +142,69 @@ describe("createInvoiceWithNextNumber", () => {
         });
         expect(fake.connection.commit).not.toHaveBeenCalled();
         expect(fake.connection.rollback).toHaveBeenCalledOnce();
+    });
+
+    it("goes on from the highest number on an invoice when the counter was set below it", async () => {
+        // the counter says 36, but invoice 41 exists: the next number is 42, not 37 (taken)
+        fake.respondWith(databaseAnswers(0, "36", "41"));
+
+        const result = await createInvoiceWithNextNumber({
+            database: "shop",
+            customerId: 5,
+            vat: 24
+        });
+
+        expect(result).toEqual({ ok: true, value: { id: 7, number: 42 } });
+        expect(fake.statements(/INSERT INTO invoices/)[0].params).toEqual(["42", 5, 24]);
+        // and the counter is corrected with it
+        expect(fake.statements(/UPDATE config/)[0].params).toEqual(["42"]);
+    });
+
+    it("keeps to the counter when it is the larger, and when there are no invoices", async () => {
+        fake.respondWith(databaseAnswers(0, "100", "41"));
+        await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 });
+
+        expect(fake.statements(/INSERT INTO invoices/)[0].params[0]).toBe("101");
+
+        fake.reset();
+        fake.respondWith(databaseAnswers(0, "0", "0"));
+        await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 });
+
+        expect(fake.statements(/INSERT INTO invoices/)[0].params[0]).toBe("1");
+    });
+
+    it("counts numbers longer than JavaScript can add one to", async () => {
+        fake.respondWith(databaseAnswers(0, "41", "123456789012345678"));
+
+        await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 });
+
+        expect(fake.statements(/INSERT INTO invoices/)[0].params[0]).toBe("123456789012345679");
+    });
+
+    it("reads the highest number after it has locked the counter, from the invoice index", async () => {
+        fake.respondWith(databaseAnswers(0));
+
+        await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 });
+
+        const order = fake.calls.map(({ sql }) =>
+            /FOR UPDATE/.test(sql) ? "lock" : /MAX\(number_sort\)/.test(sql) ? "max" : "other"
+        );
+
+        expect(order.slice(0, 2)).toEqual(["lock", "max"]);
+    });
+
+    it("fails without creating anything when the highest number is not a number", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        fake.respondWith(databaseAnswers(0, "41", "abc"));
+
+        const result = await createInvoiceWithNextNumber({
+            database: "shop",
+            customerId: 5,
+            vat: 24
+        });
+
+        expect(result.ok).toBe(false);
+        expect(fake.statements(/INSERT INTO invoices/)).toHaveLength(0);
     });
 
     it("fails without creating anything when the counter is missing or not a number", async () => {

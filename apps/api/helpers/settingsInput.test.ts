@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSettingsInput, settingsInvalidMessage } from "./settingsInput";
+import { isBelowUsedNumber, parseSettingsInput, settingsInvalidMessage } from "./settingsInput";
 
 const invalid = { success: false, message: settingsInvalidMessage };
 
@@ -131,5 +131,25 @@ describe("parseSettingsInput", () => {
         expect(parseSettingsInput({ companyName: "x".repeat(251) })).toEqual(invalid);
         // Long values (email texts) have no such limit
         expect(parseSettingsInput({ forgotHtml: "x".repeat(100_000) }).success).toBe(true);
+    });
+});
+
+describe("isBelowUsedNumber", () => {
+    it("is true for a counter below the highest number on an invoice", () => {
+        expect(isBelowUsedNumber("36", "41")).toBe(true);
+        expect(isBelowUsedNumber("0", "1")).toBe(true);
+        expect(isBelowUsedNumber("999999999", "1000000000")).toBe(true);
+    });
+
+    it("is false for a counter at or above it, and when there are no invoices", () => {
+        expect(isBelowUsedNumber("41", "41")).toBe(false);
+        expect(isBelowUsedNumber("42", "41")).toBe(false);
+        expect(isBelowUsedNumber("0", "0")).toBe(false);
+        expect(isBelowUsedNumber("5", "0")).toBe(false);
+    });
+
+    it("compares numbers longer than JavaScript can tell apart", () => {
+        expect(isBelowUsedNumber("999999999", "123456789012345678")).toBe(true);
+        expect(isBelowUsedNumber("1", "9007199254740993")).toBe(true);
     });
 });

@@ -230,6 +230,7 @@ describe("postSingle (new invoice)", () => {
         databaseHas([cable]);
         fake.respondWith((sql) => {
             if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
+            if (/MAX\(number_sort\)/.test(sql)) return [{ highest: "41" }];
             if (/INSERT INTO invoices/.test(sql)) return { insertId: 7, affectedRows: 1 };
 
             return { affectedRows: 1 };
@@ -260,6 +261,7 @@ describe("postSingle (new invoice)", () => {
         databaseHas([cable]);
         fake.respondWith((sql) => {
             if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
+            if (/MAX\(number_sort\)/.test(sql)) return [{ highest: "41" }];
             if (/INSERT INTO invoices/.test(sql)) return { insertId: 7 };
             if (/UPDATE worksheets/.test(sql)) return { affectedRows: 0 };
 

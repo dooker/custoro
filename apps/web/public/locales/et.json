@@ -229,7 +229,8 @@
         "customer.inUse": "Klienti ei saa kustutada, sest temaga on seotud arveid või töölehti",
         "worksheet.locked": "Tööleht on lukustatud arvel ja seda ei saa kustutada",
         "worksheet.invoiced": "Tööleht on juba arvele lisatud",
-        "invalidInput": "Mõni väärtus pole kehtiv (liiga pikk või vale tüüpi), midagi ei salvestatud"
+        "invalidInput": "Mõni väärtus pole kehtiv (liiga pikk või vale tüüpi), midagi ei salvestatud",
+        "lastInvoiceIdTooLow": "Viimane arve ID ei tohi olla väiksem kui juba kasutusel olev arve number, midagi ei salvestatud. Kui vahepeal lisati arveid, laadi leht uuesti"
     },
     "settings": {
         "singular": "Seaded",

@@ -539,6 +539,67 @@ test.describe('errors', () => {
     });
 });
 
+test.describe('the invoice counter', () => {
+    const setCounter = (value: number | string) =>
+        call('put', '/settings', { lastInvoiceId: String(value) });
+
+    test('cannot be set below a number that an invoice already has, and the next invoice still gets the next number', async () => {
+        const customer = await createCustomer(`Counter ${unique}`);
+        const created = await call('post', '/invoice', { customerId: customer, items: [] });
+        const used = Number((await getInvoice(created.lastId)).number);
+
+        // This is how the counter used to be set below the numbers in use: the next invoice then
+        // failed with a generic error, every time
+        for (const value of [used - 5, used - 1, 0]) {
+            expect(await setCounter(value), `counter ${value}`).toEqual({
+                success: false,
+                message: 'lastInvoiceIdTooLow',
+            });
+        }
+
+        // other settings are refused with it, and nothing was saved
+        expect(
+            await call('put', '/settings', { lastInvoiceId: String(used - 5), vat: '24' })
+        ).toMatchObject({ success: false, message: 'lastInvoiceIdTooLow' });
+
+        const next = await call('post', '/invoice', { customerId: customer, items: [] });
+
+        expect(next.success).toBe(true);
+        expect(Number((await getInvoice(next.lastId)).number)).toBeGreaterThan(used);
+    });
+
+    test('can be set to the number in use, or above it, which skips numbers', async () => {
+        const customer = await createCustomer(`Counter up ${unique}`);
+        const created = await call('post', '/invoice', { customerId: customer, items: [] });
+        // The same value as now: what a Settings page that is up to date sends along with any other
+        // change. Other tests create invoices at the same time, so a counter that has just been
+        // read can already be below the invoices created since; asking again settles it.
+        let used = 0;
+        let same;
+
+        for (let attempt = 0; attempt < 5; attempt++) {
+            used = Number(await getLastNumber());
+            same = await setCounter(used);
+
+            if (same.success) break;
+        }
+
+        expect(same).toEqual({ success: true });
+
+        // counters are only ever raised here: other tests create invoices at the same time
+        const raised = used + 10;
+
+        expect(await setCounter(raised)).toEqual({ success: true });
+        expect(await getLastNumber()).toBeGreaterThanOrEqual(raised);
+
+        const next = await call('post', '/invoice', { customerId: customer, items: [] });
+
+        expect(next.success).toBe(true);
+        expect(Number((await getInvoice(next.lastId)).number)).toBeGreaterThan(raised);
+        expect(created.success).toBe(true);
+    });
+});
+
 test.describe('references between customers, products, worksheets and invoices', () => {
     test('a second product with the same code is refused, and says why', async () => {
         const code = `DUP-${unique}`;

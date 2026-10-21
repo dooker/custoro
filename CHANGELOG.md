@@ -207,6 +207,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
   this email already exists", like the check before it does. Ten requests at once with one address gave
   one user and nine generic errors, because only the database's unique key stopped the others. The avatar
   of a refused request is removed too
+- The invoice counter (Settings, "Last Invoice ID") could be set below numbers that invoices already
+  have, after which every new invoice failed with a generic error (the next number was taken). The next
+  number is now one more than the larger of the counter and the highest number on an invoice, so a
+  low counter repairs itself, and Settings refuses a counter below the highest number in use ("The last
+  invoice ID cannot be lower than..."). The Settings page sends the counter it loaded along with every
+  other change, so a page that was open while invoices were created is refused until it is reloaded,
+  instead of silently setting the counter back
 
 ### Changed
 

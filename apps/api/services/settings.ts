@@ -8,8 +8,11 @@ import type { FrontRequestIF, UploadFileIF } from "../types/express";
 import path from "path";
 import { deleteImageFile } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
+import { highestNumberSql } from "../helper/invoiceNumber";
 import { emailEnvKeys, formatEmailEnv } from "../helpers/emailEnv";
 import {
+    isBelowUsedNumber,
+    lastInvoiceIdTooLowMessage,
     longFields,
     mailFields,
     parseSettingsInput,
@@ -127,6 +130,36 @@ export const putAll = async (request: Request) => {
     }
 
     const { short: shortEntries, long: longEntries, mail } = parsed.input;
+    const lastInvoiceId = shortEntries.find(([key]) => key === "lastInvoiceId")?.[1];
+
+    // The counter cannot go below a number that an invoice already has. That includes a stale
+    // Settings page, which sends the counter it loaded along with any other setting it saves.
+    if (lastInvoiceId !== undefined) {
+        const { success, data } = await query<{ highest: string }>({
+            database,
+            sql: highestNumberSql,
+            logger: "Get highest invoice number"
+        });
+
+        if (!success || !data?.[0]) {
+            return {
+                success: false,
+                message: "get.lastInvoiceId"
+            };
+        }
+
+        if (isBelowUsedNumber(lastInvoiceId, data[0].highest)) {
+            // The upload is already on disk and nothing will refer to it
+            if (file?.filename) {
+                deleteImageFile(file.filename);
+            }
+
+            return {
+                success: false,
+                message: lastInvoiceIdTooLowMessage
+            };
+        }
+    }
     const emailEnvFileValues = getEmailEnvContent();
     const emailEnvFieldValues: Record<MailField, string | undefined> = {
         host: mail.host,
