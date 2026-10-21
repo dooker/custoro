@@ -137,6 +137,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - The development stack (`docker-compose.yml`) publishes its ports on `127.0.0.1` only. It has a
   known database password (`root` / `custoro`), a default `JWT_SECRET` and public demo logins, and
   used to be reachable from the whole network
+- A keyword search uses at most 8 words, each cut to 64 characters; further words are ignored. Every
+  word is a `LIKE '%word%'` on several columns, and the number of words was unlimited (the URL limit
+  allows thousands): 1000 words took 3.1 s on 50 000 invoices and 3000 words 1 s on 2000 customers, so
+  any logged-in user could keep the database busy
 
 ### Fixed
 

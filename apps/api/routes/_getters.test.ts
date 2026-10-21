@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { config } from "../config/config";
-import { applyPaging, getFromTo, getInvoices, getPaging, keywordWhere } from "./_getters";
+import {
+    applyPaging,
+    getFromTo,
+    getInvoices,
+    getPaging,
+    keywordWhere,
+    keywordWords
+} from "./_getters";
 
-const { itemsPerPage, maxItemsPerPage, maxListRows } = config;
+const { itemsPerPage, maxItemsPerPage, maxListRows, maxKeywordWords, maxKeywordLength } = config;
 
 describe("getPaging", () => {
     it("takes a page and a size as they are", () => {
@@ -157,6 +164,58 @@ describe("keywordWhere", () => {
         expect(search("foo%20bar").params).toEqual(["%foo%", "%foo%", "%bar%", "%bar%"]);
         expect(() => search("100%")).not.toThrow();
         expect(search("100%").params[0]).toBe("%100\\%%");
+    });
+
+    it("uses the first words only, so a search cannot be made expensive", () => {
+        const words = Array.from({ length: 3000 }, (_, index) => `w${index}`);
+        const { sql, params } = search(words.join(" "));
+
+        // two columns per word on customers
+        expect(params).toHaveLength(maxKeywordWords * 2);
+        expect(sql.match(/LIKE \?/g)).toHaveLength(maxKeywordWords * 2);
+        expect(params[0]).toBe("%w0%");
+        expect(params.at(-1)).toBe(`%w${maxKeywordWords - 1}%`);
+        expect(params).not.toContain(`%w${maxKeywordWords}%`);
+    });
+
+    it("counts words that are not empty: extra spaces do not use up the limit", () => {
+        const { params } = search(`${"  ".repeat(50)}a${" ".repeat(20)}b`);
+
+        expect(params).toEqual(["%a%", "%a%", "%b%", "%b%"]);
+    });
+
+    it("cuts a word to the longest length and keeps whole characters", () => {
+        const [pattern] = search("x".repeat(500)).params;
+
+        expect(pattern).toBe(`%${"x".repeat(maxKeywordLength)}%`);
+
+        // an emoji is one character, not two halves
+        const [emoji] = search("😀".repeat(maxKeywordLength + 10)).params;
+
+        expect(emoji).toBe(`%${"😀".repeat(maxKeywordLength)}%`);
+    });
+
+    it("limits a keyword that is long and URL-encoded as well", () => {
+        const { params } = search(encodeURIComponent(Array(100).fill("abc").join(" ")));
+
+        expect(params).toHaveLength(maxKeywordWords * 2);
+    });
+
+    it("keeps the limits for every table", () => {
+        const keyword = Array.from({ length: 50 }, (_, index) => `word${index}`).join(" ");
+
+        for (const table of ["customers", "products", "users", "invoices", "worksheets"]) {
+            const { sql } = search(keyword, table);
+
+            expect(sql.split(" AND "), table).toHaveLength(maxKeywordWords);
+        }
+    });
+});
+
+describe("keywordWords", () => {
+    it("gives the words, in order, without empty ones", () => {
+        expect(keywordWords("  foo   bar ")).toEqual(["foo", "bar"]);
+        expect(keywordWords("")).toEqual([]);
     });
 });
 

@@ -119,6 +119,37 @@ test.describe('search', () => {
         ]);
         expect(await search('50% does_not exist')).toHaveLength(0);
     });
+
+    test('a keyword search uses the first 8 words only, so it cannot be made expensive', async () => {
+        const code = `WORDS-${unique}`;
+
+        await createProduct(code);
+
+        // The first 8 words match, the hundreds after them would not: they are ignored
+        const keyword = [code, ...Array(7).fill('Product'), ...Array(500).fill('no-match-here')];
+        const started = Date.now();
+        const found = await call(
+            'get',
+            `/search?resource=products&keyword=${encodeURIComponent(keyword.join(' '))}&page=1&limit=10`
+        );
+
+        expect(found.success).toBe(true);
+        expect(found.resource.map((row: { code: string }) => row.code)).toEqual([code]);
+        expect(Date.now() - started, 'answers at once').toBeLessThan(2000);
+
+        // the eighth word still counts, the ninth is the first one that is ignored
+        const eighth = [code, ...Array(6).fill('Product'), 'no-match-here'];
+        const search = async (words: string[]) =>
+            (
+                await call(
+                    'get',
+                    `/search?resource=products&keyword=${encodeURIComponent(words.join(' '))}&page=1&limit=10`
+                )
+            ).resource;
+
+        expect(await search(eighth)).toHaveLength(0);
+        expect(await search([...Array(7).fill('Product'), code, 'no-match-here'])).toHaveLength(1);
+    });
 });
 
 test.describe('references between customers, products, worksheets and invoices', () => {

@@ -57,21 +57,38 @@ const decodeKeyword = (keyword: string) => {
 // A search word is text, so LIKE's own wildcards in it are escaped
 const likePattern = (value: string) => `%${value.replace(/[\\%_]/g, "\\$&")}%`;
 
+// The words a search uses: the first config.maxKeywordWords non-empty ones, each cut to
+// config.maxKeywordLength characters (whole characters, so a cut never splits an emoji)
+export const keywordWords = (keyword: string) => {
+    const words: string[] = [];
+
+    for (const word of keyword.split(" ")) {
+        if (!word) {
+            continue;
+        }
+
+        words.push(Array.from(word).slice(0, config.maxKeywordLength).join(""));
+
+        if (words.length === config.maxKeywordWords) {
+            break;
+        }
+    }
+
+    return words;
+};
+
 /**
  * The WHERE part for a keyword search: every word has to match, and a word matches when any of
  * the table's search columns contains it ("foo bar" finds rows that have foo and bar, each
- * somewhere in the searched columns). `prefix` is "AND" to add the condition to a WHERE that
- * already exists.
+ * somewhere in the searched columns). Only the first words count (see keywordWords), so a
+ * search cannot be made arbitrarily expensive. `prefix` is "AND" to add the condition to a
+ * WHERE that already exists.
  */
 export const keywordWhere = ({ keyword, table, customer, prefix = "WHERE" }: KeywordWhereIF) => {
     const groups: string[] = [];
     const params: string[] = [];
 
-    for (const word of decodeKeyword(keyword ?? "").split(" ")) {
-        if (!word) {
-            continue;
-        }
-
+    for (const word of keywordWords(decodeKeyword(keyword ?? ""))) {
         const pattern = likePattern(word);
 
         if (table === "products") {
