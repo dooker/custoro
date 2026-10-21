@@ -214,6 +214,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   invoice ID cannot be lower than..."). The Settings page sends the counter it loaded along with every
   other change, so a page that was open while invoices were created is refused until it is reloaded,
   instead of silently setting the counter back
+- Password reset and invoice emails got the wrong parts: the subject, text and HTML of an email were
+  assigned by the position of the settings rows in the database's answer, and since the unique key on
+  `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the
+  subject, the subject the text and the text the HTML. Each setting is now matched by its name
 
 ### Changed
 
@@ -253,6 +257,14 @@ version number, kept in each app's `package.json`. The web app shows this file o
   worksheets are saved in one transaction. A product that does not exist, or a worksheet that is already
   on an invoice, now refuses the whole request (with the reason) instead of leaving a half-built invoice
   and a used number. Adding a line to an invoice and removing one are transactions too
+- Hardening of the queries and the database connection, without changing what they return: the
+  settings an email needs are asked for with placeholders instead of names written into the SQL, a
+  keyword search can only be for one of the five searchable tables, the single invoice and single
+  worksheet queries name their columns instead of `SELECT *` and the single invoice lookup lost an
+  unused branch. The connection pool gives up on a database that does not answer after 10 s, keeps idle
+  connections alive, and lets at most 100 requests wait for a free connection (it was unlimited). The
+  "last seen" time of a user is only written when it is more than 5 minutes old, not on every profile
+  request
 - The invoice list takes 1 ms instead of 258 ms with 50 000 invoices: it counts lines for the rows of the
   page only, instead of joining and grouping every invoice
 

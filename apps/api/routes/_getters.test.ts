@@ -6,7 +6,8 @@ import {
     getInvoices,
     getPaging,
     keywordWhere,
-    keywordWords
+    keywordWords,
+    type SearchTable
 } from "./_getters";
 
 const { itemsPerPage, maxItemsPerPage, maxListRows, maxKeywordWords, maxKeywordLength } = config;
@@ -103,7 +104,7 @@ describe("applyPaging", () => {
 });
 
 describe("keywordWhere", () => {
-    const search = (keyword: string, table = "customers", extra = {}) =>
+    const search = (keyword: string, table: SearchTable = "customers", extra = {}) =>
         keywordWhere({ keyword, table, ...extra });
 
     it("needs every word to match, and a word to match in any searched column", () => {
@@ -117,7 +118,13 @@ describe("keywordWhere", () => {
 
     it("keeps each word's columns together, so no word's OR escapes the AND between words", () => {
         // Without the parentheses "a OR b AND c OR d" matched everything that had the first word
-        for (const table of ["customers", "products", "users", "invoices", "worksheets"]) {
+        for (const table of [
+            "customers",
+            "products",
+            "users",
+            "invoices",
+            "worksheets"
+        ] as SearchTable[]) {
             const { sql } = search("one two three", table);
             const groups = sql.replace("WHERE ", "").split(" AND ");
 
@@ -204,7 +211,13 @@ describe("keywordWhere", () => {
     it("keeps the limits for every table", () => {
         const keyword = Array.from({ length: 50 }, (_, index) => `word${index}`).join(" ");
 
-        for (const table of ["customers", "products", "users", "invoices", "worksheets"]) {
+        for (const table of [
+            "customers",
+            "products",
+            "users",
+            "invoices",
+            "worksheets"
+        ] as SearchTable[]) {
             const { sql } = search(keyword, table);
 
             expect(sql.split(" AND "), table).toHaveLength(maxKeywordWords);

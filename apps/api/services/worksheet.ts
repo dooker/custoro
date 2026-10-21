@@ -16,7 +16,13 @@ export const getSingle = async (request: Request) => {
 
     const { success, data } = await query<ProductIF>({
         database,
-        sql: `SELECT *
+        sql: `SELECT id,
+                     product_id,
+                     customer_id,
+                     order_id,
+                     quantity,
+                     invoice,
+                     locked
               FROM worksheets
               WHERE id = ?;`,
         params: [id as string],

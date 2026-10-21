@@ -51,10 +51,13 @@ export const getSingle = async (request: Request) => {
         };
     }
 
+    // The "last seen" time only moves when it is more than 5 minutes old, so a page that asks for
+    // the profile on every navigation does not write to the users table each time
     sql = `
         UPDATE users
         SET timestamp = NOW()
-        WHERE id = ?`;
+        WHERE id = ?
+          AND timestamp < NOW() - INTERVAL 5 MINUTE`;
     params = [id];
     await query({ database, sql, params, logger: "Update user timestamp" });
 

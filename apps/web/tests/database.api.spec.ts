@@ -600,6 +600,24 @@ test.describe('the invoice counter', () => {
     });
 });
 
+test.describe('profile', () => {
+    test('the last seen time is not written on every request, only when it is 5 minutes old', async () => {
+        const seen = async () => (await call('get', '/profile')).resource.timestamp;
+        const pause = () => new Promise((resolve) => setTimeout(resolve, 1200));
+
+        // The first request brings an old time up to date. After that the time stays put: every
+        // request used to move it, which is a write to the users table for each page the user opens.
+        await seen();
+        await pause();
+
+        const first = await seen();
+
+        await pause();
+
+        expect(await seen()).toBe(first);
+    });
+});
+
 test.describe('references between customers, products, worksheets and invoices', () => {
     test('a second product with the same code is refused, and says why', async () => {
         const code = `DUP-${unique}`;

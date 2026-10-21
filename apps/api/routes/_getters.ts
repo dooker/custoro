@@ -2,9 +2,11 @@ import { sanitize } from "../helper";
 import { config } from "../config/config";
 import { GetterIF } from "../types/getter";
 
+export type SearchTable = "customers" | "products" | "users" | "invoices" | "worksheets";
+
 interface KeywordWhereIF {
     keyword?: string | null;
-    table: string;
+    table: SearchTable;
     customer?: boolean;
     prefix?: "WHERE" | "AND";
 }
