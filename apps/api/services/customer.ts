@@ -16,6 +16,18 @@ export const getSingle = async (
         database,
         params: { id }
     } = request;
+    // A caller that has a customer id of its own (an invoice's) gives it, also when it is null: an
+    // invoice without a customer has none, and must not be given the customer whose id happens to
+    // be the one in the URL (the invoice's own, on /pdf/:id). Only a route for the customer itself
+    // gives no id, and it reads the one in its path.
+    const customerId = invoiceCustomerId === undefined ? id : invoiceCustomerId;
+
+    if (!customerId) {
+        return {
+            success: true,
+            data: []
+        };
+    }
 
     const { success, data } = await query<CustomerIF>({
         database,
@@ -36,7 +48,7 @@ export const getSingle = async (
                      department
               FROM customers
               WHERE id = ?;`,
-        params: [invoiceCustomerId || (id as string)],
+        params: [customerId as string | number],
         logger: type
     });
 

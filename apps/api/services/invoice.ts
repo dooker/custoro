@@ -53,7 +53,8 @@ export const getSingle = async (request: Request) => {
         };
     }
 
-    if (invoice.locked === 1) {
+    // A paid invoice shows its customer's name as it is now; one without a customer has none
+    if (invoice.locked === 1 && invoice.customerId != null) {
         const { success, data, message } = await getSingleCustomer(request, invoice.customerId);
 
         if (!success || !data) {

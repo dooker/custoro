@@ -125,10 +125,11 @@ export const putSingle = async (request: Request) => {
         data: customer
     } = await getSingleCustomer(request, invoice.customerId);
 
-    if (!customerSuccess || !customer) {
+    // The PDF is addressed to the customer: an invoice without one has none to print
+    if (!customerSuccess || !customer?.[0]) {
         return {
             success: false,
-            message: customerMessage
+            message: customerMessage ?? "get.customer"
         };
     }
 

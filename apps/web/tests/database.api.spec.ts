@@ -677,6 +677,41 @@ test.describe('profile', () => {
     });
 });
 
+test.describe('invoices without a customer', () => {
+    test('a paid invoice without a customer can be read back, like any other', async () => {
+        const created = await call('post', '/invoice', { items: [] });
+
+        expect(created.success).toBe(true);
+        expect((await call('put', `/invoice/paid/${created.lastId}`)).success).toBe(true);
+
+        // reading a paid invoice looks up its customer's name; with no customer it used to fail
+        const read = await call('get', `/invoice/${created.lastId}`);
+
+        expect(read.success).toBe(true);
+        expect(read.data[0]).toMatchObject({ id: created.lastId, locked: 1, customerId: null });
+        expect(read.data[0].customerName).toBeUndefined();
+
+        // an open one too
+        const open = await call('post', '/invoice', { items: [] });
+
+        expect((await call('get', `/invoice/${open.lastId}`)).data[0]).toMatchObject({
+            id: open.lastId,
+            locked: 0,
+        });
+    });
+
+    test('has no PDF to make, which is an answer and not a crash', async () => {
+        const created = await call('post', '/invoice', { items: [] });
+        const response = await request.put(`${apiUrl}/pdf/${created.lastId}`, {
+            headers,
+            data: { language: 'en' },
+        });
+
+        expect(response.status()).toBe(200);
+        expect(await response.json()).toMatchObject({ success: false });
+    });
+});
+
 test.describe('references between customers, products, worksheets and invoices', () => {
     test('a second product with the same code is refused, and says why', async () => {
         const code = `DUP-${unique}`;

@@ -208,6 +208,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   usual error when no database connection can be had (the database does not answer, or the queue of 100
   waiting requests is full) instead of ending in an error 500; a logo uploaded with such a save is
   removed
+- The PDF of an invoice without a customer was addressed to the customer whose id equals the invoice's
+  (the id in the URL), because the customer lookup fell back to the path's id. An invoice without a
+  customer has none now, and the PDF says so instead of failing inside the template. Reading a paid
+  invoice without a customer keeps working
 - Creating or changing a user with an email that another request took a moment earlier says "User with
   this email already exists", like the check before it does. Ten requests at once with one address gave
   one user and nine generic errors, because only the database's unique key stopped the others. The avatar
