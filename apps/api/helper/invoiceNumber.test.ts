@@ -193,6 +193,129 @@ describe("createInvoiceWithNextNumber", () => {
         expect(order.slice(0, 2)).toEqual(["lock", "max"]);
     });
 
+    // A database that keeps its state between invoices: the counter, and the numbers on invoices
+    // (number_sort is 0 for a number of more than 18 digits, so the highest number ignores those)
+    const statefulDatabase = (counter: string, numbers: string[] = []) => {
+        const state = { counter, numbers: [...numbers] };
+
+        fake.respondWith((sql, params) => {
+            if (/FOR UPDATE/.test(sql)) return [{ value: state.counter }];
+            if (/MAX\(number_sort\)/.test(sql)) {
+                const sorted = state.numbers.filter((number) => /^\d{1,18}$/.test(number));
+                const highest = sorted.reduce(
+                    (most, number) => (BigInt(number) > most ? BigInt(number) : most),
+                    0n
+                );
+
+                return [{ highest: String(highest) }];
+            }
+
+            if (/INSERT INTO invoices/.test(sql)) {
+                state.numbers.push(params[0] as string);
+
+                return { insertId: state.numbers.length, affectedRows: 1 };
+            }
+
+            if (/UPDATE config/.test(sql)) {
+                state.counter = params[0] as string;
+            }
+
+            return { affectedRows: 1 };
+        });
+
+        return state;
+    };
+
+    const allocate = async (times: number) => {
+        const numbers: string[] = [];
+
+        for (let index = 0; index < times; index++) {
+            const result = await createInvoiceWithNextNumber({
+                database: "shop",
+                customerId: 5,
+                vat: 24
+            });
+
+            expect(result.ok, `number ${index + 1}`).toBe(true);
+            numbers.push(String(fake.statements(/INSERT INTO invoices/).at(-1)?.params[0]));
+        }
+
+        return numbers;
+    };
+
+    it("hands out consecutive numbers past 15 digits, where Number() rounds the counter", async () => {
+        // 2^53 + 1 is the first whole number a double cannot hold
+        const state = statefulDatabase("9007199254740990");
+
+        expect(await allocate(5)).toEqual([
+            "9007199254740991",
+            "9007199254740992",
+            "9007199254740993",
+            "9007199254740994",
+            "9007199254740995"
+        ]);
+        expect(state.counter).toBe("9007199254740995");
+    });
+
+    it("hands out consecutive numbers across 18 to 19 digits, never the same twice", async () => {
+        // the 19-digit numbers have number_sort 0, so only the counter carries them on
+        const state = statefulDatabase("999999999999999997", ["999999999999999997"]);
+        const numbers = await allocate(6);
+
+        expect(numbers).toEqual([
+            "999999999999999998",
+            "999999999999999999",
+            "1000000000000000000",
+            "1000000000000000001",
+            "1000000000000000002",
+            "1000000000000000003"
+        ]);
+        expect(new Set(numbers).size).toBe(numbers.length);
+        expect(state.counter).toBe("1000000000000000003");
+    });
+
+    it("goes on from a counter of 10 digits, as an invoice number like 2026000001 makes it", async () => {
+        const state = statefulDatabase("2026000001", ["2026000001"]);
+
+        expect(await allocate(2)).toEqual(["2026000002", "2026000003"]);
+        expect(state.counter).toBe("2026000003");
+    });
+
+    it("stops when the next number would not fit invoices.number (25 digits)", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        statefulDatabase("9".repeat(25));
+
+        const result = await createInvoiceWithNextNumber({
+            database: "shop",
+            customerId: 5,
+            vat: 24
+        });
+
+        expect(result.ok).toBe(false);
+        expect(fake.statements(/INSERT INTO invoices/)).toHaveLength(0);
+        expect(fake.connection.rollback).toHaveBeenCalledOnce();
+    });
+
+    it("takes a counter with spaces around the digits, and still refuses text that is not digits", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        fake.respondWith(databaseAnswers(0, " 41 ", "41"));
+
+        expect(
+            (await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 })).ok
+        ).toBe(true);
+
+        for (const counter of ["-5", "4 1", "0x10", "1e3", ""]) {
+            fake.reset();
+            fake.respondWith(databaseAnswers(0, counter, "0"));
+
+            expect(
+                (await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 }))
+                    .ok,
+                counter
+            ).toBe(false);
+        }
+    });
+
     it("fails without creating anything when the highest number is not a number", async () => {
         vi.spyOn(console, "error").mockImplementation(() => undefined);
         fake.respondWith(databaseAnswers(0, "41", "abc"));

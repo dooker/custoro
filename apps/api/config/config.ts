@@ -29,5 +29,7 @@ export const config = {
     // Every keyword is a LIKE '%word%' on several columns, so the work grows with the number of
     // words: 1000 words took 3 s on 50k invoices. Words past these limits are ignored.
     maxKeywordWords: 8,
-    maxKeywordLength: 64
+    maxKeywordLength: 64,
+    // invoices.number is varchar(25), and so the longest invoice number and invoice counter
+    maxInvoiceNumberDigits: 25
 };

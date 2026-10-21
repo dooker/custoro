@@ -1,3 +1,4 @@
+import { config } from "../config/config";
 import { invoiceFilenamePrefixPattern } from "./pdfFiles";
 
 // What PUT /settings accepts, without Express or the database, so it can be unit tested.
@@ -50,7 +51,11 @@ export const isBelowUsedNumber = (lastInvoiceId: string, highestUsed: string) =>
 // becomes part of a file path and a download name (see helpers/pdfFiles.ts). A rule has its own
 // message when the web app should say what is wrong with that one value.
 const rules: Record<string, { test: (value: string) => boolean; message?: string }> = {
-    lastInvoiceId: { test: (value) => /^\d{1,9}$/.test(value) },
+    // As long as an invoice number can be, so the counter can follow one (it is kept as the digits
+    // sent, see isBelowUsedNumber)
+    lastInvoiceId: {
+        test: (value) => new RegExp(`^\\d{1,${config.maxInvoiceNumberDigits}}$`).test(value)
+    },
     vat: { test: (value) => /^\d{1,3}(\.\d{1,2})?$/.test(value) && Number(value) <= 100 },
     port: { test: (value) => value === "" || (/^\d{1,5}$/.test(value) && Number(value) <= 65535) },
     invoiceFilenamePrefix: {
@@ -102,6 +107,11 @@ export const parseSettingsInput = (body: unknown): SettingsInputResultIF => {
         const value = asText(raw);
 
         if (value === undefined) {
+            return fail();
+        }
+
+        // A JSON number past 2^53 has already been rounded, so its digits are not what was typed
+        if (key === "lastInvoiceId" && typeof raw === "number" && !Number.isSafeInteger(raw)) {
             return fail();
         }
 

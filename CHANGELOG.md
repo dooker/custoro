@@ -213,7 +213,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   low counter repairs itself, and Settings refuses a counter below the highest number in use ("The last
   invoice ID cannot be lower than..."). The Settings page sends the counter it loaded along with every
   other change, so a page that was open while invoices were created is refused until it is reloaded,
-  instead of silently setting the counter back
+  instead of silently setting the counter back. The counter is handled as the exact digits it has (a
+  number past 15 digits used to be rounded, which handed the same invoice number out twice) and Settings
+  accepts up to 25 digits, as long as an invoice number can be, so an invoice numbered `2026000001` no
+  longer makes every Settings save fail
 - Password reset and invoice emails got the wrong parts: the subject, text and HTML of an email were
   assigned by the position of the settings rows in the database's answer, and since the unique key on
   `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the

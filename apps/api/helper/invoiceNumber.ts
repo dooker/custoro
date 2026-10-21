@@ -1,4 +1,5 @@
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import { config } from "../config/config";
 import { addInvoiceLines, type InvoiceLineIF } from "./invoiceLines";
 import { withTransaction } from "./transaction";
 
@@ -40,9 +41,11 @@ export const createInvoiceWithNextNumber = ({
                  WHERE name = 'lastInvoiceId'
                  FOR UPDATE;`
             );
-            const last = Number(rows[0]?.value);
+            // The counter is read as the text it is, not through Number(), which rounds a number
+            // of more than 15 digits to one that another invoice may already have
+            const lastText = String(rows[0]?.value).trim();
 
-            if (!rows.length || !Number.isInteger(last)) {
+            if (!rows.length || !/^\d+$/.test(lastText)) {
                 throw new Error(
                     `config.lastInvoiceId is missing or not a whole number: ${rows[0]?.value}`
                 );
@@ -57,8 +60,16 @@ export const createInvoiceWithNextNumber = ({
                 throw new Error(`The highest invoice number is not a whole number: ${highest}`);
             }
 
-            const used = BigInt(last) > BigInt(highest) ? BigInt(last) : BigInt(highest);
+            const last = BigInt(lastText);
+            const used = last > BigInt(highest) ? last : BigInt(highest);
             const number = used + 1n;
+
+            // The number has to fit invoices.number (and the counter in Settings)
+            if (String(number).length > config.maxInvoiceNumberDigits) {
+                throw new Error(
+                    `The next invoice number would have more than ${config.maxInvoiceNumberDigits} digits: ${number}`
+                );
+            }
 
             const [insert] = await connection.query<ResultSetHeader>(
                 `INSERT INTO invoices
