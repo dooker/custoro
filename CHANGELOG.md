@@ -203,6 +203,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   without quoting the body); both were an error 500. Changing, deleting or clearing the avatar of a
   user that does not exist, and a list whose count query failed, answer `success: false` instead of
   ending in a TypeError and an error 500
+- Creating or changing a user with an email that another request took a moment earlier says "User with
+  this email already exists", like the check before it does. Ten requests at once with one address gave
+  one user and nine generic errors, because only the database's unique key stopped the others. The avatar
+  of a refused request is removed too
 
 ### Changed
 

@@ -98,6 +98,27 @@ test.describe('users and emails', () => {
     });
 });
 
+test.describe('creating the same user at the same time', () => {
+    test('10 parallel requests with one email give one user and nine "user.exists", not a generic error', async () => {
+        const username = `race-${unique}@example.test`;
+        const body = { name: 'Race', username, discount: 0, offer: 0, role: 'user' };
+        const answers = await Promise.all(
+            Array.from({ length: 10 }, () => call('post', '/user', body))
+        );
+        const created = answers.filter((answer) => answer.success);
+        const refused = answers.filter((answer) => !answer.success);
+
+        expect(created).toHaveLength(1);
+        expect(refused).toHaveLength(9);
+
+        for (const answer of refused) {
+            expect(answer).toEqual({ success: false, message: 'user.exists' });
+        }
+
+        expect((await call('delete', `/user/${created[0].insertId}`)).success).toBe(true);
+    });
+});
+
 test.describe('search', () => {
     test('a keyword search needs every word, not just the first', async () => {
         const code = `SRCH-${unique}`;
