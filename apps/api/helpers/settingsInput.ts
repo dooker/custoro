@@ -51,8 +51,8 @@ export const isBelowUsedNumber = (lastInvoiceId: string, highestUsed: string | b
 // becomes part of a file path and a download name (see helpers/pdfFiles.ts). A rule has its own
 // message when the web app should say what is wrong with that one value.
 const rules: Record<string, { test: (value: string) => boolean; message?: string }> = {
-    // As long as an invoice number can be, so the counter can follow one (it is kept as the digits
-    // sent, see isBelowUsedNumber)
+    // As long as the numbers the app hands out (see config.maxInvoiceNumberDigits), so the counter
+    // can follow them; it is kept as the digits sent (see isBelowUsedNumber)
     lastInvoiceId: {
         test: (value) => new RegExp(`^\\d{1,${config.maxInvoiceNumberDigits}}$`).test(value)
     },

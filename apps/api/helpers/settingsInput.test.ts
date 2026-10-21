@@ -76,14 +76,14 @@ describe("parseSettingsInput", () => {
         expect(parseSettingsInput({ lastInvoiceId: "0" }).success).toBe(true);
         expect(parseSettingsInput({ lastInvoiceId: "25003" }).success).toBe(true);
 
-        for (const value of ["", "-1", "1.5", "abc", "1e3", " 5", "1".repeat(26)]) {
+        for (const value of ["", "-1", "1.5", "abc", "1e3", " 5", "1".repeat(19)]) {
             expect(parseSettingsInput({ lastInvoiceId: value }), value).toEqual(invalid);
         }
     });
 
-    it("accepts a last invoice id as long as an invoice number can be, and keeps its digits", () => {
+    it("accepts a last invoice id up to the 18 digits of the numbers the app hands out, and keeps its digits", () => {
         // an invoice numbered 2026000001 (a year and a running number) makes the counter 10 digits
-        for (const value of ["2026000001", "999999999999999999", "9".repeat(25)]) {
+        for (const value of ["2026000001", "999999999999999999"]) {
             expect(parseSettingsInput({ lastInvoiceId: value }), value).toMatchObject({
                 success: true,
                 input: { short: [["lastInvoiceId", value]] }

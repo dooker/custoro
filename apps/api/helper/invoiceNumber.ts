@@ -10,18 +10,11 @@ interface CreateInvoiceIF {
     lines?: InvoiceLineIF[];
 }
 
-// The highest number that is on an invoice. number_sort is the number as a number and has an
-// index, so MAX reads one row of it - but it is 0 for a number of more than 18 digits, which does
-// not fit its BIGINT. Those (up to the 25 digits of invoices.number) are among the rows whose
-// number_sort is 0, found through the same index and ordered by value: the rows with 0 are few
-// (numbers that are not plain digits, such as INV-001), so this stays cheap.
-export const highestNumberSql = `SELECT CAST(COALESCE(MAX(number_sort), 0) AS CHAR) AS highest,
-                                        (SELECT number
-                                         FROM invoices
-                                         WHERE number_sort = 0
-                                           AND number REGEXP '^[0-9]{19,${config.maxInvoiceNumberDigits}}$'
-                                         ORDER BY CAST(number AS DECIMAL(${config.maxInvoiceNumberDigits}, 0)) DESC
-                                         LIMIT 1) AS highestLong
+// The highest number that is on an invoice, as text (0 when there are no invoices). number_sort is
+// the number as a number and has an index, so this reads one row of it. A number the app hands out
+// always has one (see config.maxInvoiceNumberDigits); numbers that are not plain digits, or that
+// are longer, have 0 there and are not counted: they can never be the same as a number handed out.
+export const highestNumberSql = `SELECT CAST(COALESCE(MAX(number_sort), 0) AS CHAR) AS highest
                                  FROM invoices`;
 
 // The highest number on an invoice (0 when there are none), as a number that cannot be rounded.
@@ -30,26 +23,12 @@ export const highestNumberSql = `SELECT CAST(COALESCE(MAX(number_sort), 0) AS CH
 export const getHighestNumber = async (connection: PoolConnection) => {
     const [rows] = await connection.query<RowDataPacket[]>(highestNumberSql);
     const highest = String(rows[0]?.highest);
-    const highestLong = rows[0]?.highestLong;
 
     if (!/^\d+$/.test(highest)) {
         throw new Error(`The highest invoice number is not a whole number: ${highest}`);
     }
 
-    if (highestLong === null || highestLong === undefined) {
-        return BigInt(highest);
-    }
-
-    if (!/^\d+$/.test(String(highestLong))) {
-        throw new Error(`The highest long invoice number is not a whole number: ${highestLong}`);
-    }
-
-    // Not necessarily the larger: a number of 19 or more characters can have leading zeros
-    // ("00000000000000000009" is 9)
-    const long = BigInt(String(highestLong));
-    const sorted = BigInt(highest);
-
-    return long > sorted ? long : sorted;
+    return BigInt(highest);
 };
 
 // Takes the next invoice number and creates the invoice with its lines in one transaction. The
@@ -95,7 +74,7 @@ export const createInvoiceWithNextNumber = ({
             const used = last > highest ? last : highest;
             const number = used + 1n;
 
-            // The number has to fit invoices.number (and the counter in Settings)
+            // Past the digits number_sort holds, the highest number could no longer be found
             if (String(number).length > config.maxInvoiceNumberDigits) {
                 throw new Error(
                     `The next invoice number would have more than ${config.maxInvoiceNumberDigits} digits: ${number}`

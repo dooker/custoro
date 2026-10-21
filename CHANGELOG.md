@@ -226,13 +226,14 @@ version number, kept in each app's `package.json`. The web app shows this file o
   other change, so a page that was open while invoices were created is refused until it is reloaded,
   instead of silently setting the counter back. The counter is handled as the exact digits it has (a
   number past 15 digits used to be rounded, which handed the same invoice number out twice) and Settings
-  accepts up to 25 digits, as long as an invoice number can be, so an invoice numbered `2026000001` no
-  longer makes every Settings save fail. Settings checks the counter and saves in one transaction that
+  accepts up to 18 digits (the longest number the app hands out, the digits the invoice sort column
+  holds), where it took 9, so an invoice numbered `2026000001` no longer makes every Settings save
+  fail. Settings checks the counter and saves in one transaction that
   locks the counter row first, as creating an invoice does, so an invoice created at that moment can no
   longer be followed by a save that sets the counter below its number; a logo uploaded with a refused
-  save is removed. The highest number in use includes numbers of 19 to 25 digits, which the sort column
-  cannot hold (it counts them as 0), so a counter below such an invoice is refused and a low counter
-  recovers from it too; numbers are compared by value, so `00000000000000000009` is 9
+  save is removed. The highest number in use is read from the sort column's index, one row, however
+  many invoices have numbers such as `INV-001`. The app stops handing out numbers after 18 digits; a
+  longer number typed in by hand can never be the same as one it gives out
 - Password reset and invoice emails got the wrong parts: the subject, text and HTML of an email were
   assigned by the position of the settings rows in the database's answer, and since the unique key on
   `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the

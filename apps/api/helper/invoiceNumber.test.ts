@@ -21,19 +21,13 @@ const line = (worksheetId: number | null, productId = 3) => ({
 });
 
 // What the database answers: the counter row holds `counter` (null: there is no such row), the
-// highest number on an invoice is `highest` (`highestLong` is the highest of the numbers of more
-// than 18 digits, which number_sort cannot hold), the new invoice gets id 7, and `billed` is how
-// many of the asked-for worksheets were still open
+// highest number on an invoice is `highest`, the new invoice gets id 7, and `billed` is how many of
+// the asked-for worksheets were still open
 const databaseAnswers =
-    (
-        billed: number,
-        counter: string | null = "41",
-        highest = "41",
-        highestLong: string | null = null
-    ) =>
+    (billed: number, counter: string | null = "41", highest = "41") =>
     (sql: string) => {
         if (/FOR UPDATE/.test(sql)) return counter === null ? [] : [{ value: counter }];
-        if (/MAX\(number_sort\)/.test(sql)) return [{ highest, highestLong }];
+        if (/MAX\(number_sort\)/.test(sql)) return [{ highest }];
         if (/INSERT INTO invoices/.test(sql)) return { insertId: 7, affectedRows: 1 };
         if (/UPDATE worksheets/.test(sql)) return { affectedRows: billed };
 
@@ -207,21 +201,15 @@ describe("createInvoiceWithNextNumber", () => {
         fake.respondWith((sql, params) => {
             if (/FOR UPDATE/.test(sql)) return [{ value: state.counter }];
             if (/MAX\(number_sort\)/.test(sql)) {
-                const highestOf = (numbers: string[]) =>
-                    numbers.reduce(
-                        (most, number) => (BigInt(number) > most ? BigInt(number) : most),
-                        0n
-                    );
-                // number_sort holds the numbers of up to 18 digits; the longer ones are 0 there
+                // number_sort holds the numbers of up to 18 digits; longer ones, typed in by hand,
+                // are 0 there
                 const sorted = state.numbers.filter((number) => /^\d{1,18}$/.test(number));
-                const long = state.numbers.filter((number) => /^\d{19,25}$/.test(number));
+                const highest = sorted.reduce(
+                    (most, number) => (BigInt(number) > most ? BigInt(number) : most),
+                    0n
+                );
 
-                return [
-                    {
-                        highest: String(highestOf(sorted)),
-                        highestLong: long.length ? String(highestOf(long)) : null
-                    }
-                ];
+                return [{ highest: String(highest) }];
             }
 
             if (/INSERT INTO invoices/.test(sql)) {
@@ -271,45 +259,14 @@ describe("createInvoiceWithNextNumber", () => {
         expect(state.counter).toBe("9007199254740995");
     });
 
-    it("hands out consecutive numbers across 18 to 19 digits, never the same twice", async () => {
-        // the 19-digit numbers have number_sort 0, so only the counter carries them on
-        const state = statefulDatabase("999999999999999997", ["999999999999999997"]);
-        const numbers = await allocate(6);
-
-        expect(numbers).toEqual([
-            "999999999999999998",
-            "999999999999999999",
-            "1000000000000000000",
-            "1000000000000000001",
-            "1000000000000000002",
-            "1000000000000000003"
-        ]);
-        expect(new Set(numbers).size).toBe(numbers.length);
-        expect(state.counter).toBe("1000000000000000003");
-    });
-
-    it("goes on from the highest number of 19 to 25 digits, which number_sort cannot hold", async () => {
-        // an invoice numbered 1000000000000000001 (number_sort 0) and a counter set below it
-        const state = statefulDatabase("1000000000000000000", ["5", "1000000000000000001"]);
-
-        expect(await allocate(3)).toEqual([
-            "1000000000000000002",
-            "1000000000000000003",
-            "1000000000000000004"
-        ]);
-        expect(state.counter).toBe("1000000000000000004");
-    });
-
-    it("recovers from a counter below a 25-digit number, and stops when the next one would have 26", async () => {
-        const low = statefulDatabase("41", ["41", "1234567890123456789012345"]);
-
-        expect(await allocate(1)).toEqual(["1234567890123456789012346"]);
-        expect(low.counter).toBe("1234567890123456789012346");
-
-        // 25 nines is the last number invoices.number can hold: the next one does not fit
-        fake.reset();
+    it("hands out numbers up to the 18 digits number_sort holds, and stops there", async () => {
         vi.spyOn(console, "error").mockImplementation(() => undefined);
-        const full = statefulDatabase("41", ["41", "9".repeat(25)]);
+        const state = statefulDatabase("999999999999999997", ["999999999999999997"]);
+
+        expect(await allocate(2)).toEqual(["999999999999999998", "999999999999999999"]);
+        expect(state.counter).toBe("999999999999999999");
+
+        // the next number would have 19 digits, and the highest number could no longer be found
         const result = await createInvoiceWithNextNumber({
             database: "shop",
             customerId: 5,
@@ -317,16 +274,26 @@ describe("createInvoiceWithNextNumber", () => {
         });
 
         expect(result.ok).toBe(false);
-        expect(full.numbers).toEqual(["41", "9".repeat(25)]);
-        expect(full.counter).toBe("41");
+        expect(state.numbers).toEqual([
+            "999999999999999997",
+            "999999999999999998",
+            "999999999999999999"
+        ]);
+        expect(state.counter).toBe("999999999999999999");
     });
 
-    it("is not led astray by a padded long number that is smaller than the highest", async () => {
-        // invoices 37, 41 and 00000000000000000009 (the number 9, written with 20 characters)
-        const state = statefulDatabase("36", ["37", "41", "00000000000000000009"]);
+    it("is not affected by an invoice number typed in by hand that is longer than the app hands out", async () => {
+        // 19 digits and 25 digits, one of them padded with zeros: none can be the same as a number
+        // the app gives out (those have 18 digits at most), and none is counted as the highest
+        const state = statefulDatabase("5", [
+            "5",
+            "1000000000000000001",
+            "00000000000000000009",
+            "1234567890123456789012345"
+        ]);
 
-        expect(await allocate(2)).toEqual(["42", "43"]);
-        expect(state.counter).toBe("43");
+        expect(await allocate(3)).toEqual(["6", "7", "8"]);
+        expect(state.counter).toBe("8");
     });
 
     it("goes on from a counter of 10 digits, as an invoice number like 2026000001 makes it", async () => {
@@ -334,21 +301,6 @@ describe("createInvoiceWithNextNumber", () => {
 
         expect(await allocate(2)).toEqual(["2026000002", "2026000003"]);
         expect(state.counter).toBe("2026000003");
-    });
-
-    it("stops when the next number would not fit invoices.number (25 digits)", async () => {
-        vi.spyOn(console, "error").mockImplementation(() => undefined);
-        statefulDatabase("9".repeat(25));
-
-        const result = await createInvoiceWithNextNumber({
-            database: "shop",
-            customerId: 5,
-            vat: 24
-        });
-
-        expect(result.ok).toBe(false);
-        expect(fake.statements(/INSERT INTO invoices/)).toHaveLength(0);
-        expect(fake.connection.rollback).toHaveBeenCalledOnce();
     });
 
     it("takes a counter with spaces around the digits, and still refuses text that is not digits", async () => {
@@ -413,37 +365,17 @@ describe("getHighestNumber", () => {
     };
 
     it("is the highest number number_sort holds, and 0 when there are no invoices", async () => {
-        expect(await highestIs({ highest: "41", highestLong: null })).toBe(41n);
-        expect(await highestIs({ highest: "0", highestLong: null })).toBe(0n);
-        // an older statement without the second column
         expect(await highestIs({ highest: "41" })).toBe(41n);
+        expect(await highestIs({ highest: "0" })).toBe(0n);
     });
 
-    it("is the highest number of more than 18 digits when there is one, which is above any other", async () => {
-        expect(
-            await highestIs({ highest: "999999999999999999", highestLong: "1000000000000000000" })
-        ).toBe(1000000000000000000n);
-        // exact, not rounded
-        expect(await highestIs({ highest: "5", highestLong: "1234567890123456789012345" })).toBe(
-            1234567890123456789012345n
-        );
-        // a number with leading zeros is the number it spells
-        expect(await highestIs({ highest: "5", highestLong: "00000000000000000009" })).toBe(9n);
-    });
-
-    it("is the larger of the two: a long number with leading zeros can be the smaller", async () => {
-        // "00000000000000000009" has 20 characters and the value 9
-        expect(await highestIs({ highest: "41", highestLong: "00000000000000000009" })).toBe(41n);
-        expect(await highestIs({ highest: "0", highestLong: "0000000000000000000" })).toBe(0n);
-        // padded and still larger
-        expect(await highestIs({ highest: "41", highestLong: "00000000000000000100" })).toBe(100n);
+    it("is exact for the 18 digits number_sort holds, not rounded", async () => {
+        expect(await highestIs({ highest: "999999999999999999" })).toBe(999999999999999999n);
+        expect(await highestIs({ highest: "9007199254740993" })).toBe(9007199254740993n);
     });
 
     it("refuses an answer that is not digits", async () => {
         await expect(highestIs({ highest: "abc" })).rejects.toThrow("not a whole number");
         await expect(highestIs()).rejects.toThrow("not a whole number");
-        await expect(highestIs({ highest: "5", highestLong: "12x" })).rejects.toThrow(
-            "not a whole number"
-        );
     });
 });
