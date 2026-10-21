@@ -154,6 +154,22 @@ describe("PUT /settings with lastInvoiceId", () => {
         expect(fake.statements(/UPDATE config/)[0].params).toContain("1000000000000000001");
     });
 
+    it("refuses a counter below the highest number when a padded long number is smaller than it", async () => {
+        // invoices 37, 41 and 00000000000000000009: the highest is 41, not 9
+        databaseHas("41", false, "00000000000000000009");
+
+        expect(await putAll(request({ lastInvoiceId: "36" }))).toEqual({
+            success: false,
+            message: "lastInvoiceIdTooLow"
+        });
+        expect(fake.statements(/UPDATE config/)).toHaveLength(0);
+
+        fake.reset();
+        databaseHas("41", false, "00000000000000000009");
+
+        expect(await putAll(request({ lastInvoiceId: "41" }))).toMatchObject({ success: true });
+    });
+
     it("takes any counter when there are no invoices", async () => {
         databaseHas("0");
 

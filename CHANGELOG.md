@@ -226,7 +226,7 @@ version number, kept in each app's `package.json`. The web app shows this file o
   longer be followed by a save that sets the counter below its number; a logo uploaded with a refused
   save is removed. The highest number in use includes numbers of 19 to 25 digits, which the sort column
   cannot hold (it counts them as 0), so a counter below such an invoice is refused and a low counter
-  recovers from it too
+  recovers from it too; numbers are compared by value, so `00000000000000000009` is 9
 - Password reset and invoice emails got the wrong parts: the subject, text and HTML of an email were
   assigned by the position of the settings rows in the database's answer, and since the unique key on
   `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the

@@ -44,8 +44,12 @@ export const getHighestNumber = async (connection: PoolConnection) => {
         throw new Error(`The highest long invoice number is not a whole number: ${highestLong}`);
     }
 
-    // A number of more than 18 digits is above any number number_sort holds
-    return BigInt(String(highestLong));
+    // Not necessarily the larger: a number of 19 or more characters can have leading zeros
+    // ("00000000000000000009" is 9)
+    const long = BigInt(String(highestLong));
+    const sorted = BigInt(highest);
+
+    return long > sorted ? long : sorted;
 };
 
 // Takes the next invoice number and creates the invoice with its lines in one transaction. The

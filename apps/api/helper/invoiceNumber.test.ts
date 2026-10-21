@@ -321,6 +321,14 @@ describe("createInvoiceWithNextNumber", () => {
         expect(full.counter).toBe("41");
     });
 
+    it("is not led astray by a padded long number that is smaller than the highest", async () => {
+        // invoices 37, 41 and 00000000000000000009 (the number 9, written with 20 characters)
+        const state = statefulDatabase("36", ["37", "41", "00000000000000000009"]);
+
+        expect(await allocate(2)).toEqual(["42", "43"]);
+        expect(state.counter).toBe("43");
+    });
+
     it("goes on from a counter of 10 digits, as an invoice number like 2026000001 makes it", async () => {
         const state = statefulDatabase("2026000001", ["2026000001"]);
 
@@ -421,6 +429,14 @@ describe("getHighestNumber", () => {
         );
         // a number with leading zeros is the number it spells
         expect(await highestIs({ highest: "5", highestLong: "00000000000000000009" })).toBe(9n);
+    });
+
+    it("is the larger of the two: a long number with leading zeros can be the smaller", async () => {
+        // "00000000000000000009" has 20 characters and the value 9
+        expect(await highestIs({ highest: "41", highestLong: "00000000000000000009" })).toBe(41n);
+        expect(await highestIs({ highest: "0", highestLong: "0000000000000000000" })).toBe(0n);
+        // padded and still larger
+        expect(await highestIs({ highest: "41", highestLong: "00000000000000000100" })).toBe(100n);
     });
 
     it("refuses an answer that is not digits", async () => {
