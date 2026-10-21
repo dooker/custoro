@@ -289,6 +289,12 @@ describe("invoice input", () => {
         expect(parseInput({ ...draft, number: 43 }, invoiceDataInput)).toMatchObject({
             values: { number: "43" }
         });
+        // no spaces at the ends: "42 " would be 42 to the database's unique key but not to the counter
+        for (const number of ["42 ", " 42", "42  "]) {
+            expect(parseInput({ ...draft, number }, invoiceDataInput), number).toMatchObject({
+                values: { number: "42" }
+            });
+        }
         expect(parseInput({ ...draft, customerId: null }, invoiceDataInput)).toMatchObject({
             values: { customerId: null }
         });

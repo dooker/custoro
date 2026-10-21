@@ -213,6 +213,24 @@ describe("createInvoiceWithNextNumber", () => {
             }
 
             if (/INSERT INTO invoices/.test(sql)) {
+                // the unique key compares by the column's collation: trailing spaces do not count,
+                // and the digits of other scripts are the same digits
+                const folded = (number: string) =>
+                    number
+                        .replace(/[\u0660-\u0669]/g, (digit) => String(digit.charCodeAt(0) - 0x660))
+                        .trimEnd();
+
+                if (
+                    state.numbers.some((number) => folded(number) === folded(params[0] as string))
+                ) {
+                    throw Object.assign(
+                        new Error("Duplicate entry for key 'invoices.number_UNIQUE'"),
+                        {
+                            code: "ER_DUP_ENTRY"
+                        }
+                    );
+                }
+
                 state.numbers.push(params[0] as string);
 
                 return { insertId: state.numbers.length, affectedRows: 1 };
@@ -294,6 +312,71 @@ describe("createInvoiceWithNextNumber", () => {
 
         expect(await allocate(3)).toEqual(["6", "7", "8"]);
         expect(state.counter).toBe("8");
+    });
+
+    it("skips a number that the unique key sees as taken, such as a hand-typed 42 with a space after it", async () => {
+        // "42 " has number_sort 0 (it is not plain digits), so the highest number is 41, and the
+        // unique key still calls it 42
+        const state = statefulDatabase("41", ["41", "42 "]);
+
+        expect(await allocate(2)).toEqual(["43", "44"]);
+        expect(state.counter).toBe("44");
+        // the insert that was refused undid itself, nothing else: one transaction, committed
+        expect(fake.connection.rollback).not.toHaveBeenCalled();
+        expect(fake.connection.commit).toHaveBeenCalledTimes(2);
+    });
+
+    it("skips numbers written in the digits of another script, which the collation reads as the same", async () => {
+        // ٤٢ is 42 in Arabic-Indic digits, and ٤٣ is 43
+        const state = statefulDatabase("41", ["41", "٤٢", "٤٣"]);
+
+        expect(await allocate(1)).toEqual(["44"]);
+        expect(state.counter).toBe("44");
+    });
+
+    it("gives up, and creates nothing, when too many numbers in a row are taken", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        // 42 to 62 are taken by numbers with a space after them: more than the 20 that are skipped
+        const taken = Array.from({ length: 21 }, (_, index) => `${42 + index} `);
+        const state = statefulDatabase("41", ["41", ...taken]);
+
+        const result = await createInvoiceWithNextNumber({
+            database: "shop",
+            customerId: 5,
+            vat: 24
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            message: "post.newInvoice",
+            code: "ER_DUP_ENTRY"
+        });
+        expect(state.counter).toBe("41");
+        expect(state.numbers).toHaveLength(22);
+        expect(fake.connection.commit).not.toHaveBeenCalled();
+        expect(fake.connection.rollback).toHaveBeenCalledOnce();
+    });
+
+    it("does not skip on any other failure of the insert", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        fake.respondWith((sql) => {
+            if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
+            if (/MAX\(number_sort\)/.test(sql)) return [{ highest: "41" }];
+            if (/INSERT INTO invoices/.test(sql)) {
+                throw Object.assign(new Error("no customer"), { code: "ER_NO_REFERENCED_ROW_2" });
+            }
+
+            return { affectedRows: 1 };
+        });
+
+        const result = await createInvoiceWithNextNumber({
+            database: "shop",
+            customerId: 5,
+            vat: 24
+        });
+
+        expect(result).toMatchObject({ ok: false, code: "ER_NO_REFERENCED_ROW_2" });
+        expect(fake.statements(/INSERT INTO invoices/)).toHaveLength(1);
     });
 
     it("goes on from a counter of 10 digits, as an invoice number like 2026000001 makes it", async () => {

@@ -233,7 +233,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   longer be followed by a save that sets the counter below its number; a logo uploaded with a refused
   save is removed. The highest number in use is read from the sort column's index, one row, however
   many invoices have numbers such as `INV-001`. The app stops handing out numbers after 18 digits; a
-  longer number typed in by hand can never be the same as one it gives out
+  longer number typed in by hand can never be the same as one it gives out. An invoice number is saved
+  without spaces at its ends, and a number the database's unique key counts as taken without it being
+  the same text (`42 ` with a space, or 42 written in the digits of another script, which the
+  collation reads as 42) is skipped when the next number is handed out, a few at most, instead of
+  failing every new invoice
 - Password reset and invoice emails got the wrong parts: the subject, text and HTML of an email were
   assigned by the position of the settings rows in the database's answer, and since the unique key on
   `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the

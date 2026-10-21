@@ -10,6 +10,12 @@ interface CreateInvoiceIF {
     lines?: InvoiceLineIF[];
 }
 
+// MySQL's error code for a number the unique key on invoices.number already has
+const duplicateEntry = "ER_DUP_ENTRY";
+
+// How many numbers in a row are skipped for being taken before the invoice is refused
+const maxSkippedNumbers = 20;
+
 // The highest number that is on an invoice, as text (0 when there are no invoices). number_sort is
 // the number as a number and has an index, so this reads one row of it. A number the app hands out
 // always has one (see config.maxInvoiceNumberDigits); numbers that are not plain digits, or that
@@ -71,26 +77,45 @@ export const createInvoiceWithNextNumber = ({
             // created is counted
             const highest = await getHighestNumber(connection);
             const last = BigInt(lastText);
-            const used = last > highest ? last : highest;
-            const number = used + 1n;
+            let number = (last > highest ? last : highest) + 1n;
+            let insert: ResultSetHeader | undefined;
 
-            // Past the digits number_sort holds, the highest number could no longer be found
-            if (String(number).length > config.maxInvoiceNumberDigits) {
-                throw new Error(
-                    `The next invoice number would have more than ${config.maxInvoiceNumberDigits} digits: ${number}`
-                );
+            for (let skipped = 0; insert === undefined; skipped++) {
+                // Past the digits number_sort holds, the highest number could no longer be found
+                if (String(number).length > config.maxInvoiceNumberDigits) {
+                    throw new Error(
+                        `The next invoice number would have more than ${config.maxInvoiceNumberDigits} digits: ${number}`
+                    );
+                }
+
+                try {
+                    [insert] = await connection.query<ResultSetHeader>(
+                        `INSERT INTO invoices
+                         SET number       = ?,
+                             customer_id  = ?,
+                             create_date  = NOW(),
+                             change_date  = NOW(),
+                             invoice_date = NOW(),
+                             vat          = ?;`,
+                        [String(number), customerId, vat]
+                    );
+                } catch (error) {
+                    // The unique key compares numbers by the column's collation, which can call a
+                    // number typed in by hand the same as the next one without it being the same
+                    // text ("42 " with a space, or 42 in the digits of another script). number_sort
+                    // is 0 for those, so the highest number does not show them. The number is
+                    // skipped, a few at most, and the counter moves on with it. The failed insert
+                    // only undoes itself, the transaction goes on.
+                    if (
+                        (error as { code?: string }).code !== duplicateEntry ||
+                        skipped >= maxSkippedNumbers
+                    ) {
+                        throw error;
+                    }
+
+                    number += 1n;
+                }
             }
-
-            const [insert] = await connection.query<ResultSetHeader>(
-                `INSERT INTO invoices
-                 SET number       = ?,
-                     customer_id  = ?,
-                     create_date  = NOW(),
-                     change_date  = NOW(),
-                     invoice_date = NOW(),
-                     vat          = ?;`,
-                [String(number), customerId, vat]
-            );
 
             await connection.query(
                 `UPDATE config

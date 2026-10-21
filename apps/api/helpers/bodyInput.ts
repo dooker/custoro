@@ -22,6 +22,9 @@ interface TextOptions {
     // The field has to be there (it may still be empty text, unless notBlank)
     required?: boolean;
     notBlank?: boolean;
+    // Leading and trailing spaces are removed (before the length is checked and the text is kept):
+    // for a value the database compares with its trailing spaces ignored, such as an invoice number
+    trim?: boolean;
     // The value of a missing field: null for a column that can be NULL, "" for one that cannot
     empty?: string | null;
 }
@@ -39,18 +42,20 @@ export const text = <const O extends TextOptions = Record<never, never>>(
     max: number,
     options?: O
 ): Rule<Given<O, string>> => {
-    const { required = false, notBlank = false, empty = "" } = options ?? {};
+    const { required = false, notBlank = false, trim = false, empty = "" } = options ?? {};
 
     return ((value) => {
         if (isMissing(value)) {
             return required ? invalid : empty;
         }
 
-        const result = typeof value === "number" && Number.isFinite(value) ? String(value) : value;
+        const given = typeof value === "number" && Number.isFinite(value) ? String(value) : value;
 
-        if (typeof result !== "string" || (notBlank && result.trim() === "")) {
+        if (typeof given !== "string" || (notBlank && given.trim() === "")) {
             return invalid;
         }
+
+        const result = trim ? given.trim() : given;
 
         return Array.from(result).length <= max ? result : invalid;
     }) as Rule<Given<O, string>>;

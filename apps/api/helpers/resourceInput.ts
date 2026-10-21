@@ -71,7 +71,9 @@ export const invoiceDataInput = {
     invoiceDate: dateText({ required: true }),
     paymentType: oneOf(paymentTypes, { required: true }),
     invoiceType: oneOf(invoiceTypes, { required: true }),
-    number: text(25, { required: true, notBlank: true })
+    // Without spaces at the ends: the unique key on invoices.number ignores trailing spaces, so
+    // "42 " would be the same number as 42 to the database but not to the invoice counter
+    number: text(25, { required: true, notBlank: true, trim: true })
 };
 
 // A line the web app adds to an invoice; a worksheet is only there when the line comes from one

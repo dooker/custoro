@@ -45,6 +45,20 @@ describe("text", () => {
         expect(run(text(5, { empty: null }), "")).toBe("");
     });
 
+    it("can remove the spaces at the ends, before it counts the length and keeps the text", () => {
+        const trimmed = text(5, { required: true, notBlank: true, trim: true });
+
+        expect(run(trimmed, "42 ")).toBe("42");
+        expect(run(trimmed, " 42")).toBe("42");
+        expect(run(trimmed, "\t42\n")).toBe("42");
+        expect(run(trimmed, "4 2")).toBe("4 2");
+        // 5 characters once the spaces are gone
+        expect(run(trimmed, "  12345  ")).toBe("12345");
+        expect(run(trimmed, "123456")).toBe("refused");
+        expect(run(trimmed, "   ")).toBe("refused");
+        expect(run(text(5, { trim: true }), "  ")).toBe("");
+    });
+
     it("can insist on the field being there, and on it not being blank", () => {
         expect(run(text(5, { required: true }), undefined)).toBe("refused");
         expect(run(text(5, { required: true }), null)).toBe("refused");

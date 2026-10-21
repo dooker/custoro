@@ -670,6 +670,51 @@ test.describe('the invoice counter', () => {
         }
     });
 
+    test('an invoice number is saved without the spaces at its ends, which the unique key does not tell apart', async () => {
+        const customer = await createCustomer(`Counter spaces ${unique}`);
+        const created = await call('post', '/invoice', { customerId: customer, items: [] });
+        const invoice = await getInvoice(created.lastId);
+
+        for (const number of [`${invoice.number} `, ` ${invoice.number}`, `${invoice.number}  `]) {
+            expect(
+                await call('put', '/invoice', { ...invoice, number }),
+                JSON.stringify(number)
+            ).toEqual({
+                success: true,
+            });
+            expect((await getInvoice(created.lastId)).number).toBe(invoice.number);
+        }
+    });
+
+    test('skips a number that the unique key sees as the next one though it is written differently', async () => {
+        const customer = await createCustomer(`Counter lookalike ${unique}`);
+        const created = await call('post', '/invoice', { customerId: customer, items: [] });
+        const invoice = await getInvoice(created.lastId);
+        // The same number in Arabic-Indic digits: the column's collation reads it as the same digits,
+        // so the database sees 50027 and ٥٠٠٢٧ as one number, while the sort column (plain digits
+        // only) gives it 0 and the highest number does not show it
+        const arabic = (number: number) =>
+            String(number).replace(/\d/g, (digit) => String.fromCharCode(0x660 + Number(digit)));
+        let next = 0;
+        let renamed: { success: boolean } = { success: false };
+
+        // other tests create invoices at the same moment, so the number can be taken by then
+        for (let attempt = 0; attempt < 5 && !renamed.success; attempt++) {
+            next = Number(await getLastNumber()) + 1;
+            renamed = await call('put', '/invoice', { ...invoice, number: arabic(next) });
+        }
+
+        expect(renamed).toEqual({ success: true });
+
+        // the next invoice would get that number: it takes the one after it. It failed with a
+        // generic error, on every try, as the number was never given up.
+        const after = await call('post', '/invoice', { customerId: customer, items: [] });
+
+        expect(after.success).toBe(true);
+        expect(Number((await getInvoice(after.lastId)).number)).toBeGreaterThan(next);
+        expect((await getInvoice(created.lastId)).number).toBe(arabic(next));
+    });
+
     test('can be set to the number in use, or above it, which skips numbers', async () => {
         const customer = await createCustomer(`Counter up ${unique}`);
         const created = await call('post', '/invoice', { customerId: customer, items: [] });
