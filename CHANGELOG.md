@@ -189,7 +189,9 @@ version number, kept in each app's `package.json`. The web app shows this file o
   A customer name of `{"a":1}` was stored as the text "[object Object]", and a product code of
   `[["x"]]` was expanded into SQL by the database driver (the values are escaped, so this was bad
   data, not injection). Texts must be text (or a number) no longer than their column, numbers must be
-  numbers (prices and quantities may use a comma), and units, roles, payment types and invoice types
+  numbers that fit their column, also after the database has rounded them (a quantity of 999999999.9996
+  would round up past DECIMAL(12,3); prices and quantities may use a comma), and units, roles, payment
+  types and invoice types
   must be one of the column's values; otherwise nothing is saved and the web app says "some values are
   not valid". The query helper also refuses any list, object or `undefined` as a parameter. Saving a
   customer, worksheet or user changes the one in the URL, not the id in the body. An invoice without

@@ -118,7 +118,7 @@ describe("rowId", () => {
 });
 
 describe("decimal", () => {
-    const price = decimal({ maxAbs: 1e8 });
+    const price = decimal({ maxAbs: 1e8, scale: 4 });
 
     it("takes numbers and numeric text, with a comma or a point", () => {
         expect(run(price, 19.99)).toBe(19.99);
@@ -150,12 +150,46 @@ describe("decimal", () => {
         expect(run(price, 99999999.9999)).toBe(99999999.9999);
     });
 
+    it("refuses a value that the database would round up to a number the column cannot hold", () => {
+        // DECIMAL(12,4): 8 digits before the point
+        for (const value of [
+            99999999.99995,
+            99999999.99999,
+            "99999999.99996",
+            -99999999.99999,
+            1e8
+        ]) {
+            expect(run(price, value), String(value)).toBe("refused");
+        }
+
+        // these round to 99999999.9999 or stay below it, which fits; the value is given back as sent
+        for (const value of [99999999.9999, 99999999.99994, "99999999.99994", -99999999.9999]) {
+            expect(run(price, value), String(value)).toBe(Number(value));
+        }
+    });
+
+    it("looks at the decimals of the column it is for", () => {
+        // DECIMAL(12,3): 9 digits before the point and 3 after it
+        const quantity = decimal({ maxAbs: 1e9, scale: 3 });
+
+        expect(run(quantity, 999999999.999)).toBe(999999999.999);
+        expect(run(quantity, 999999999.9994)).toBe(999999999.9994);
+        expect(run(quantity, 999999999.9995)).toBe("refused");
+        expect(run(quantity, 999999999.9996)).toBe("refused");
+        expect(run(quantity, "-999999999.9999")).toBe("refused");
+        // the same number is fine in a column with more room after the point
+        expect(run(price, 999999.9999)).toBe(999999.9999);
+        // and a small one is rounded by the database, not refused
+        expect(run(quantity, 0.0004)).toBe(0.0004);
+        expect(run(quantity, 1.2345)).toBe(1.2345);
+    });
+
     it("counts a missing field and blank text as 0, or as the empty value of the rule", () => {
         expect(run(price, undefined)).toBe(0);
         expect(run(price, null)).toBe(0);
         expect(run(price, "  ")).toBe(0);
-        expect(run(decimal({ maxAbs: 10, empty: null }), "")).toBeNull();
-        expect(run(decimal({ maxAbs: 10, required: true }), "")).toBe("refused");
+        expect(run(decimal({ maxAbs: 10, scale: 2, empty: null }), "")).toBeNull();
+        expect(run(decimal({ maxAbs: 10, scale: 2, required: true }), "")).toBe("refused");
     });
 });
 

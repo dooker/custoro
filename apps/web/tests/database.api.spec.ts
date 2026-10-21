@@ -274,6 +274,49 @@ test.describe('write bodies', () => {
         );
     });
 
+    test('a number the database would round up past its column is refused, not a database error', async () => {
+        const customer = await createCustomer(`Body limits ${unique}`);
+        const product = await createProduct(`LIM-${unique}`);
+        const sheet = { customer, product_id: product };
+
+        // quantities are DECIMAL(12,3): 999999999.9996 rounds up to 1000000000.000
+        expect(await call('post', '/worksheet', { ...sheet, quantity: 999999999.9996 })).toEqual(
+            invalidInput
+        );
+        expect(await call('post', '/worksheet', { ...sheet, quantity: '999999999.9995' })).toEqual(
+            invalidInput
+        );
+
+        // and one that rounds down fits; the database keeps the 3 decimals
+        const fits = await call('post', '/worksheet', { ...sheet, quantity: 999999999.9994 });
+
+        expect(fits.success).toBe(true);
+        expect((await call('get', `/worksheet/${fits.insertId}`)).data[0].quantity).toBe(
+            999999999.999
+        );
+
+        // prices are DECIMAL(12,4): 99999999.99999 rounds up to 100000000.0000
+        expect(await call('post', '/product', productBody({ price: 99999999.99999 }))).toEqual(
+            invalidInput
+        );
+        expect(
+            await call(
+                'post',
+                '/product',
+                productBody({ code: `LIM2-${unique}`, discountPrice: '99999999.99996' })
+            )
+        ).toEqual(invalidInput);
+
+        const top = await call(
+            'post',
+            '/product',
+            productBody({ code: `LIM3-${unique}`, price: 99999999.9999 })
+        );
+
+        expect(top.success).toBe(true);
+        expect((await call('get', `/product/${top.insertId}`)).data[0].price).toBe(99999999.9999);
+    });
+
     test('a worksheet needs a customer, a product and a quantity that are numbers', async () => {
         const customer = await createCustomer(`Body sheets ${unique}`);
         const product = await createProduct(`BSH-${unique}`);

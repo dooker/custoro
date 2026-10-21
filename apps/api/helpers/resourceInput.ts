@@ -10,9 +10,9 @@ export const userRoles = ["user", "admin"] as const;
 export const paymentTypes = ["cash", "transfer"] as const;
 export const invoiceTypes = ["offer", "invoice"] as const;
 
-// DECIMAL(12,4) holds 8 digits before the point, DECIMAL(12,3) 9
-const maxPrice = 1e8;
-const maxQuantity = 1e9;
+// Prices are DECIMAL(12,4): 8 digits before the point, 4 after it. Quantities are DECIMAL(12,3).
+const priceColumn = { maxAbs: 1e8, scale: 4 };
+const quantityColumn = { maxAbs: 1e9, scale: 3 };
 
 export const customerInput = {
     name: text(150, { empty: null }),
@@ -34,8 +34,8 @@ export const customerInput = {
 export const productInput = {
     code: text(45, { required: true }),
     name: text(250, { required: true }),
-    price: decimal({ maxAbs: maxPrice }),
-    discountPrice: decimal({ maxAbs: maxPrice }),
+    price: decimal(priceColumn),
+    discountPrice: decimal(priceColumn),
     unit: oneOf(productUnits, { empty: "pc" }),
     comment: text(500)
 };
@@ -43,7 +43,7 @@ export const productInput = {
 const worksheetFields = {
     product_id: rowId({ required: true }),
     order_id: whole({ empty: 0 }),
-    quantity: decimal({ maxAbs: maxQuantity })
+    quantity: decimal(quantityColumn)
 };
 
 // The web app names the customer "customer" when it adds a worksheet and "customer_id" when it
@@ -78,11 +78,11 @@ export const invoiceDataInput = {
 // (0 means none, like null)
 export const lineInput = {
     productId: rowId({ required: true }),
-    quantity: decimal({ maxAbs: maxQuantity, required: true }),
+    quantity: decimal({ ...quantityColumn, required: true }),
     worksheetId: whole({ empty: null })
 };
 
 // The new quantity of a line
-export const quantityInput = { value: decimal({ maxAbs: maxQuantity }) };
+export const quantityInput = { value: decimal(quantityColumn) };
 
 export const maxInvoiceLines = 500;

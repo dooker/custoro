@@ -140,6 +140,15 @@ describe("productInput", () => {
         expect(parseInput({ ...product, price: "cheap" }, productInput).ok).toBe(false);
     });
 
+    it("refuses a price that rounds up to more than DECIMAL(12,4) holds", () => {
+        for (const price of [99999999.99995, 99999999.99999, "99999999.99996"]) {
+            expect(parseInput({ ...product, price }, productInput).ok, String(price)).toBe(false);
+            expect(parseInput({ ...product, discountPrice: price }, productInput).ok).toBe(false);
+        }
+
+        expect(parseInput({ ...product, price: 99999999.9999 }, productInput).ok).toBe(true);
+    });
+
     it("counts a missing price as 0", () => {
         expect(
             parseInput({ ...product, price: "", discountPrice: undefined }, productInput)

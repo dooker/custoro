@@ -100,16 +100,20 @@ export const rowId = <const O extends Pick<WholeOptions, "required"> = Record<ne
 interface DecimalOptions {
     // The value has to be smaller than this (10^integer digits of the DECIMAL column)
     maxAbs: number;
+    // The decimals of the column: DECIMAL(12,3) holds 9 digits before the point and 3 after it
+    scale: number;
     required?: boolean;
     empty?: number | null;
 }
 
 // A decimal number, sent as a number or as text; text may use a comma ("19,99"). Blank text
-// counts as missing, which is 0 unless the rule says otherwise.
+// counts as missing, which is 0 unless the rule says otherwise. The value has to fit the column
+// after the database has rounded it to the column's decimals (half away from zero): 999999999.9995
+// is 1000000000.000 in a DECIMAL(12,3), which is too big. The value itself is given back as it is.
 export const decimal = <const O extends DecimalOptions>(
     options: O
 ): Rule<O extends { empty: null } ? number | null : number> => {
-    const { maxAbs, required = false, empty = 0 } = options;
+    const { maxAbs, scale, required = false, empty = 0 } = options;
 
     return ((value) => {
         if (isMissing(value) || (typeof value === "string" && value.trim() === "")) {
@@ -123,7 +127,11 @@ export const decimal = <const O extends DecimalOptions>(
                   ? Number(value.trim().replace(",", "."))
                   : Number.NaN;
 
-        return Number.isFinite(number) && Math.abs(number) < maxAbs ? number : invalid;
+        // A value rounds up to maxAbs, which does not fit, when it is within half a unit of the last
+        // decimal of it (an exact half rounds up)
+        const limit = maxAbs - 0.5 / 10 ** scale;
+
+        return Number.isFinite(number) && Math.abs(number) < limit ? number : invalid;
     }) as Rule<O extends { empty: null } ? number | null : number>;
 };
 
