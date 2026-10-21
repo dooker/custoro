@@ -8,7 +8,7 @@ import type { FrontRequestIF, UploadFileIF } from "../types/express";
 import path from "path";
 import { deleteImageFile } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
-import { highestNumberSql } from "../helper/invoiceNumber";
+import { getHighestNumber } from "../helper/invoiceNumber";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
 import { emailEnvKeys, formatEmailEnv } from "../helpers/emailEnv";
 import {
@@ -19,7 +19,6 @@ import {
     parseSettingsInput,
     type MailField
 } from "../helpers/settingsInput";
-import type { RowDataPacket } from "mysql2/promise";
 import type { Request } from "express";
 
 const emailEnvFields: string[] = [...mailFields];
@@ -236,16 +235,7 @@ export const putAll = async (request: Request) => {
                     );
 
                     // Read after the lock, so it counts every invoice committed before it
-                    const [highestRows] = await connection.query<RowDataPacket[]>(highestNumberSql);
-                    const highest = String(highestRows[0]?.highest);
-
-                    if (!/^\d+$/.test(highest)) {
-                        throw new Error(
-                            `The highest invoice number is not a whole number: ${highest}`
-                        );
-                    }
-
-                    if (isBelowUsedNumber(lastInvoiceId, highest)) {
+                    if (isBelowUsedNumber(lastInvoiceId, await getHighestNumber(connection))) {
                         throw new TransactionRefusal(lastInvoiceIdTooLowMessage);
                     }
 

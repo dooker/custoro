@@ -28,10 +28,12 @@ const request = (body: object, file?: object) =>
 // What the database answers inside the transaction: the counter row holds `counter`, the highest
 // invoice number is `highest` (null: that statement returns nothing), and `failing` throws on an
 // UPDATE
-const databaseHas = (highest: string | null, failing = false) =>
+const databaseHas = (highest: string | null, failing = false, highestLong: string | null = null) =>
     fake.respondWith((sql) => {
         if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
-        if (/MAX\(number_sort\)/.test(sql)) return highest === null ? [] : [{ highest }];
+        if (/MAX\(number_sort\)/.test(sql)) {
+            return highest === null ? [] : [{ highest, highestLong }];
+        }
         if (/UPDATE config/.test(sql) && failing) {
             throw Object.assign(new Error("deadlock"), { code: "ER_LOCK_DEADLOCK" });
         }
@@ -127,6 +129,29 @@ describe("PUT /settings with lastInvoiceId", () => {
             message: "lastInvoiceIdTooLow"
         });
         expect(fake.statements(/UPDATE config/)[0].params).toContain("2026000001");
+    });
+
+    it("refuses a counter below a number of more than 18 digits, which number_sort cannot hold", async () => {
+        // the invoice 1000000000000000001 counts as 0 in number_sort
+        databaseHas("50000", false, "1000000000000000001");
+
+        expect(await putAll(request({ lastInvoiceId: "1000000000000000000" }))).toEqual({
+            success: false,
+            message: "lastInvoiceIdTooLow"
+        });
+        expect(await putAll(request({ lastInvoiceId: "99999" }))).toEqual({
+            success: false,
+            message: "lastInvoiceIdTooLow"
+        });
+        expect(fake.statements(/UPDATE config/)).toHaveLength(0);
+
+        fake.reset();
+        databaseHas("50000", false, "1000000000000000001");
+
+        expect(await putAll(request({ lastInvoiceId: "1000000000000000001" }))).toMatchObject({
+            success: true
+        });
+        expect(fake.statements(/UPDATE config/)[0].params).toContain("1000000000000000001");
     });
 
     it("takes any counter when there are no invoices", async () => {

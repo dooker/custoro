@@ -43,7 +43,7 @@ export const lastInvoiceIdTooLowMessage = "lastInvoiceIdTooLow";
 // A counter below the highest number that is on an invoice would hand that number out again.
 // Both are whole numbers as text: the counter is checked by parseSettingsInput, the highest
 // number comes from the database.
-export const isBelowUsedNumber = (lastInvoiceId: string, highestUsed: string) =>
+export const isBelowUsedNumber = (lastInvoiceId: string, highestUsed: string | bigint) =>
     BigInt(lastInvoiceId) < BigInt(highestUsed);
 
 // Per setting, a rule on top of "is a string". lastInvoiceId feeds the next invoice number and

@@ -220,7 +220,9 @@ version number, kept in each app's `package.json`. The web app shows this file o
   longer makes every Settings save fail. Settings checks the counter and saves in one transaction that
   locks the counter row first, as creating an invoice does, so an invoice created at that moment can no
   longer be followed by a save that sets the counter below its number; a logo uploaded with a refused
-  save is removed
+  save is removed. The highest number in use includes numbers of 19 to 25 digits, which the sort column
+  cannot hold (it counts them as 0), so a counter below such an invoice is refused and a low counter
+  recovers from it too
 - Password reset and invoice emails got the wrong parts: the subject, text and HTML of an email were
   assigned by the position of the settings rows in the database's answer, and since the unique key on
   `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the
