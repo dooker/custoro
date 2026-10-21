@@ -328,6 +328,45 @@ describe("putSingleData (invoice details)", () => {
         expect(worksheets.params).toEqual([5, 7, 5]);
     });
 
+    const updates = () =>
+        queryMock.mock.calls
+            .map(([call]) => call)
+            .filter(({ sql }: { sql: string }) => /UPDATE (invoices|worksheets)/.test(sql));
+
+    it("does not save the invoice when its customer cannot be read, so it never keeps the old customer's terms", async () => {
+        // a failed look-up, and a customer that does not exist
+        for (const answer of [
+            { success: false, data: [] },
+            { success: true, data: [] }
+        ]) {
+            queryMock.mockReset();
+            queryMock.mockImplementation(async ({ sql }: { sql: string }) =>
+                /FROM customers/.test(sql) ? answer : { success: true, data: [] }
+            );
+
+            expect(await putSingleData(request({ body: draft })), JSON.stringify(answer)).toEqual({
+                success: false,
+                message: "get.customer"
+            });
+            expect(updates(), JSON.stringify(answer)).toHaveLength(0);
+        }
+    });
+
+    it("keeps the invoice's own payment period when its customer has none", async () => {
+        queryMock.mockImplementation(async ({ sql }: { sql: string }) =>
+            /FROM customers/.test(sql)
+                ? { success: true, data: [{ paymentPeriod: null }] }
+                : { success: true, data: [] }
+        );
+
+        expect(await putSingleData(request({ body: draft }))).toEqual({ success: true });
+
+        const [invoice] = updates();
+
+        expect(invoice.sql).toContain("COALESCE(?, payment_period)");
+        expect(invoice.params).toEqual(["2026-10-21", 5, "42", "cash", "offer", null, 7]);
+    });
+
     it("keeps the invoice's own payment period when it has no customer", async () => {
         queryMock.mockResolvedValue({ success: true, data: [] });
 

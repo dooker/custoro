@@ -193,7 +193,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
   must be one of the column's values; otherwise nothing is saved and the web app says "some values are
   not valid". The query helper also refuses any list, object or `undefined` as a parameter. Saving a
   customer, worksheet or user changes the one in the URL, not the id in the body. An invoice without
-  a customer can be saved again (it failed because its payment period was set to NULL)
+  a customer can be saved again (it failed because its payment period was set to NULL), and an invoice
+  is not saved for a customer that cannot be read, which would have kept the old customer's payment terms
 - An id in a URL must be a positive whole number. MySQL reads the leading digits of a text, so
   `/customer/1%20OR%201=1` and `/customer/1;DROP%20TABLE%20users` returned (or changed, or deleted)
   customer 1 and `/customer/1e3` customer 1000. The customer, product, worksheet, user, invoice and PDF

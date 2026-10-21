@@ -349,13 +349,25 @@ export const putSingleData = async (request: Request) => {
 
     const { id, customerId, invoiceDate, paymentType, invoiceType, number } = input.values;
 
-    // An invoice takes its payment period from its customer; without one it keeps its own
+    // An invoice takes its payment period from its customer; it keeps its own when it has no
+    // customer, or when the customer has no period. A customer that cannot be read is an error:
+    // the invoice would be saved for the new customer with the old customer's terms.
     let paymentPeriod: number | null = null;
 
     if (customerId) {
-        const { data: customer } = await getSingleCustomer(request, customerId);
+        const { success: customerSuccess, data: customer } = await getSingleCustomer(
+            request,
+            customerId
+        );
 
-        paymentPeriod = customer?.[0]?.paymentPeriod ?? null;
+        if (!customerSuccess || !customer?.[0]) {
+            return {
+                success: false,
+                message: "get.customer"
+            };
+        }
+
+        paymentPeriod = customer[0].paymentPeriod ?? null;
     }
 
     const { success: updateInvoiceSuccess } = await query({

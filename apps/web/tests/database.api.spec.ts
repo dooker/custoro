@@ -327,6 +327,23 @@ test.describe('write bodies', () => {
         expect((await call('delete', `/user/${created.insertId}`)).success).toBe(true);
     });
 
+    test('the details of an invoice are not saved for a customer that cannot be read', async () => {
+        const customer = await createCustomer(`Body terms ${unique}`);
+        const created = await call('post', '/invoice', { customerId: customer, items: [] });
+        const invoice = await getInvoice(created.lastId);
+
+        // a customer that does not exist: the invoice keeps its customer, and so its payment terms
+        expect(await call('put', '/invoice', { ...invoice, customerId: 2147483000 })).toEqual({
+            success: false,
+            message: 'get.customer',
+        });
+
+        const after = await getInvoice(created.lastId);
+
+        expect(after.customerId).toBe(customer);
+        expect(after.paymentPeriod).toBe(invoice.paymentPeriod);
+    });
+
     test('an invoice needs a customer, lines and details that are valid', async () => {
         const customer = await createCustomer(`Body invoice ${unique}`);
         const product = await createProduct(`BIN-${unique}`);
