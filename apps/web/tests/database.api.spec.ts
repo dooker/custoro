@@ -752,16 +752,23 @@ test.describe('profile', () => {
         const seen = async () => (await call('get', '/profile')).resource.timestamp;
         const pause = () => new Promise((resolve) => setTimeout(resolve, 1200));
 
-        // The first request brings an old time up to date. After that the time stays put: every
-        // request used to move it, which is a write to the users table for each page the user opens.
-        await seen();
-        await pause();
+        // Each request returns the time as it was before the request, and moves it only when it
+        // is more than 5 minutes old. Four requests a little more than a second apart: if the time
+        // happens to turn 5 minutes old in the middle of them, one of them moves it, once. A server
+        // that writes on every request moves it on every one (it used to: a write to the users
+        // table for each page the user opens), which is three changes.
+        const times: string[] = [await seen()];
 
-        const first = await seen();
+        for (let request = 0; request < 3; request++) {
+            await pause();
+            times.push(await seen());
+        }
 
-        await pause();
+        const changes = times.filter(
+            (time, index) => index > 0 && time !== times[index - 1]
+        ).length;
 
-        expect(await seen()).toBe(first);
+        expect(changes, `times ${times.join(' | ')}`).toBeLessThanOrEqual(1);
     });
 });
 
