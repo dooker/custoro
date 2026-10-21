@@ -15,7 +15,7 @@ export interface ConfigIF {
 export interface QueryIF {
     database: string;
     sql: string;
-    params?: (string | number | boolean)[];
+    params?: (string | number | boolean | null)[];
     logger?: string;
     forceLogger?: boolean;
 }

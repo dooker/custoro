@@ -20,8 +20,3 @@ export interface GetSingleIF {
 export interface GetMultipleIF {
     request: Request;
 }
-
-export interface PostPutPriceIF {
-    price: number;
-    discountPrice: number;
-}

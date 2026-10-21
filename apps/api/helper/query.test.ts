@@ -11,7 +11,7 @@ vi.mock("@sentry/node", () => ({
         callback({ setTag: vi.fn(), setExtras: vi.fn() })
 }));
 
-const { query, redactParams, scrubSqlMessage } = await import("./query");
+const { isParamValue, query, redactParams, scrubSqlMessage } = await import("./query");
 const Sentry = await import("@sentry/node");
 
 afterEach(() => {
@@ -109,5 +109,88 @@ describe("query on failure", () => {
         const result = await query({ database: "test", sql: "SELECT 1" });
 
         expect(result).toEqual({ success: false, data: [], message: "error" });
+    });
+});
+
+describe("query parameters", () => {
+    it("sends text, numbers, booleans, null and dates to the database", async () => {
+        poolQuery.mockResolvedValueOnce([[{ id: 1 }], undefined]);
+
+        const result = await query({
+            database: "test",
+            sql: "SELECT id FROM t WHERE a = ? AND b = ? AND c = ? AND d = ? AND e = ?",
+            params: ["x", 5, true, null, new Date(0)] as never
+        });
+
+        expect(result).toMatchObject({ success: true });
+        expect(poolQuery).toHaveBeenCalledOnce();
+    });
+
+    it("refuses an array, an object or undefined, which mysql2 would turn into SQL or NULL, without asking the database", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+
+        for (const bad of [
+            [["x"]],
+            [["x", "y"]],
+            [{ a: 1 }],
+            [undefined],
+            [Number.NaN],
+            [Number.POSITIVE_INFINITY],
+            [() => 1]
+        ]) {
+            const result = await query({
+                database: "test",
+                sql: "SELECT id FROM t WHERE a = ? AND b = ?",
+                params: ["fine", ...bad] as never
+            });
+
+            expect(result, JSON.stringify(bad)).toEqual({
+                success: false,
+                data: [],
+                message: "error"
+            });
+        }
+
+        expect(poolQuery).not.toHaveBeenCalled();
+        expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+
+    it("logs which parameter it refused and its type, never its value", async () => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        await query({
+            database: "test",
+            sql: "UPDATE t SET a = ?, b = ?",
+            params: ["fine", { secret: "hunter2" }] as never,
+            logger: "Update t"
+        });
+
+        const text = logged.mock.calls.flat().join(" ");
+
+        expect(text).toContain("Update t");
+        expect(text).toContain("parameter 2");
+        expect(text).toContain("[object]");
+        expect(text).not.toContain("hunter2");
+    });
+
+    it("tells which values are parameters", () => {
+        for (const value of ["", "x", 0, -1.5, true, false, null, new Date(), BigInt(1)]) {
+            expect(isParamValue(value), String(value)).toBe(true);
+        }
+
+        for (const value of [
+            undefined,
+            [],
+            ["x"],
+            {},
+            { a: 1 },
+            Number.NaN,
+            Number.NEGATIVE_INFINITY,
+            Symbol("x"),
+            () => 1,
+            Buffer.from("x")
+        ]) {
+            expect(isParamValue(value), String(typeof value)).toBe(false);
+        }
     });
 });

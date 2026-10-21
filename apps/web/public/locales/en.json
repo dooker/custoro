@@ -227,7 +227,8 @@
         "product.inUse": "This product cannot be deleted because worksheets still use it",
         "customer.inUse": "This customer cannot be deleted because invoices or worksheets still belong to them",
         "worksheet.locked": "This worksheet is on a locked invoice and cannot be deleted",
-        "worksheet.invoiced": "This worksheet is already on an invoice"
+        "worksheet.invoiced": "This worksheet is already on an invoice",
+        "invalidInput": "Some values are not valid (too long, or not the right kind of value), nothing was saved"
     },
     "settings": {
         "singular": "Settings",

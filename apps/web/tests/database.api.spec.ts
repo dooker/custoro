@@ -152,6 +152,224 @@ test.describe('search', () => {
     });
 });
 
+test.describe('write bodies', () => {
+    const invalidInput = { success: false, message: 'invalidInput' };
+
+    const customerBody = (changes: object = {}) => ({
+        name: `Body ${unique}`,
+        contact: null,
+        regNumber: '',
+        vatNumber: null,
+        phone: '',
+        phone2: '',
+        address: '',
+        email: 'body@example.test',
+        invoiceEmail: '',
+        www: '',
+        paymentPeriod: '14',
+        additionalInfo: null,
+        shippingInfo: null,
+        department: '',
+        ...changes,
+    });
+
+    const productBody = (changes: object = {}) => ({
+        code: `BODY-${unique}`,
+        name: 'Body product',
+        price: '19,99',
+        discountPrice: 0,
+        unit: 'pc',
+        comment: '',
+        ...changes,
+    });
+
+    const customerCount = async () => (await call('get', '/customers?page=1&limit=1')).meta.total;
+
+    test('a customer name that is an object or a list is refused, where it used to be stored as "[object Object]"', async () => {
+        const before = await customerCount();
+
+        for (const name of [{ a: 1 }, ['x'], [['x']]]) {
+            expect(await call('post', '/customer', customerBody({ name }))).toEqual(invalidInput);
+        }
+
+        expect(await customerCount()).toBe(before);
+
+        const id = await createCustomer(`Body edit ${unique}`);
+
+        expect(await call('put', `/customer/${id}`, customerBody({ name: { a: 1 } }))).toEqual(
+            invalidInput
+        );
+        expect((await call('get', `/customer/${id}`)).data[0].name).toBe(`Body edit ${unique}`);
+    });
+
+    test('text that is longer than its column is refused, and the longest text is kept', async () => {
+        expect(
+            await call('post', '/customer', customerBody({ name: 'x'.repeat(151) }))
+        ).toEqual(invalidInput);
+
+        const created = await call('post', '/customer', customerBody({ name: 'x'.repeat(150) }));
+
+        expect(created.success).toBe(true);
+        expect((await call('get', `/customer/${created.insertId}`)).data[0].name).toHaveLength(150);
+    });
+
+    test('what the web app sends is accepted: null fields, a payment period and prices as text', async () => {
+        const created = await call('post', '/customer', customerBody());
+
+        expect(created.success).toBe(true);
+
+        const read = (await call('get', `/customer/${created.insertId}`)).data[0];
+
+        expect(read).toMatchObject({ contact: null, vatNumber: null, paymentPeriod: 14 });
+        // and the stored customer goes back the way the form sends its draft
+        expect(await call('put', `/customer/${created.insertId}`, read)).toEqual({ success: true });
+
+        const product = await call('post', '/product', productBody());
+
+        expect(product.success).toBe(true);
+        expect((await call('get', `/product/${product.insertId}`)).data[0].price).toBe(19.99);
+    });
+
+    test('a product code that is a list is refused, where it used to be expanded into SQL', async () => {
+        const code = `LIST-${unique}`;
+
+        for (const value of [[[code]], [code]]) {
+            expect(await call('post', '/product', productBody({ code: value }))).toEqual(
+                invalidInput
+            );
+        }
+
+        expect((await call('get', `/product?code=${code}`)).data).toBe(0);
+        expect((await call('get', `/product?code[]=${code}`)).success).toBe(false);
+
+        const id = await createProduct(`LISTED-${unique}`);
+
+        expect(
+            await call('put', `/product/${id}`, productBody({ code: [`LISTED-${unique}`] }))
+        ).toEqual(invalidInput);
+        expect(await call('post', '/product', productBody({ unit: 'box' }))).toEqual(invalidInput);
+        expect(await call('post', '/product', productBody({ price: 'cheap' }))).toEqual(
+            invalidInput
+        );
+    });
+
+    test('a worksheet needs a customer, a product and a quantity that are numbers', async () => {
+        const customer = await createCustomer(`Body sheets ${unique}`);
+        const product = await createProduct(`BSH-${unique}`);
+        const sheet = { customer, product_id: product, quantity: 2 };
+
+        for (const change of [
+            { customer: [customer] },
+            { customer: { a: 1 } },
+            { product_id: `${product} OR 1=1` },
+            { quantity: 'lots' },
+            { quantity: [2] },
+        ]) {
+            expect(await call('post', '/worksheet', { ...sheet, ...change })).toEqual(
+                invalidInput
+            );
+        }
+
+        const id = await createWorksheet(customer, product);
+
+        expect(
+            await call('put', `/worksheet/${id}`, { customer_id: [customer], product_id: product })
+        ).toEqual(invalidInput);
+        // the stored worksheet goes back the way the form sends its draft; the URL says which one
+        const stored = (await call('get', `/worksheet/${id}`)).data[0];
+
+        expect(
+            await call('put', `/worksheet/${id}`, { ...stored, id: id + 1000000, quantity: '3,5' })
+        ).toEqual({ success: true });
+        expect((await call('get', `/worksheet/${id}`)).data[0].quantity).toBe(3.5);
+    });
+
+    test('a user needs a login email and a known role, and a name that is text', async () => {
+        const username = `body-${unique}@example.test`;
+        const ann = { name: 'Body', username, discount: 0, offer: 0, role: 'user' };
+
+        for (const change of [
+            { name: { a: 1 } },
+            { username: [username] },
+            { username: '' },
+            { role: 'root' },
+            { discount: 'yes' },
+        ]) {
+            expect(await call('post', '/user', { ...ann, ...change })).toEqual(invalidInput);
+        }
+
+        const created = await call('post', '/user', ann);
+
+        expect(created.success).toBe(true);
+        expect(
+            await call('put', `/user/${created.insertId}`, { ...ann, name: { a: 1 } })
+        ).toEqual(invalidInput);
+        expect((await call('get', `/user/${created.insertId}`)).data[0].name).toBe('Body');
+        expect((await call('delete', `/user/${created.insertId}`)).success).toBe(true);
+    });
+
+    test('an invoice needs a customer, lines and details that are valid', async () => {
+        const customer = await createCustomer(`Body invoice ${unique}`);
+        const product = await createProduct(`BIN-${unique}`);
+        const before = await getLastNumber();
+
+        for (const body of [
+            { customerId: { a: 1 }, items: [] },
+            { customerId: [customer], items: [] },
+            { customerId: customer, items: [{ productId: [product], quantity: 1 }] },
+            { customerId: customer, items: [{ productId: product, quantity: 'lots' }] },
+            { customerId: customer, items: [{ productId: product, quantity: 1, worksheetId: {} }] },
+        ]) {
+            expect(await call('post', '/invoice', body), JSON.stringify(body)).toMatchObject({
+                success: false,
+            });
+        }
+
+        // nothing was created and no number was used
+        expect(await getLastNumber()).toBe(before);
+
+        const created = await call('post', '/invoice', {
+            customerId: customer,
+            items: [{ productId: product, quantity: '2,5' }],
+        });
+        const invoice = await getInvoice(created.lastId);
+
+        expect(invoice.items[0].quantity).toBe(2.5);
+
+        const details = {
+            id: invoice.id,
+            number: invoice.number,
+            customerId: invoice.customerId,
+            invoiceDate: invoice.invoiceDate,
+            paymentType: invoice.paymentType,
+            invoiceType: invoice.invoiceType,
+        };
+
+        for (const change of [
+            { invoiceDate: 'tomorrow' },
+            { paymentType: 'gold' },
+            { number: ['1'] },
+            { customerId: { a: 1 } },
+            { id: `${invoice.id} OR 1=1` },
+        ]) {
+            expect(await call('put', '/invoice', { ...details, ...change })).toEqual(invalidInput);
+        }
+
+        // the whole invoice, as the web app sends its draft
+        expect(await call('put', '/invoice', invoice)).toEqual({ success: true });
+        // an invoice without a customer can be saved too
+        expect(await call('put', '/invoice', { ...invoice, customerId: null })).toEqual({
+            success: true,
+        });
+        expect(
+            await call('put', `/invoice/${invoice.id}/${invoice.items[0].id}`, { value: [4] })
+        ).toEqual(invalidInput);
+        expect(await call('put', `/invoice/${invoice.id}`, { invoiceId: [invoice.id] })).toEqual(
+            invalidInput
+        );
+    });
+});
+
 test.describe('references between customers, products, worksheets and invoices', () => {
     test('a second product with the same code is refused, and says why', async () => {
         const code = `DUP-${unique}`;

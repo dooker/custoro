@@ -1,7 +1,9 @@
 import { postGeneralSingle, putGeneralSingle } from "./_helpers";
 import { query } from "../helper/query";
 import { RowDataPacket } from "mysql2";
-import type { PostPutPriceIF, ProductIF } from "../types/product";
+import { invalidInputMessage, parseInput } from "../helpers/bodyInput";
+import { productInput } from "../helpers/resourceInput";
+import type { ProductIF } from "../types/product";
 import type { QueryResult } from "../types/query";
 import type { Request } from "express";
 
@@ -59,12 +61,20 @@ export const getByCode = async (request: Request) => {
         database
     } = request;
 
+    // ?code[]=a gives a list, which is not a code
+    if (typeof code !== "string") {
+        return {
+            success: false,
+            message: invalidInputMessage
+        };
+    }
+
     const { success, data } = await query<ProductIF>({
         database,
         sql: `SELECT COUNT(id) AS count
               FROM products
               WHERE code = ?;`,
-        params: [code as string],
+        params: [code],
         logger: `Get single ${type} by code`
     });
 
@@ -81,24 +91,15 @@ export const getByCode = async (request: Request) => {
     };
 };
 
-const postPutPrice = ({ price, discountPrice }: PostPutPriceIF) => {
-    const currentPrice = price ? parseFloat(price.toString().replace(",", ".")) : 0;
-    const currentDiscountPrice = discountPrice
-        ? parseFloat(discountPrice.toString().replace(",", "."))
-        : 0;
-
-    return {
-        currentPrice,
-        currentDiscountPrice
-    };
-};
-
 export const postSingle = async (request: Request) => {
-    const {
-        body: { code, name, price, discountPrice, unit, comment },
-        database
-    } = request;
+    const { body, database } = request;
+    const input = parseInput(body, productInput);
 
+    if (!input.ok) {
+        return { success: false, message: input.message };
+    }
+
+    const { code, name, price, discountPrice, unit, comment } = input.values;
     const sql = `
         INSERT INTO products
         SET code           = ?,
@@ -121,9 +122,15 @@ export const putSingle = async (request: Request) => {
     const {
         database,
         params: { id },
-        body: { code, name, price, discountPrice, unit, comment }
+        body
     } = request;
+    const input = parseInput(body, productInput);
 
+    if (!input.ok) {
+        return { success: false, message: input.message };
+    }
+
+    const { code, name, price, discountPrice, unit, comment } = input.values;
     const sql = `
         UPDATE products
         SET code           = ?,
@@ -133,8 +140,7 @@ export const putSingle = async (request: Request) => {
             unit           = ?,
             comment        = ?
         WHERE id = ?`;
-    const { currentPrice, currentDiscountPrice } = postPutPrice({ price, discountPrice });
-    const params = [code, name, currentPrice, currentDiscountPrice, unit, comment, Number(id)];
+    const params = [code, name, price, discountPrice, unit, comment, Number(id)];
 
     return withProductMessage(await putGeneralSingle({ database, sql, params, logger: type }));
 };

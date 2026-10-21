@@ -35,6 +35,19 @@ export const queryErrorMessage = "error";
 const logParams = (params: unknown[]) =>
     (process.env.NODE_ENV || "development") === "development" ? params : redactParams(params);
 
+// A parameter is one value: text, a finite number, a boolean, null or a date. mysql2 turns an
+// array into a list of values, an object into `key` = value pairs and undefined into NULL, so a
+// request body that put one of those where a value belongs would change the statement (or store
+// "[object Object]"); NaN and Infinity are no SQL values at all. The transaction helpers pass
+// arrays through connection.query on purpose (IN (?) and VALUES ?) and do not come through here.
+export const isParamValue = (param: unknown) =>
+    param === null ||
+    typeof param === "string" ||
+    typeof param === "boolean" ||
+    typeof param === "bigint" ||
+    (typeof param === "number" && Number.isFinite(param)) ||
+    param instanceof Date;
+
 // Define a threshold for slow MAMP MySQL queries (200ms)
 const SLOW_QUERY_THRESHOLD_MS = 200;
 
@@ -45,8 +58,19 @@ export const query = async <T>({
     logger,
     forceLogger
 }: QueryIF): Promise<QueryResult<T>> => {
-    const pool = getPool(database);
     const safeParams = Array.isArray(params) ? params : [];
+    const badParam = safeParams.findIndex((param) => !isParamValue(param));
+
+    if (badParam !== -1) {
+        // Only the position and the type are logged: the value is whatever a client sent
+        console.error(
+            `Query refused${logger ? ` (${logger})` : ""}: parameter ${badParam + 1} is ${redactParams([safeParams[badParam]])[0]}`
+        );
+
+        return { success: false, data: [], message: queryErrorMessage };
+    }
+
+    const pool = getPool(database);
 
     if (forceLogger) {
         console.error("Forcing Logger");

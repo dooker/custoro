@@ -185,6 +185,15 @@ version number, kept in each app's `package.json`. The web app shows this file o
   as 0 in no particular order
 - A worksheet that is paid for, or whose line is on a locked invoice, can no longer be deleted: that
   silently deleted the line from an issued invoice. The web app says why
+- The routes that save a customer, product, worksheet, user or invoice check the values they are sent.
+  A customer name of `{"a":1}` was stored as the text "[object Object]", and a product code of
+  `[["x"]]` was expanded into SQL by the database driver (the values are escaped, so this was bad
+  data, not injection). Texts must be text (or a number) no longer than their column, numbers must be
+  numbers (prices and quantities may use a comma), and units, roles, payment types and invoice types
+  must be one of the column's values; otherwise nothing is saved and the web app says "some values are
+  not valid". The query helper also refuses any list, object or `undefined` as a parameter. Saving a
+  customer, worksheet or user changes the one in the URL, not the id in the body. An invoice without
+  a customer can be saved again (it failed because its payment period was set to NULL)
 
 ### Changed
 

@@ -228,7 +228,8 @@
         "product.inUse": "Toodet ei saa kustutada, sest sellega on seotud töölehti",
         "customer.inUse": "Klienti ei saa kustutada, sest temaga on seotud arveid või töölehti",
         "worksheet.locked": "Tööleht on lukustatud arvel ja seda ei saa kustutada",
-        "worksheet.invoiced": "Tööleht on juba arvele lisatud"
+        "worksheet.invoiced": "Tööleht on juba arvele lisatud",
+        "invalidInput": "Mõni väärtus pole kehtiv (liiga pikk või vale tüüpi), midagi ei salvestatud"
     },
     "settings": {
         "singular": "Seaded",

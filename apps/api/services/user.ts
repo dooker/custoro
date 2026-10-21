@@ -5,6 +5,8 @@ import type { Request } from "express";
 import { currentRoute as type } from "../routes/user";
 import type { UserIF } from "../types/user";
 import { isUsernameTaken } from "../helpers/users";
+import { parseInput } from "../helpers/bodyInput";
+import { userInput } from "../helpers/resourceInput";
 
 export const getSingle = async (request: Request): Promise<QueryResult<UserIF>> => {
     const {
@@ -41,11 +43,19 @@ export const getSingle = async (request: Request): Promise<QueryResult<UserIF>> 
 };
 
 export const postSingle = async (request: Request) => {
-    const {
-        body: { name, username, discount, offer, role },
-        database,
-        file
-    } = request;
+    const { body, database, file } = request;
+    const input = parseInput(body, userInput);
+
+    if (!input.ok) {
+        // The upload is already on disk and nothing will refer to it
+        if (file?.filename) {
+            deleteImageFile(file.filename);
+        }
+
+        return { success: false, message: input.message };
+    }
+
+    const { name, username, discount, offer, role } = input.values;
 
     const { success: userCheckSuccess, data } = await query<{ count: number }>({
         database,
@@ -71,7 +81,7 @@ export const postSingle = async (request: Request) => {
                    discount        = ?,
                    offer           = ?,
                    role            = ?`;
-    const params = [name, username, discount, offer, role];
+    const params: (string | number | null)[] = [name, username, discount, offer, role];
 
     if (fileExists && avatar) {
         sql += `, avatar = ?`;
@@ -90,13 +100,27 @@ export const postSingle = async (request: Request) => {
 
 export const putSingle = async (request: Request) => {
     const {
-        body: { id, name, username, discount, offer, role },
+        body,
+        params: { id },
         file,
         database
     } = request;
+    const input = parseInput(body, userInput);
+
+    if (!input.ok) {
+        // The upload is already on disk and nothing will refer to it
+        if (file?.filename) {
+            deleteImageFile(file.filename);
+        }
+
+        return { success: false, message: input.message };
+    }
+
+    const { name, username, discount, offer, role } = input.values;
     const fileExists = file && file.filename;
     let avatar = fileExists ? sanitizeFilename(file.filename) : null;
 
+    // The user is the one in the URL, not whatever id the body says
     if (await isUsernameTaken(database, username, Number(id))) {
         return {
             success: false,
@@ -114,7 +138,7 @@ export const putSingle = async (request: Request) => {
                    discount        = ?,
                    offer           = ?,
                    role            = ?`;
-    const params = [username, name, username, discount, offer, role];
+    const params: (string | number | null)[] = [username, name, username, discount, offer, role];
 
     if (fileExists && avatar) {
         sql += `, avatar = ?`;
@@ -122,7 +146,7 @@ export const putSingle = async (request: Request) => {
     }
 
     sql += ` WHERE id = ?;`;
-    params.push(id);
+    params.push(Number(id));
 
     const { success } = await query({
         database,
@@ -144,7 +168,7 @@ export const putSingle = async (request: Request) => {
             sql: `SELECT avatar
                   FROM users
                   WHERE id = ?;`,
-            params: [id],
+            params: [Number(id)],
             logger: "Get avatar"
         });
 
