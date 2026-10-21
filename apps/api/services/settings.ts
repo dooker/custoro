@@ -9,6 +9,7 @@ import path from "path";
 import { deleteImageFile } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
 import { highestNumberSql } from "../helper/invoiceNumber";
+import { TransactionRefusal, withTransaction } from "../helper/transaction";
 import { emailEnvKeys, formatEmailEnv } from "../helpers/emailEnv";
 import {
     isBelowUsedNumber,
@@ -18,6 +19,7 @@ import {
     parseSettingsInput,
     type MailField
 } from "../helpers/settingsInput";
+import type { RowDataPacket } from "mysql2/promise";
 import type { Request } from "express";
 
 const emailEnvFields: string[] = [...mailFields];
@@ -131,41 +133,18 @@ export const putAll = async (request: Request) => {
 
     const { short: shortEntries, long: longEntries, mail } = parsed.input;
     const lastInvoiceId = shortEntries.find(([key]) => key === "lastInvoiceId")?.[1];
-
-    // The counter cannot go below a number that an invoice already has. That includes a stale
-    // Settings page, which sends the counter it loaded along with any other setting it saves.
-    if (lastInvoiceId !== undefined) {
-        const { success, data } = await query<{ highest: string }>({
-            database,
-            sql: highestNumberSql,
-            logger: "Get highest invoice number"
-        });
-
-        if (!success || !data?.[0]) {
-            return {
-                success: false,
-                message: "get.lastInvoiceId"
-            };
-        }
-
-        if (isBelowUsedNumber(lastInvoiceId, data[0].highest)) {
-            // The upload is already on disk and nothing will refer to it
-            if (file?.filename) {
-                deleteImageFile(file.filename);
-            }
-
-            return {
-                success: false,
-                message: lastInvoiceIdTooLowMessage
-            };
-        }
-    }
     const emailEnvFileValues = getEmailEnvContent();
     const emailEnvFieldValues: Record<MailField, string | undefined> = {
         host: mail.host,
         port: mail.port,
         username: mail.username,
         password: mail.password
+    };
+    // The upload of a request that is refused is already on disk and nothing will refer to it
+    const discardUpload = () => {
+        if (file?.filename) {
+            deleteImageFile(file.filename);
+        }
     };
 
     let filename;
@@ -208,50 +187,97 @@ export const putAll = async (request: Request) => {
             filename = data?.value;
         }
 
-        // Execute short update
+        // The statements, in the order they run
+        const updates: { sql: string; params: string[]; logger: string; message: string }[] = [];
+
         if (shortEntries.length || file?.filename) {
-            const sqlShort = `
+            updates.push({
+                sql: `
                 UPDATE config
                 SET value = CASE ${shortCases} END
                 WHERE name IN (${shortNames});
-            `;
-            const paramsShort = [...shortCaseParams, ...shortInParams];
-            const { success } = await query({
-                database,
-                sql: sqlShort,
-                params: paramsShort,
-                logger: "Update settings - short values"
+            `,
+                params: [...shortCaseParams, ...shortInParams],
+                logger: "Update settings - short values",
+                message: "put.settings.short"
             });
-
-            if (!success) {
-                return {
-                    success: false,
-                    message: "put.settings.short"
-                };
-            }
         }
 
-        // Execute long update
         if (longEntries.length) {
-            const sqlLong = `
+            updates.push({
+                sql: `
                 UPDATE config
                 SET long_value = CASE ${longCases} END
                 WHERE name IN (${longNames});
-            `;
-            const paramsLong = [...longCaseParams, ...longInParams];
-
-            const { success } = await query({
-                database,
-                sql: sqlLong,
-                params: paramsLong,
-                logger: "Update settings - long values"
+            `,
+                params: [...longCaseParams, ...longInParams],
+                logger: "Update settings - long values",
+                message: "put.settings.long"
             });
+        }
 
-            if (!success) {
+        if (lastInvoiceId !== undefined) {
+            // The counter cannot go below a number that an invoice already has, which includes a
+            // stale Settings page: it sends the counter it loaded along with any other setting it
+            // saves. The check and the writes are one transaction that locks the counter row
+            // first, as creating an invoice does. An invoice being created then either committed
+            // before the lock (and is counted below) or waits until the settings are saved, so
+            // the counter is never left lower than a number that was handed out in between.
+            const saved = await withTransaction(
+                database,
+                "Update settings with the invoice counter",
+                "put.settings.short",
+                async (connection) => {
+                    await connection.query(
+                        `SELECT value
+                         FROM config
+                         WHERE name = 'lastInvoiceId'
+                         FOR UPDATE;`
+                    );
+
+                    // Read after the lock, so it counts every invoice committed before it
+                    const [highestRows] = await connection.query<RowDataPacket[]>(highestNumberSql);
+                    const highest = String(highestRows[0]?.highest);
+
+                    if (!/^\d+$/.test(highest)) {
+                        throw new Error(
+                            `The highest invoice number is not a whole number: ${highest}`
+                        );
+                    }
+
+                    if (isBelowUsedNumber(lastInvoiceId, highest)) {
+                        throw new TransactionRefusal(lastInvoiceIdTooLowMessage);
+                    }
+
+                    for (const { sql, params } of updates) {
+                        await connection.query(sql, params);
+                    }
+                }
+            );
+
+            if (!saved.ok) {
+                discardUpload();
+
                 return {
                     success: false,
-                    message: "put.settings.long"
+                    message: saved.message
                 };
+            }
+        } else {
+            for (const [index, { sql, params, logger, message }] of updates.entries()) {
+                const { success } = await query({ database, sql, params, logger });
+
+                if (!success) {
+                    // Nothing was saved yet when the first statement fails
+                    if (index === 0) {
+                        discardUpload();
+                    }
+
+                    return {
+                        success: false,
+                        message
+                    };
+                }
             }
         }
     }

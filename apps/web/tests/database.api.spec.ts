@@ -568,6 +568,48 @@ test.describe('the invoice counter', () => {
         expect(Number((await getInvoice(next.lastId)).number)).toBeGreaterThan(used);
     });
 
+    test('is not left below a number that was handed out while the settings were being saved', async () => {
+        const customer = await createCustomer(`Counter race ${unique}`);
+
+        // Saving the Settings page writes the counter it loaded, at the same moment invoices are
+        // created. Each save is either applied before the invoices or refused because an invoice got
+        // there first; it must never be applied after them and leave the counter behind their numbers.
+        for (let round = 0; round < 12; round++) {
+            const start = Number(await getLastNumber());
+            const answers = await Promise.all([
+                ...Array.from({ length: 6 }, () => setCounter(start)),
+                ...Array.from({ length: 6 }, () =>
+                    call('post', '/invoice', { customerId: customer, items: [] })
+                ),
+            ]);
+            const saves = answers.slice(0, 6);
+            const created = answers.slice(6);
+
+            for (const saved of saves) {
+                expect(
+                    saved.success || saved.message === 'lastInvoiceIdTooLow',
+                    `round ${round}: ${JSON.stringify(saved)}`
+                ).toBe(true);
+            }
+
+            for (const invoice of created) {
+                expect(invoice.success, `round ${round}`).toBe(true);
+            }
+
+            const numbers = await Promise.all(
+                created.map(async ({ lastId }) => Number((await getInvoice(lastId)).number))
+            );
+
+            expect(new Set(numbers).size, `round ${round}: numbers are unique`).toBe(
+                numbers.length
+            );
+            expect(
+                Number(await getLastNumber()),
+                `round ${round}: the counter is at or past the highest number issued`
+            ).toBeGreaterThanOrEqual(Math.max(...numbers));
+        }
+    });
+
     test('can be set to the number in use, or above it, which skips numbers', async () => {
         const customer = await createCustomer(`Counter up ${unique}`);
         const created = await call('post', '/invoice', { customerId: customer, items: [] });
