@@ -267,6 +267,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
   request
 - The invoice list takes 1 ms instead of 258 ms with 50 000 invoices: it counts lines for the rows of the
   page only, instead of joining and grouping every invoice
+- The worksheets overview (customers with worksheets, newest first) takes 11 ms instead of 53 ms with
+  100 000 worksheets, and its page count 1 ms instead of 108 ms: the worksheets are grouped on the
+  (customer, id) index alone and only the page's 20 customers are looked up afterwards. The page count
+  is the number of customers with worksheets, which is how many rows the list has; it counted distinct
+  customer names, one short for every pair of customers with the same name. A search by customer name
+  is unchanged
 
 ## 4.0.0 - 2026-10-02
 

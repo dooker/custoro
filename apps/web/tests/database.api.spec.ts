@@ -829,6 +829,91 @@ test.describe('worksheets on invoices', () => {
     });
 });
 
+test.describe('worksheets grouped by customer', () => {
+    test('lists the customer with the newest worksheet first, with the number of worksheets of each', async () => {
+        const product = await createProduct(`GRP-${unique}`);
+        const older = await createCustomer(`Grouped older ${unique}`);
+        const newer = await createCustomer(`Grouped newer ${unique}`);
+
+        await createWorksheet(older, product);
+        await createWorksheet(older, product);
+        await createWorksheet(newer, product);
+        // the older customer gets the newest worksheet now
+        await createWorksheet(older, product);
+
+        const list = await call('get', '/worksheets?page=1&limit=50');
+
+        expect(list.success).toBe(true);
+
+        const names = list.resource.map((row: { name: string }) => row.name);
+        const rowOf = (name: string) =>
+            list.resource.find((row: { name: string }) => row.name === name);
+
+        expect(names.indexOf(`Grouped older ${unique}`)).toBeGreaterThanOrEqual(0);
+        expect(names.indexOf(`Grouped older ${unique}`)).toBeLessThan(
+            names.indexOf(`Grouped newer ${unique}`)
+        );
+        expect(rowOf(`Grouped older ${unique}`)).toMatchObject({
+            id: older,
+            worksheet_count: 3,
+        });
+        expect(rowOf(`Grouped newer ${unique}`)).toMatchObject({
+            id: newer,
+            worksheet_count: 1,
+        });
+        // a customer is listed once
+        expect(new Set(list.resource.map((row: { id: number }) => row.id)).size).toBe(
+            list.resource.length
+        );
+    });
+
+    test('counts the pages by customers: the last page has rows and the one after it none', async () => {
+        const limit = 10;
+        const first = await call('get', `/worksheets?page=1&limit=${limit}`);
+        const pages = first.meta.total;
+
+        expect(pages).toBeGreaterThanOrEqual(1);
+        expect(first.resource.length).toBeGreaterThan(0);
+
+        const last = await call('get', `/worksheets?page=${pages}&limit=${limit}`);
+
+        expect(last.resource.length).toBeGreaterThan(0);
+        expect(last.resource.length).toBeLessThanOrEqual(limit);
+        expect(
+            (await call('get', `/worksheets?page=${pages + 1}&limit=${limit}`)).resource
+        ).toHaveLength(0);
+    });
+
+    test('is the same through the search, with and without a keyword', async () => {
+        const product = await createProduct(`GRS-${unique}`);
+        const customer = await createCustomer(`Grouped search ${unique}`);
+
+        await createWorksheet(customer, product);
+        await createWorksheet(customer, product);
+
+        const search = async (keyword: string) =>
+            call(
+                'get',
+                `/search?resource=worksheets&keyword=${encodeURIComponent(keyword)}&page=1&limit=10`
+            );
+
+        // without a keyword the customer with the newest worksheets comes first
+        const all = await search('');
+
+        expect(all.success).toBe(true);
+        expect(all.resource[0]).toMatchObject({ id: customer, worksheet_count: 2 });
+
+        // with one only the customers whose names have it
+        const found = await search(`Grouped search ${unique}`);
+
+        expect(found.success).toBe(true);
+        expect(found.resource).toEqual([
+            { name: `Grouped search ${unique}`, id: customer, worksheet_count: 2 },
+        ]);
+        expect((await search(`nobody-${unique}`)).resource).toHaveLength(0);
+    });
+});
+
 test.describe('invoice list', () => {
     test('lists the newest number first and pages through all invoices', async () => {
         const page = async (number: number, limit = 10) =>

@@ -5,8 +5,10 @@ import {
     getFromTo,
     getInvoices,
     getPaging,
+    getWorksheets,
     keywordWhere,
     keywordWords,
+    limitMarker,
     type SearchTable
 } from "./_getters";
 
@@ -100,6 +102,25 @@ describe("applyPaging", () => {
         expect(applyPaging("SELECT 1", { page: 1, limit: maxListRows })).toMatch(
             new RegExp(`LIMIT 0, ${maxListRows}\\s*$`)
         );
+    });
+});
+
+describe("applyPaging with a marker", () => {
+    it("puts the LIMIT where the marker is, once, and nowhere else", () => {
+        const sql = `SELECT * FROM (SELECT id FROM t ${limitMarker}) p ORDER BY id`;
+        const paged = applyPaging(sql, { page: 2, limit: 10 });
+
+        expect(paged).toBe("SELECT * FROM (SELECT id FROM t LIMIT 10, 10) p ORDER BY id");
+    });
+
+    it("still adds the LIMIT at the end of a statement without one", () => {
+        expect(applyPaging("SELECT 1", { page: 1, limit: 5 })).toMatch(
+            /^SELECT 1\s+LIMIT 0, 5\s*$/
+        );
+    });
+
+    it("is not confused by a LIMIT that is not the marker's", () => {
+        expect(getFromTo(`SELECT 1 ${limitMarker}`, "2", "20")).toBe("SELECT 1 LIMIT 20, 20");
     });
 });
 
@@ -279,5 +300,67 @@ describe("getInvoices", () => {
     it("only joins customers to count when a keyword searches their names", () => {
         expect(getInvoices({}).totalSql).not.toContain("customers");
         expect(getInvoices({ keyword: "ann" }).totalSql).toContain("LEFT JOIN customers");
+    });
+});
+
+describe("getWorksheets grouped by customer", () => {
+    const placeholders = (sql: string) => (sql.match(/\?/g) ?? []).length;
+
+    it("groups on the worksheets alone and joins the page's customers after, without a keyword", () => {
+        const { sql, totalSql, params } = getWorksheets({});
+
+        expect(sql).toMatch(
+            /FROM \(SELECT customer_id,\s+COUNT\(\*\)\s+AS worksheet_count,\s+MAX\(id\)\s+AS last_id\s+FROM worksheets\s+GROUP BY customer_id\s+ORDER BY last_id DESC\s+\/\* LIMIT \*\/\) g/
+        );
+        expect(sql).toMatch(
+            /JOIN customers ON customers\.id = g\.customer_id\s+ORDER BY g\.last_id DESC\s*$/
+        );
+        expect(sql).toMatch(/SELECT customers\.name,\s+customers\.id,\s+g\.worksheet_count/);
+        expect(params).toEqual([]);
+        expect(placeholders(sql) + placeholders(totalSql)).toBe(0);
+    });
+
+    it("counts the customers that have worksheets, which is what the list has a row for", () => {
+        expect(getWorksheets({}).totalSql).toMatch(
+            /SELECT COUNT\(DISTINCT customer_id\) AS total\s+FROM worksheets\s*$/
+        );
+        expect(getWorksheets({ keyword: "ann" }).totalSql).toContain(
+            "COUNT(DISTINCT worksheets.customer_id)"
+        );
+        expect(getWorksheets({}).totalSql).not.toContain("customers.name");
+    });
+
+    it("gets its LIMIT inside the grouped query", () => {
+        const paged = applyPaging(getWorksheets({}).sql, { page: 2, limit: 20 });
+
+        expect(paged).toMatch(/ORDER BY last_id DESC\s+LIMIT 20, 20\) g/);
+        expect(paged).toMatch(/ORDER BY g\.last_id DESC\s*$/);
+    });
+
+    it("joins the customers first when a keyword searches their names", () => {
+        const { sql, totalSql, params } = getWorksheets({ keyword: "ann 2" });
+
+        for (const statement of [sql, totalSql]) {
+            expect(statement).toMatch(
+                /LEFT JOIN customers ON worksheets\.customer_id = customers\.id\s+WHERE \(customers\.name LIKE \?\) AND \(customers\.name LIKE \?\)/
+            );
+            expect(placeholders(statement)).toBe(params.length);
+        }
+
+        expect(sql).toMatch(
+            /GROUP BY customers\.name, customers\.id\s+ORDER BY MAX\(worksheets\.id\) DESC\s*$/
+        );
+        expect(sql).not.toContain(limitMarker);
+        expect(params).toEqual(["%ann%", "%2%"]);
+    });
+
+    it("leaves the worksheets of one customer as they were", () => {
+        const { sql, totalSql, params } = getWorksheets({ customerId: 7 });
+
+        expect(sql).toContain("worksheets.customer_id = ?");
+        expect(sql).toMatch(/ORDER BY worksheets\.id DESC\s*$/);
+        expect(sql).not.toContain(limitMarker);
+        expect(totalSql).toContain("COUNT(worksheets.id)");
+        expect(params).toEqual([7]);
     });
 });
