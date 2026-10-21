@@ -203,9 +203,9 @@ test.describe('write bodies', () => {
     });
 
     test('text that is longer than its column is refused, and the longest text is kept', async () => {
-        expect(
-            await call('post', '/customer', customerBody({ name: 'x'.repeat(151) }))
-        ).toEqual(invalidInput);
+        expect(await call('post', '/customer', customerBody({ name: 'x'.repeat(151) }))).toEqual(
+            invalidInput
+        );
 
         const created = await call('post', '/customer', customerBody({ name: 'x'.repeat(150) }));
 
@@ -265,9 +265,7 @@ test.describe('write bodies', () => {
             { quantity: 'lots' },
             { quantity: [2] },
         ]) {
-            expect(await call('post', '/worksheet', { ...sheet, ...change })).toEqual(
-                invalidInput
-            );
+            expect(await call('post', '/worksheet', { ...sheet, ...change })).toEqual(invalidInput);
         }
 
         const id = await createWorksheet(customer, product);
@@ -301,9 +299,9 @@ test.describe('write bodies', () => {
         const created = await call('post', '/user', ann);
 
         expect(created.success).toBe(true);
-        expect(
-            await call('put', `/user/${created.insertId}`, { ...ann, name: { a: 1 } })
-        ).toEqual(invalidInput);
+        expect(await call('put', `/user/${created.insertId}`, { ...ann, name: { a: 1 } })).toEqual(
+            invalidInput
+        );
         expect((await call('get', `/user/${created.insertId}`)).data[0].name).toBe('Body');
         expect((await call('delete', `/user/${created.insertId}`)).success).toBe(true);
     });
@@ -367,6 +365,106 @@ test.describe('write bodies', () => {
         expect(await call('put', `/invoice/${invoice.id}`, { invoiceId: [invoice.id] })).toEqual(
             invalidInput
         );
+    });
+});
+
+test.describe('ids in paths', () => {
+    const refused = { success: false, message: 'error' };
+
+    test('an id that is not a whole number is refused, where MySQL read its leading digits', async () => {
+        const id = await createCustomer(`Ids ${unique}`);
+
+        // "1 OR 1=1" and "1;DROP TABLE users" found customer 1, and "1e3" found customer 1000
+        for (const bad of [
+            `${id}%20OR%201=1`,
+            `${id};DROP%20TABLE%20users`,
+            `${id}e3`,
+            `${id}.5`,
+            `0${id}`,
+            '0',
+            '-1',
+            'abc',
+            '99999999999',
+        ]) {
+            for (const [method, path] of [
+                ['get', '/customer'],
+                ['put', '/customer'],
+                ['delete', '/customer'],
+                ['get', '/product'],
+                ['put', '/product'],
+                ['delete', '/product'],
+                ['get', '/worksheet'],
+                ['delete', '/worksheet'],
+                ['get', '/user'],
+                ['delete', '/user'],
+                ['get', '/invoice'],
+            ] as const) {
+                expect(
+                    await call(
+                        method,
+                        `${path}/${bad}`,
+                        method === 'put' ? { name: 'x' } : undefined
+                    ),
+                    `${method} ${path}/${bad}`
+                ).toEqual(refused);
+            }
+        }
+
+        // a delete that was refused deleted nothing
+        expect((await call('get', `/customer/${id}`)).data[0].name).toBe(`Ids ${unique}`);
+    });
+
+    test('the invoice routes refuse a bad id and still take "all", "last" and "paid"', async () => {
+        const customer = await createCustomer(`Ids invoice ${unique}`);
+        const product = await createProduct(`IDS-${unique}`);
+        const created = await call('post', '/invoice', {
+            customerId: customer,
+            items: [{ productId: product, quantity: 1 }],
+        });
+        const invoice = await getInvoice(created.lastId);
+
+        expect(await call('get', `/invoice/${created.lastId}%20OR%201=1`)).toEqual(refused);
+        expect(await call('get', `/invoice/${created.lastId}e0`)).toEqual(refused);
+        expect(await call('get', '/invoice/all')).toEqual(refused);
+        expect(await call('get', '/invoice/all/abc')).toEqual(refused);
+        expect(
+            await call('put', `/invoice/${created.lastId}/${invoice.items[0].id}%20OR%201=1`, {
+                value: 2,
+            })
+        ).toEqual(refused);
+        expect(
+            await call('put', `/invoice/${created.lastId}%201/${invoice.items[0].id}`, { value: 2 })
+        ).toEqual(refused);
+        expect(await call('put', '/invoice/paid/abc')).toEqual(refused);
+        expect(
+            await call('delete', `/invoice/${created.lastId}/${invoice.items[0].id}%20OR%201=1`)
+        ).toEqual(refused);
+        // nothing changed
+        expect((await getInvoice(created.lastId)).items).toHaveLength(1);
+        expect((await getInvoice(created.lastId)).items[0].quantity).toBe(1);
+
+        expect(
+            (await call('get', `/invoice/all/${customer}`)).data.map(
+                (row: { id: number }) => row.id
+            )
+        ).toEqual([created.lastId]);
+        expect(Number((await call('get', '/invoice/last/')).data)).toBeGreaterThan(0);
+        expect((await call('put', `/invoice/paid/${created.lastId}`)).success).toBe(true);
+        expect((await getInvoice(created.lastId)).locked).toBe(1);
+    });
+
+    test('adding a line to an invoice does not need an id in the path: the web app sends 0', async () => {
+        const customer = await createCustomer(`Ids line ${unique}`);
+        const product = await createProduct(`IDL-${unique}`);
+        const created = await call('post', '/invoice', { customerId: customer, items: [] });
+
+        expect(
+            await call('put', '/invoice/0/', {
+                invoiceId: created.lastId,
+                items: [{ productId: product, quantity: 0 }],
+            })
+        ).toEqual({ success: true });
+        expect((await getInvoice(created.lastId)).items).toHaveLength(1);
     });
 });
 
@@ -527,9 +625,11 @@ test.describe('worksheets on invoices', () => {
         ).toEqual({ success: false, message: 'put.invoice.items' });
         expect((await getInvoice(created.lastId)).items[0].quantity).toBe(2);
 
-        expect(await call('put', `/invoice/${created.lastId}/${item.id}`, { value: 4.25 })).toEqual({
-            success: true,
-        });
+        expect(await call('put', `/invoice/${created.lastId}/${item.id}`, { value: 4.25 })).toEqual(
+            {
+                success: true,
+            }
+        );
         expect((await getInvoice(created.lastId)).items[0].quantity).toBe(4.25);
     });
 
@@ -572,9 +672,9 @@ test.describe('worksheets on invoices', () => {
         expect((await getInvoice(first.lastId)).items).toHaveLength(1);
 
         // a customer that does not exist is refused by the database, with nothing left behind
-        expect(
-            await call('post', '/invoice', { customerId: 2147483000, items: [] })
-        ).toMatchObject({ success: false });
+        expect(await call('post', '/invoice', { customerId: 2147483000, items: [] })).toMatchObject(
+            { success: false }
+        );
         expect(await getLastNumber()).toBe(before + 1);
     });
 });

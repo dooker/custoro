@@ -2,13 +2,20 @@ import { Router } from "express";
 import { getSingle, postSingle, putSingle, deleteSingle } from "../services/customer";
 import { authorize } from "../helpers/authorize";
 import { authenticate } from "../helpers/authenticate";
+import { requireIds } from "../helpers/routeParams";
 
 const router = Router();
 
 /* GET customer data */
-router.get("/:id", authenticate, authorize(["admin", "user"]), async (req, res) => {
-    res.json(await getSingle(req));
-});
+router.get(
+    "/:id",
+    authenticate,
+    authorize(["admin", "user"]),
+    requireIds("id"),
+    async (req, res) => {
+        res.json(await getSingle(req));
+    }
+);
 
 /* POST new customer */
 router.post("/", authenticate, authorize(["admin", "user"]), async (req, res) => {
@@ -16,13 +23,25 @@ router.post("/", authenticate, authorize(["admin", "user"]), async (req, res) =>
 });
 
 /* PUT customer, update */
-router.put("/:id", authenticate, authorize(["admin", "user"]), async (req, res) => {
-    res.json(await putSingle(req));
-});
+router.put(
+    "/:id",
+    authenticate,
+    authorize(["admin", "user"]),
+    requireIds("id"),
+    async (req, res) => {
+        res.json(await putSingle(req));
+    }
+);
 
 /* DELETE customer */
-router.delete("/:id", authenticate, authorize(["admin", "user"]), async (req, res) => {
-    res.json(await deleteSingle(req));
-});
+router.delete(
+    "/:id",
+    authenticate,
+    authorize(["admin", "user"]),
+    requireIds("id"),
+    async (req, res) => {
+        res.json(await deleteSingle(req));
+    }
+);
 
 export default router;
