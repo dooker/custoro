@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { config } from "../config/config";
-import { applyPaging, getFromTo, getInvoices, getPaging, keywordWhere } from "./_getters";
+import {
+    applyPaging,
+    getFromTo,
+    getInvoices,
+    getPaging,
+    getWorksheets,
+    keywordWhere,
+    keywordWords,
+    limitMarker,
+    type SearchTable
+} from "./_getters";
 
-const { itemsPerPage, maxItemsPerPage, maxListRows } = config;
+const { itemsPerPage, maxItemsPerPage, maxListRows, maxKeywordWords, maxKeywordLength } = config;
 
 describe("getPaging", () => {
     it("takes a page and a size as they are", () => {
@@ -95,8 +105,27 @@ describe("applyPaging", () => {
     });
 });
 
+describe("applyPaging with a marker", () => {
+    it("puts the LIMIT where the marker is, once, and nowhere else", () => {
+        const sql = `SELECT * FROM (SELECT id FROM t ${limitMarker}) p ORDER BY id`;
+        const paged = applyPaging(sql, { page: 2, limit: 10 });
+
+        expect(paged).toBe("SELECT * FROM (SELECT id FROM t LIMIT 10, 10) p ORDER BY id");
+    });
+
+    it("still adds the LIMIT at the end of a statement without one", () => {
+        expect(applyPaging("SELECT 1", { page: 1, limit: 5 })).toMatch(
+            /^SELECT 1\s+LIMIT 0, 5\s*$/
+        );
+    });
+
+    it("is not confused by a LIMIT that is not the marker's", () => {
+        expect(getFromTo(`SELECT 1 ${limitMarker}`, "2", "20")).toBe("SELECT 1 LIMIT 20, 20");
+    });
+});
+
 describe("keywordWhere", () => {
-    const search = (keyword: string, table = "customers", extra = {}) =>
+    const search = (keyword: string, table: SearchTable = "customers", extra = {}) =>
         keywordWhere({ keyword, table, ...extra });
 
     it("needs every word to match, and a word to match in any searched column", () => {
@@ -110,7 +139,13 @@ describe("keywordWhere", () => {
 
     it("keeps each word's columns together, so no word's OR escapes the AND between words", () => {
         // Without the parentheses "a OR b AND c OR d" matched everything that had the first word
-        for (const table of ["customers", "products", "users", "invoices", "worksheets"]) {
+        for (const table of [
+            "customers",
+            "products",
+            "users",
+            "invoices",
+            "worksheets"
+        ] as SearchTable[]) {
             const { sql } = search("one two three", table);
             const groups = sql.replace("WHERE ", "").split(" AND ");
 
@@ -158,6 +193,64 @@ describe("keywordWhere", () => {
         expect(() => search("100%")).not.toThrow();
         expect(search("100%").params[0]).toBe("%100\\%%");
     });
+
+    it("uses the first words only, so a search cannot be made expensive", () => {
+        const words = Array.from({ length: 3000 }, (_, index) => `w${index}`);
+        const { sql, params } = search(words.join(" "));
+
+        // two columns per word on customers
+        expect(params).toHaveLength(maxKeywordWords * 2);
+        expect(sql.match(/LIKE \?/g)).toHaveLength(maxKeywordWords * 2);
+        expect(params[0]).toBe("%w0%");
+        expect(params.at(-1)).toBe(`%w${maxKeywordWords - 1}%`);
+        expect(params).not.toContain(`%w${maxKeywordWords}%`);
+    });
+
+    it("counts words that are not empty: extra spaces do not use up the limit", () => {
+        const { params } = search(`${"  ".repeat(50)}a${" ".repeat(20)}b`);
+
+        expect(params).toEqual(["%a%", "%a%", "%b%", "%b%"]);
+    });
+
+    it("cuts a word to the longest length and keeps whole characters", () => {
+        const [pattern] = search("x".repeat(500)).params;
+
+        expect(pattern).toBe(`%${"x".repeat(maxKeywordLength)}%`);
+
+        // an emoji is one character, not two halves
+        const [emoji] = search("😀".repeat(maxKeywordLength + 10)).params;
+
+        expect(emoji).toBe(`%${"😀".repeat(maxKeywordLength)}%`);
+    });
+
+    it("limits a keyword that is long and URL-encoded as well", () => {
+        const { params } = search(encodeURIComponent(Array(100).fill("abc").join(" ")));
+
+        expect(params).toHaveLength(maxKeywordWords * 2);
+    });
+
+    it("keeps the limits for every table", () => {
+        const keyword = Array.from({ length: 50 }, (_, index) => `word${index}`).join(" ");
+
+        for (const table of [
+            "customers",
+            "products",
+            "users",
+            "invoices",
+            "worksheets"
+        ] as SearchTable[]) {
+            const { sql } = search(keyword, table);
+
+            expect(sql.split(" AND "), table).toHaveLength(maxKeywordWords);
+        }
+    });
+});
+
+describe("keywordWords", () => {
+    it("gives the words, in order, without empty ones", () => {
+        expect(keywordWords("  foo   bar ")).toEqual(["foo", "bar"]);
+        expect(keywordWords("")).toEqual([]);
+    });
 });
 
 describe("getInvoices", () => {
@@ -197,15 +290,127 @@ describe("getInvoices", () => {
     });
 
     it("lists the newest number first, with the id as tie-break, and counts lines per page row", () => {
-        const { sql } = getInvoices({});
+        for (const filter of [{}, { customerId: 7 }, { keyword: "ann" }]) {
+            const { sql } = getInvoices(filter);
 
-        expect(sql).toContain("ORDER BY invoices.number_sort DESC, invoices.id DESC");
-        expect(sql).toContain("(SELECT COUNT(*)");
-        expect(sql).not.toMatch(/GROUP BY|number \+ 0/);
+            expect(sql, JSON.stringify(filter)).toMatch(
+                /ORDER BY (invoices\.number_sort DESC, invoices\.id DESC|p\.number_sort DESC, p\.id DESC)\s*$/
+            );
+            expect(sql).toContain("(SELECT COUNT(*)");
+            expect(sql).not.toMatch(/GROUP BY|number \+ 0/);
+        }
+    });
+
+    it("picks the page first, from the index, and joins only its rows, when there is no keyword", () => {
+        for (const filter of [{}, { customerId: 7 }]) {
+            const { sql } = getInvoices(filter);
+            const inner = sql.slice(sql.indexOf("FROM (") + 6, sql.indexOf(") p"));
+
+            // the rows of the page are picked from invoices alone: no customers, no line count
+            expect(inner, JSON.stringify(filter)).toMatch(
+                /^SELECT id, number_sort\s+FROM invoices/
+            );
+            expect(inner).not.toMatch(/customers|invoice_items/);
+            expect(inner).toMatch(/ORDER BY number_sort DESC, id DESC\s+\/\* LIMIT \*\/$/);
+            // and then joined by id, in the same order
+            expect(sql).toMatch(/\) p\s+JOIN invoices ON invoices\.id = p\.id/);
+            expect(sql).toMatch(/LEFT JOIN customers ON customers\.id = invoices\.customer_id/);
+            expect(sql).toMatch(/ORDER BY p\.number_sort DESC, p\.id DESC\s*$/);
+        }
+
+        expect(getInvoices({ customerId: 7 }).sql).toMatch(
+            /FROM invoices\s+WHERE invoices\.customer_id = \?\s+ORDER BY number_sort DESC, id DESC/
+        );
+    });
+
+    it("keeps the join before the page when a keyword searches the customers' names", () => {
+        const { sql } = getInvoices({ keyword: "ann" });
+
+        expect(sql).not.toContain(limitMarker);
+        expect(sql).not.toMatch(/\) p\b/);
+        expect(sql).toMatch(
+            /FROM invoices\s+LEFT JOIN customers ON invoices\.customer_id = customers\.id\s+WHERE/
+        );
+    });
+
+    it("gets its LIMIT inside the page query, or at the end after a keyword search", () => {
+        const paging = { page: 3, limit: 20 };
+        const deferred = applyPaging(getInvoices({}).sql, paging);
+
+        expect(deferred).toMatch(/ORDER BY number_sort DESC, id DESC\s+LIMIT 40, 20\) p/);
+        expect(deferred).not.toContain(limitMarker);
+        // nothing after the outer ORDER BY
+        expect(deferred).toMatch(/ORDER BY p\.number_sort DESC, p\.id DESC\s*$/);
+
+        expect(applyPaging(getInvoices({ keyword: "ann" }).sql, paging)).toMatch(
+            /ORDER BY invoices\.number_sort DESC, invoices\.id DESC\s+LIMIT 40, 20\s*$/
+        );
     });
 
     it("only joins customers to count when a keyword searches their names", () => {
         expect(getInvoices({}).totalSql).not.toContain("customers");
         expect(getInvoices({ keyword: "ann" }).totalSql).toContain("LEFT JOIN customers");
+    });
+});
+
+describe("getWorksheets grouped by customer", () => {
+    const placeholders = (sql: string) => (sql.match(/\?/g) ?? []).length;
+
+    it("groups on the worksheets alone and joins the page's customers after, without a keyword", () => {
+        const { sql, totalSql, params } = getWorksheets({});
+
+        expect(sql).toMatch(
+            /FROM \(SELECT customer_id,\s+COUNT\(\*\)\s+AS worksheet_count,\s+MAX\(id\)\s+AS last_id\s+FROM worksheets\s+GROUP BY customer_id\s+ORDER BY last_id DESC\s+\/\* LIMIT \*\/\) g/
+        );
+        expect(sql).toMatch(
+            /JOIN customers ON customers\.id = g\.customer_id\s+ORDER BY g\.last_id DESC\s*$/
+        );
+        expect(sql).toMatch(/SELECT customers\.name,\s+customers\.id,\s+g\.worksheet_count/);
+        expect(params).toEqual([]);
+        expect(placeholders(sql) + placeholders(totalSql)).toBe(0);
+    });
+
+    it("counts the customers that have worksheets, which is what the list has a row for", () => {
+        expect(getWorksheets({}).totalSql).toMatch(
+            /SELECT COUNT\(DISTINCT customer_id\) AS total\s+FROM worksheets\s*$/
+        );
+        expect(getWorksheets({ keyword: "ann" }).totalSql).toContain(
+            "COUNT(DISTINCT worksheets.customer_id)"
+        );
+        expect(getWorksheets({}).totalSql).not.toContain("customers.name");
+    });
+
+    it("gets its LIMIT inside the grouped query", () => {
+        const paged = applyPaging(getWorksheets({}).sql, { page: 2, limit: 20 });
+
+        expect(paged).toMatch(/ORDER BY last_id DESC\s+LIMIT 20, 20\) g/);
+        expect(paged).toMatch(/ORDER BY g\.last_id DESC\s*$/);
+    });
+
+    it("joins the customers first when a keyword searches their names", () => {
+        const { sql, totalSql, params } = getWorksheets({ keyword: "ann 2" });
+
+        for (const statement of [sql, totalSql]) {
+            expect(statement).toMatch(
+                /LEFT JOIN customers ON worksheets\.customer_id = customers\.id\s+WHERE \(customers\.name LIKE \?\) AND \(customers\.name LIKE \?\)/
+            );
+            expect(placeholders(statement)).toBe(params.length);
+        }
+
+        expect(sql).toMatch(
+            /GROUP BY customers\.name, customers\.id\s+ORDER BY MAX\(worksheets\.id\) DESC\s*$/
+        );
+        expect(sql).not.toContain(limitMarker);
+        expect(params).toEqual(["%ann%", "%2%"]);
+    });
+
+    it("leaves the worksheets of one customer as they were", () => {
+        const { sql, totalSql, params } = getWorksheets({ customerId: 7 });
+
+        expect(sql).toContain("worksheets.customer_id = ?");
+        expect(sql).toMatch(/ORDER BY worksheets\.id DESC\s*$/);
+        expect(sql).not.toContain(limitMarker);
+        expect(totalSql).toContain("COUNT(worksheets.id)");
+        expect(params).toEqual([7]);
     });
 });

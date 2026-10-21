@@ -1,3 +1,4 @@
+import { config } from "../config/config";
 import { invoiceFilenamePrefixPattern } from "./pdfFiles";
 
 // What PUT /settings accepts, without Express or the database, so it can be unit tested.
@@ -37,13 +38,24 @@ const maxMailLength = 255;
 
 export const settingsInvalidMessage = "settingsInvalid";
 export const filenamePrefixMessage = "filenamePrefix";
+export const lastInvoiceIdTooLowMessage = "lastInvoiceIdTooLow";
+
+// A counter below the highest number that is on an invoice would hand that number out again.
+// Both are whole numbers as text: the counter is checked by parseSettingsInput, the highest
+// number comes from the database.
+export const isBelowUsedNumber = (lastInvoiceId: string, highestUsed: string | bigint) =>
+    BigInt(lastInvoiceId) < BigInt(highestUsed);
 
 // Per setting, a rule on top of "is a string". lastInvoiceId feeds the next invoice number and
 // vat every new invoice, so a bad value there would break invoicing. The invoice filename prefix
 // becomes part of a file path and a download name (see helpers/pdfFiles.ts). A rule has its own
 // message when the web app should say what is wrong with that one value.
 const rules: Record<string, { test: (value: string) => boolean; message?: string }> = {
-    lastInvoiceId: { test: (value) => /^\d{1,9}$/.test(value) },
+    // As long as the numbers the app hands out (see config.maxInvoiceNumberDigits), so the counter
+    // can follow them; it is kept as the digits sent (see isBelowUsedNumber)
+    lastInvoiceId: {
+        test: (value) => new RegExp(`^\\d{1,${config.maxInvoiceNumberDigits}}$`).test(value)
+    },
     vat: { test: (value) => /^\d{1,3}(\.\d{1,2})?$/.test(value) && Number(value) <= 100 },
     port: { test: (value) => value === "" || (/^\d{1,5}$/.test(value) && Number(value) <= 65535) },
     invoiceFilenamePrefix: {
@@ -95,6 +107,11 @@ export const parseSettingsInput = (body: unknown): SettingsInputResultIF => {
         const value = asText(raw);
 
         if (value === undefined) {
+            return fail();
+        }
+
+        // A JSON number past 2^53 has already been rounded, so its digits are not what was typed
+        if (key === "lastInvoiceId" && typeof raw === "number" && !Number.isSafeInteger(raw)) {
             return fail();
         }
 

@@ -4,10 +4,18 @@ import { addInvoiceLines, type InvoiceLineIF } from "../helper/invoiceLines";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
 import { getInvoice } from "./_helpers";
 import { getSingle as getSingleCustomer } from "./customer";
+import { parseInput } from "../helpers/bodyInput";
+import {
+    addLineInput,
+    invoiceDataInput,
+    lineInput,
+    maxInvoiceLines,
+    newInvoiceInput,
+    quantityInput
+} from "../helpers/resourceInput";
 import type { ProductIF } from "../types/product";
 import type { Request } from "express";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import type { RequestedLineIF } from "../types/invoice";
 
 export const getLast = async (request: Request) => {
     const { database } = request;
@@ -30,7 +38,7 @@ export const getLast = async (request: Request) => {
 
     return {
         success: true,
-        data: data?.[0].lastId || null
+        data: data?.[0]?.lastId || null
     };
 };
 
@@ -45,7 +53,8 @@ export const getSingle = async (request: Request) => {
         };
     }
 
-    if (invoice.locked === 1) {
+    // A paid invoice shows its customer's name as it is now; one without a customer has none
+    if (invoice.locked === 1 && invoice.customerId != null) {
         const { success, data, message } = await getSingleCustomer(request, invoice.customerId);
 
         if (!success || !data) {
@@ -132,31 +141,37 @@ export const buildInvoiceLines = async (
         return { lines: [] };
     }
 
-    if (!Array.isArray(items)) {
+    if (!Array.isArray(items) || items.length > maxInvoiceLines) {
         return { message: "post.newWorkSheet" };
     }
 
-    const requested = items as RequestedLineIF[];
+    const requested = [];
+
+    for (const item of items) {
+        const input = parseInput(item, lineInput);
+
+        if (!input.ok) {
+            return { message: "post.newWorkSheet" };
+        }
+
+        requested.push(input.values);
+    }
+
     const products = await getProductsMap(
         database,
-        requested.map((item) => Number(item?.productId))
+        requested.map((item) => item.productId)
     );
     const lines: InvoiceLineIF[] = [];
 
-    for (const item of requested) {
-        const product = products.get(Number(item.productId));
-        const quantity = Number(item.quantity);
+    for (const { productId, quantity, worksheetId } of requested) {
+        const product = products.get(productId);
 
         if (!product) {
             return { message: "get.product" };
         }
 
-        if (!Number.isFinite(quantity)) {
-            return { message: "post.newWorkSheet" };
-        }
-
         lines.push({
-            worksheetId: item.worksheetId ? Number(item.worksheetId) : null,
+            worksheetId: worksheetId || null,
             productId: product.id,
             quantity,
             code: product.code,
@@ -172,11 +187,14 @@ export const buildInvoiceLines = async (
 };
 
 export const postSingle = async (request: Request) => {
-    const {
-        database,
-        body: { customerId, items }
-    } = request;
+    const { database, body } = request;
+    const input = parseInput(body, newInvoiceInput);
 
+    if (!input.ok) {
+        return { success: false, message: input.message };
+    }
+
+    const { customerId } = input.values;
     const { success: vatSuccess, data: vatData } = await query<{ value: number }>({
         database,
         sql: `SELECT value
@@ -195,7 +213,7 @@ export const postSingle = async (request: Request) => {
     }
 
     // Everything that can be checked is checked before the number is taken
-    const built = await buildInvoiceLines(database, items);
+    const built = await buildInvoiceLines(database, body.items);
 
     if ("message" in built) {
         return {
@@ -206,7 +224,7 @@ export const postSingle = async (request: Request) => {
 
     const created = await createInvoiceWithNextNumber({
         database,
-        customerId: customerId ?? null,
+        customerId,
         vat,
         lines: built.lines
     });
@@ -225,12 +243,17 @@ export const postSingle = async (request: Request) => {
 };
 
 export const putSingle = async (request: Request) => {
-    const {
-        database,
-        body: { items, invoiceId }
-    } = request;
+    const { database, body } = request;
+    const input = parseInput(body, addLineInput);
 
-    const built = await buildInvoiceLines(database, items?.[0] ? [items[0]] : []);
+    if (!input.ok) {
+        return { success: false, message: input.message };
+    }
+
+    const { invoiceId } = input.values;
+    // Only the first line is added, the web app sends one at a time
+    const first = Array.isArray(body.items) ? body.items[0] : undefined;
+    const built = await buildInvoiceLines(database, first ? [first] : []);
 
     if ("message" in built || !built.lines.length) {
         return {
@@ -245,7 +268,7 @@ export const putSingle = async (request: Request) => {
         "Add item to invoice",
         "post.item.invoice",
         async (connection) => {
-            await addInvoiceLines(connection, Number(invoiceId), built.lines);
+            await addInvoiceLines(connection, invoiceId, built.lines);
             await connection.query(
                 `UPDATE invoices
                  SET change_date = NOW()
@@ -318,13 +341,35 @@ export const putSingle = async (request: Request) => {
 // };
 
 export const putSingleData = async (request: Request) => {
-    const {
-        body: { invoiceDate, customerId, id, paymentType, invoiceType, number },
-        database
-    } = request;
+    const { body, database } = request;
+    const input = parseInput(body, invoiceDataInput);
 
-    const { data: customer } = await getSingleCustomer(request, customerId);
-    const { paymentPeriod } = customer?.[0] || {};
+    if (!input.ok) {
+        return { success: false, message: input.message };
+    }
+
+    const { id, customerId, invoiceDate, paymentType, invoiceType, number } = input.values;
+
+    // An invoice takes its payment period from its customer; it keeps its own when it has no
+    // customer, or when the customer has no period. A customer that cannot be read is an error:
+    // the invoice would be saved for the new customer with the old customer's terms.
+    let paymentPeriod: number | null = null;
+
+    if (customerId) {
+        const { success: customerSuccess, data: customer } = await getSingleCustomer(
+            request,
+            customerId
+        );
+
+        if (!customerSuccess || !customer?.[0]) {
+            return {
+                success: false,
+                message: "get.customer"
+            };
+        }
+
+        paymentPeriod = customer[0].paymentPeriod ?? null;
+    }
 
     const { success: updateInvoiceSuccess } = await query({
         database,
@@ -335,17 +380,9 @@ export const putSingleData = async (request: Request) => {
                   payment_type   = ?,
                   invoice_type   = ?,
                   change_date     = NOW(),
-                  payment_period = ?
+                  payment_period = COALESCE(?, payment_period)
               WHERE id = ?;`,
-        params: [
-            invoiceDate,
-            customerId ?? null,
-            number,
-            paymentType,
-            invoiceType,
-            paymentPeriod,
-            id
-        ],
+        params: [invoiceDate, customerId, number, paymentType, invoiceType, paymentPeriod, id],
         logger: "Update invoice data"
     });
 
@@ -356,21 +393,24 @@ export const putSingleData = async (request: Request) => {
         };
     }
 
-    const { success: updateWorksheetsSuccess } = await query({
-        database,
-        sql: `UPDATE worksheets
-              SET customer_id = ?
-              WHERE invoice = ?
-                AND customer_id <> ?;`,
-        params: [customerId, id, customerId],
-        logger: "Update worksheet customer"
-    });
+    // Worksheets on the invoice follow its customer
+    if (customerId) {
+        const { success: updateWorksheetsSuccess } = await query({
+            database,
+            sql: `UPDATE worksheets
+                  SET customer_id = ?
+                  WHERE invoice = ?
+                    AND customer_id <> ?;`,
+            params: [customerId, id, customerId],
+            logger: "Update worksheet customer"
+        });
 
-    if (!updateWorksheetsSuccess) {
-        return {
-            success: false,
-            message: "put.worksheets"
-        };
+        if (!updateWorksheetsSuccess) {
+            return {
+                success: false,
+                message: "put.worksheets"
+            };
+        }
     }
 
     return {
@@ -395,10 +435,17 @@ export const putSingleData = async (request: Request) => {
 
 export const putSingleItem = async (request: Request) => {
     const {
-        body: { value },
+        body,
         params: { invoiceId, id },
         database
     } = request;
+    const input = parseInput(body, quantityInput);
+
+    if (!input.ok) {
+        return { success: false, message: input.message };
+    }
+
+    const { value } = input.values;
 
     // The quantity and the invoice's change date are saved together. The item must belong to
     // the invoice in the URL, and it is that invoice whose change date is set.
@@ -412,7 +459,7 @@ export const putSingleItem = async (request: Request) => {
                  SET quantity = ?
                  WHERE id = ?
                    AND invoice_id = ?;`,
-                [Number(value) || 0, id, invoiceId]
+                [value, id, invoiceId]
             );
 
             if (!updated.affectedRows) {

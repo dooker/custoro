@@ -5,6 +5,19 @@ import type { Request } from "express";
 import { currentRoute as type } from "../routes/user";
 import type { UserIF } from "../types/user";
 import { isUsernameTaken } from "../helpers/users";
+import { parseInput } from "../helpers/bodyInput";
+import { userInput } from "../helpers/resourceInput";
+
+// The login email is unique (users.username_UNIQUE), so two requests that both passed the
+// look-up are told apart by the database: the second one gets ER_DUP_ENTRY
+const duplicateEntry = "ER_DUP_ENTRY";
+
+// The upload of a refused request is already on disk and nothing will refer to it
+const discardUpload = (file?: { filename?: string }) => {
+    if (file?.filename) {
+        deleteImageFile(file.filename);
+    }
+};
 
 export const getSingle = async (request: Request): Promise<QueryResult<UserIF>> => {
     const {
@@ -41,11 +54,16 @@ export const getSingle = async (request: Request): Promise<QueryResult<UserIF>> 
 };
 
 export const postSingle = async (request: Request) => {
-    const {
-        body: { name, username, discount, offer, role },
-        database,
-        file
-    } = request;
+    const { body, database, file } = request;
+    const input = parseInput(body, userInput);
+
+    if (!input.ok) {
+        discardUpload(file);
+
+        return { success: false, message: input.message };
+    }
+
+    const { name, username, discount, offer, role } = input.values;
 
     const { success: userCheckSuccess, data } = await query<{ count: number }>({
         database,
@@ -57,6 +75,8 @@ export const postSingle = async (request: Request) => {
     });
 
     if (!userCheckSuccess || Number(data?.[0].count) > 0) {
+        discardUpload(file);
+
         return {
             success: false,
             message: "user.exists"
@@ -71,7 +91,7 @@ export const postSingle = async (request: Request) => {
                    discount        = ?,
                    offer           = ?,
                    role            = ?`;
-    const params = [name, username, discount, offer, role];
+    const params: (string | number | null)[] = [name, username, discount, offer, role];
 
     if (fileExists && avatar) {
         sql += `, avatar = ?`;
@@ -80,24 +100,69 @@ export const postSingle = async (request: Request) => {
 
     // TODO send password recovery email
 
-    return await postGeneralSingle({
+    const created = await postGeneralSingle({
         database,
         sql,
         params,
         logger: type
     });
+
+    if (!created.success) {
+        discardUpload(file);
+
+        if ("code" in created && created.code === duplicateEntry) {
+            return {
+                success: false,
+                message: "user.exists"
+            };
+        }
+    }
+
+    return created;
 };
 
 export const putSingle = async (request: Request) => {
     const {
-        body: { id, name, username, discount, offer, role },
+        body,
+        params: { id },
         file,
         database
     } = request;
+    const input = parseInput(body, userInput);
+
+    if (!input.ok) {
+        discardUpload(file);
+
+        return { success: false, message: input.message };
+    }
+
+    const { name, username, discount, offer, role } = input.values;
     const fileExists = file && file.filename;
     let avatar = fileExists ? sanitizeFilename(file.filename) : null;
 
+    // The user is the one in the URL, not whatever id the body says
+    const { success: currentSuccess, data: currentData } = await query<UserIF>({
+        database,
+        sql: `SELECT avatar
+              FROM users
+              WHERE id = ?;`,
+        params: [Number(id)],
+        logger: "Get user for update"
+    });
+    const current = currentData?.[0];
+
+    if (!currentSuccess || !current) {
+        discardUpload(file);
+
+        return {
+            success: false,
+            message: "get.user"
+        };
+    }
+
     if (await isUsernameTaken(database, username, Number(id))) {
+        discardUpload(file);
+
         return {
             success: false,
             message: "user.exists"
@@ -114,7 +179,7 @@ export const putSingle = async (request: Request) => {
                    discount        = ?,
                    offer           = ?,
                    role            = ?`;
-    const params = [username, name, username, discount, offer, role];
+    const params: (string | number | null)[] = [username, name, username, discount, offer, role];
 
     if (fileExists && avatar) {
         sql += `, avatar = ?`;
@@ -122,9 +187,9 @@ export const putSingle = async (request: Request) => {
     }
 
     sql += ` WHERE id = ?;`;
-    params.push(id);
+    params.push(Number(id));
 
-    const { success } = await query({
+    const { success, code } = await query({
         database,
         sql,
         params,
@@ -132,30 +197,16 @@ export const putSingle = async (request: Request) => {
     });
 
     if (!success) {
+        discardUpload(file);
+
         return {
             success: false,
-            message: "put.user"
+            message: code === duplicateEntry ? "user.exists" : "put.user"
         };
     }
 
     if (!fileExists) {
-        const { success, data } = await query<UserIF>({
-            database,
-            sql: `SELECT avatar
-                  FROM users
-                  WHERE id = ?;`,
-            params: [id],
-            logger: "Get avatar"
-        });
-
-        if (!success) {
-            return {
-                success: false,
-                message: "get.avatar"
-            };
-        }
-
-        avatar = data?.[0].avatar || null;
+        avatar = current.avatar || null;
     }
 
     return {
@@ -186,7 +237,15 @@ export const deleteSingle = async (request: Request) => {
         };
     }
 
-    const avatar = data?.[0].avatar || null;
+    // There is no such user
+    if (!data?.[0]) {
+        return {
+            success: false,
+            message: "get.user"
+        };
+    }
+
+    const avatar = data[0].avatar || null;
 
     if (avatar) {
         deleteImageFile(avatar);

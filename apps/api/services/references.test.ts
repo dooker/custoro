@@ -125,8 +125,10 @@ describe("customers", () => {
     it("no longer reports a failed update as saved", async () => {
         failing("ER_LOCK_DEADLOCK");
 
-        const body = { name: "Acme", id: 1 };
+        const body = { name: "Acme" };
 
-        expect(await customer.putSingle(request({ body }))).toMatchObject({ success: false });
+        expect(await customer.putSingle(request({ params: { id: "1" }, body }))).toMatchObject({
+            success: false
+        });
     });
 });

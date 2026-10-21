@@ -1,5 +1,7 @@
 import { query } from "../helper/query";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
+import { parseInput } from "../helpers/bodyInput";
+import { newWorksheetInput, worksheetInput } from "../helpers/resourceInput";
 import type { RowDataPacket } from "mysql2/promise";
 import type { ProductIF } from "../types/product";
 import type { Request } from "express";
@@ -14,7 +16,13 @@ export const getSingle = async (request: Request) => {
 
     const { success, data } = await query<ProductIF>({
         database,
-        sql: `SELECT *
+        sql: `SELECT id,
+                     product_id,
+                     customer_id,
+                     order_id,
+                     quantity,
+                     invoice,
+                     locked
               FROM worksheets
               WHERE id = ?;`,
         params: [id as string],
@@ -35,7 +43,14 @@ export const getSingle = async (request: Request) => {
 };
 
 export const postSingle = async (request: Request) => {
-    const { body: params, database } = request;
+    const { body, database } = request;
+    const input = parseInput(body, newWorksheetInput);
+
+    if (!input.ok) {
+        return { success: false, message: input.message };
+    }
+
+    const { customer, product_id: productId, order_id: orderId, quantity } = input.values;
 
     const { success, insertId } = await query({
         database,
@@ -44,12 +59,7 @@ export const postSingle = async (request: Request) => {
                   product_id  = ?,
                   order_id    = ?,
                   quantity    = ?;`,
-        params: [
-            params.customer ?? null,
-            params.product_id ?? null,
-            params.order_id ?? 0,
-            params.quantity ?? 0
-        ],
+        params: [customer, productId, orderId, quantity],
         logger: `Add new ${type}`
     });
 
@@ -67,8 +77,25 @@ export const postSingle = async (request: Request) => {
 };
 
 export const putSingle = async (request: Request) => {
-    const { body: params, database } = request;
+    const {
+        body,
+        params: { id },
+        database
+    } = request;
+    const input = parseInput(body, worksheetInput);
 
+    if (!input.ok) {
+        return { success: false, message: input.message };
+    }
+
+    const {
+        customer_id: customerId,
+        product_id: productId,
+        order_id: orderId,
+        quantity
+    } = input.values;
+
+    // The worksheet is the one in the URL, not whatever id the body says
     const { success } = await query({
         database,
         sql: `UPDATE worksheets
@@ -77,13 +104,7 @@ export const putSingle = async (request: Request) => {
                   order_id    = ?,
                   quantity    = ?
               WHERE id = ?;`,
-        params: [
-            params.customer_id ?? null,
-            params.product_id ?? null,
-            params.order_id ?? 0,
-            params.quantity ?? 0,
-            params.id
-        ],
+        params: [customerId, productId, orderId, quantity, Number(id)],
         logger: `Update single ${type}`
     });
 

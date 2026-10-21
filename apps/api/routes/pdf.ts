@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getSingle, putSingle } from "../services/pdf";
 import { authenticate } from "../helpers/authenticate";
 import { authorize } from "../helpers/authorize";
+import { requireIds } from "../helpers/routeParams";
 
 const router = Router();
 
@@ -13,8 +14,14 @@ router.get("/:hash", async (req, res) => {
 });
 
 /* PUT update invoice with hash */
-router.put("/:id", authenticate, authorize(["admin", "user"]), async (req, res) => {
-    res.json(await putSingle(req));
-});
+router.put(
+    "/:id",
+    authenticate,
+    authorize(["admin", "user"]),
+    requireIds("id"),
+    async (req, res) => {
+        res.json(await putSingle(req));
+    }
+);
 
 export default router;

@@ -137,6 +137,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - The development stack (`docker-compose.yml`) publishes its ports on `127.0.0.1` only. It has a
   known database password (`root` / `custoro`), a default `JWT_SECRET` and public demo logins, and
   used to be reachable from the whole network
+- A keyword search uses at most 8 words, each cut to 64 characters; further words are ignored. Every
+  word is a `LIKE '%word%'` on several columns, and the number of words was unlimited (the URL limit
+  allows thousands): 1000 words took 3.1 s on 50 000 invoices and 3000 words 1 s on 2000 customers, so
+  any logged-in user could keep the database busy
 
 ### Fixed
 
@@ -181,6 +185,63 @@ version number, kept in each app's `package.json`. The web app shows this file o
   as 0 in no particular order
 - A worksheet that is paid for, or whose line is on a locked invoice, can no longer be deleted: that
   silently deleted the line from an issued invoice. The web app says why
+- The routes that save a customer, product, worksheet, user or invoice check the values they are sent.
+  A customer name of `{"a":1}` was stored as the text "[object Object]", and a product code of
+  `[["x"]]` was expanded into SQL by the database driver (the values are escaped, so this was bad
+  data, not injection). Texts must be text (or a number) no longer than their column, numbers must be
+  numbers that fit their column, also after the database has rounded them (a quantity of 999999999.9996
+  would round up past DECIMAL(12,3); prices and quantities may use a comma), and units, roles, payment
+  types and invoice types
+  must be one of the column's values; otherwise nothing is saved and the web app says "some values are
+  not valid". The query helper also refuses any list, object or `undefined` as a parameter. Saving a
+  customer, worksheet or user changes the one in the URL, not the id in the body. An invoice without
+  a customer can be saved again (it failed because its payment period was set to NULL), and an invoice
+  is not saved for a customer that cannot be read, which would have kept the old customer's payment terms
+- An id in a URL must be a positive whole number. MySQL reads the leading digits of a text, so
+  `/customer/1%20OR%201=1` and `/customer/1;DROP%20TABLE%20users` returned (or changed, or deleted)
+  customer 1 and `/customer/1e3` customer 1000. The customer, product, worksheet, user, invoice and PDF
+  routes now answer `success: false` ("We encountered an error") for such an id without querying,
+  before any upload is written
+- A request body over 100 KB is answered with HTTP 413 and malformed JSON with 400 (`success: false`,
+  without quoting the body); both were an error 500. Changing, deleting or clearing the avatar of a
+  user that does not exist, and a list whose count query failed, answer `success: false` instead of
+  ending in a TypeError and an error 500
+- Creating an invoice, saving the invoice counter and the other all-or-nothing saves answer with their
+  usual error when no database connection can be had (the database does not answer, or the queue of 100
+  waiting requests is full) instead of ending in an error 500; a logo uploaded with such a save is
+  removed
+- The PDF of an invoice without a customer was addressed to the customer whose id equals the invoice's
+  (the id in the URL), because the customer lookup fell back to the path's id. An invoice without a
+  customer has none now, and the PDF says so instead of failing inside the template. Reading a paid
+  invoice without a customer keeps working
+- Creating or changing a user with an email that another request took a moment earlier says "User with
+  this email already exists", like the check before it does. Ten requests at once with one address gave
+  one user and nine generic errors, because only the database's unique key stopped the others. The avatar
+  of a refused request is removed too
+- The invoice counter (Settings, "Last Invoice ID") could be set below numbers that invoices already
+  have, after which every new invoice failed with a generic error (the next number was taken). The next
+  number is now one more than the larger of the counter and the highest number on an invoice, so a
+  low counter repairs itself, and Settings refuses a counter below the highest number in use ("The last
+  invoice ID cannot be lower than..."). The Settings page sends the counter it loaded along with every
+  other change, so a page that was open while invoices were created is refused until it is reloaded,
+  instead of silently setting the counter back. The counter is handled as the exact digits it has (a
+  number past 15 digits used to be rounded, which handed the same invoice number out twice) and Settings
+  accepts up to 18 digits (the longest number the app hands out, the digits the invoice sort column
+  holds), where it took 9, so an invoice numbered `2026000001` no longer makes every Settings save
+  fail. Settings checks the counter and saves in one transaction that
+  locks the counter row first, as creating an invoice does, so an invoice created at that moment can no
+  longer be followed by a save that sets the counter below its number; a logo uploaded with a refused
+  save is removed. The highest number in use is read from the sort column's index, one row, however
+  many invoices have numbers such as `INV-001`. The app stops handing out numbers after 18 digits; a
+  longer number typed in by hand can never be the same as one it gives out. An invoice number is saved
+  without spaces at its ends, and a number the database's unique key counts as taken without it being
+  the same text (`42 ` with a space, or 42 written in the digits of another script, which the
+  collation reads as 42) is skipped when the next number is handed out, a few at most, instead of
+  failing every new invoice
+- Password reset and invoice emails got the wrong parts: the subject, text and HTML of an email were
+  assigned by the position of the settings rows in the database's answer, and since the unique key on
+  `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the
+  subject, the subject the text and the text the HTML. Each setting is now matched by its name
 
 ### Changed
 
@@ -220,8 +281,27 @@ version number, kept in each app's `package.json`. The web app shows this file o
   worksheets are saved in one transaction. A product that does not exist, or a worksheet that is already
   on an invoice, now refuses the whole request (with the reason) instead of leaving a half-built invoice
   and a used number. Adding a line to an invoice and removing one are transactions too
+- Hardening of the queries and the database connection, without changing what they return: the
+  settings an email needs are asked for with placeholders instead of names written into the SQL, a
+  keyword search can only be for one of the five searchable tables, the single invoice and single
+  worksheet queries name their columns instead of `SELECT *` and the single invoice lookup lost an
+  unused branch. The connection pool gives up on a database that does not answer after 10 s, keeps idle
+  connections alive, and lets at most 100 requests wait for a free connection (it was unlimited). The
+  "last seen" time of a user is only written when it is more than 5 minutes old, not on every profile
+  request
 - The invoice list takes 1 ms instead of 258 ms with 50 000 invoices: it counts lines for the rows of the
   page only, instead of joining and grouping every invoice
+- The worksheets overview (customers with worksheets, newest first) takes 11 ms instead of 53 ms with
+  100 000 worksheets, and its page count 1 ms instead of 108 ms: the worksheets are grouped on the
+  (customer, id) index alone and only the page's 20 customers are looked up afterwards. The page count
+  is the number of customers with worksheets, which is how many rows the list has; it counted distinct
+  customer names, one short for every pair of customers with the same name. A search by customer name
+  is unchanged
+- Deep pages of the invoice list are cheap: page 1350 of 2500 (50 000 invoices) takes 3 ms instead of
+  28 ms. The page's 20 invoices are picked from the number index alone and only they are joined
+  to their customers and get their line count, so the cost no longer grows with the page number. The
+  first page was already instant (0.06 ms) and a keyword search, which has to look at the customers'
+  names, is unchanged
 
 ## 4.0.0 - 2026-10-02
 

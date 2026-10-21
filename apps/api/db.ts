@@ -17,7 +17,14 @@ export const getPool = (database: string) => {
             database,
             waitForConnections: true,
             connectionLimit: 10,
-            queueLimit: 0,
+            // A request waits for a free connection, but the line is limited (0 would be
+            // unlimited): when the database is slow the next requests fail at once instead of
+            // piling up in memory
+            queueLimit: 100,
+            // A database that does not answer fails the query after 10 s instead of never
+            connectTimeout: 10000,
+            // Keeps idle connections open through firewalls and load balancers that drop quiet ones
+            enableKeepAlive: true,
             dateStrings: true,
             // Prices, quantities and VAT are DECIMAL columns, which mysql2 returns as strings
             // unless asked; the API and the web app work with numbers

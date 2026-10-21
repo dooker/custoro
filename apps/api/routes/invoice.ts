@@ -12,6 +12,7 @@ import {
 } from "../services/invoice";
 import { authorize } from "../helpers/authorize";
 import { authenticate } from "../helpers/authenticate";
+import { isRowId, requireIds, requireParams } from "../helpers/routeParams";
 
 const router = Router();
 
@@ -21,10 +22,16 @@ router.get("/last/", authenticate, authorize(["admin", "user"]), async (req, res
 });
 
 /* GET invoices data for customer */
+// :page is "all" (the open invoices of :customer) or the id of one invoice
 router.get(
     ["/:page", "/:page/:customer"],
     authenticate,
     authorize(["admin", "user"]),
+    requireParams(({ page, customer }) =>
+        page === "all"
+            ? isRowId(customer)
+            : isRowId(page) && (customer === undefined || isRowId(customer))
+    ),
     async (req, res) => {
         const { page } = req.params;
 
@@ -52,23 +59,38 @@ router.put("/", authenticate, authorize(["admin", "user"]), async (req, res) => 
 });
 
 /* PUT update item quantity or mark as paid */
-router.put("/:invoiceId/:id", authenticate, authorize(["admin", "user"]), async (req, res) => {
-    const {
-        params: { invoiceId }
-    } = req;
+// :invoiceId is "paid" to mark the invoice with id :id as paid, otherwise the invoice of the line :id
+router.put(
+    "/:invoiceId/:id",
+    authenticate,
+    authorize(["admin", "user"]),
+    requireParams(
+        ({ invoiceId, id }) => isRowId(id) && (invoiceId === "paid" || isRowId(invoiceId))
+    ),
+    async (req, res) => {
+        const {
+            params: { invoiceId }
+        } = req;
 
-    if (invoiceId === "paid") {
-        // mark as paid
-        res.json(await markAsPaid(req));
-    } else {
-        // update single item quantity
-        res.json(await putSingleItem(req));
+        if (invoiceId === "paid") {
+            // mark as paid
+            res.json(await markAsPaid(req));
+        } else {
+            // update single item quantity
+            res.json(await putSingleItem(req));
+        }
     }
-});
+);
 
 /* DELETE item from invoice */
-router.delete("/:invoiceId/:id", authenticate, authorize(["admin", "user"]), async (req, res) => {
-    res.json(await deleteSingleItem(req));
-});
+router.delete(
+    "/:invoiceId/:id",
+    authenticate,
+    authorize(["admin", "user"]),
+    requireIds("invoiceId", "id"),
+    async (req, res) => {
+        res.json(await deleteSingleItem(req));
+    }
+);
 
 export default router;

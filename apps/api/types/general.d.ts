@@ -10,7 +10,7 @@ export interface GetGeneralMultipleIF {
 
 export interface PostGeneralSingleIF {
     sql: string;
-    params: (string | number)[];
+    params: (string | number | null)[];
     logger: string;
     database: string;
 }

@@ -4,6 +4,7 @@ import { deleteImage } from "../services/_helpers";
 import { imageUpload } from "../helpers/imageUpload";
 import { authorize } from "../helpers/authorize";
 import { authenticate } from "../helpers/authenticate";
+import { requireIds } from "../helpers/routeParams";
 
 const router = Router();
 export const currentRoute = "user";
@@ -11,7 +12,7 @@ export const currentRoute = "user";
 console.log("user route loaded");
 
 /* GET user data */
-router.get("/:id", authenticate, authorize(["admin"]), async (req, res) => {
+router.get("/:id", authenticate, authorize(["admin"]), requireIds("id"), async (req, res) => {
     res.json(await getSingle(req));
 });
 
@@ -25,6 +26,7 @@ router.put(
     "/:id",
     authenticate,
     authorize(["admin"]),
+    requireIds("id"),
     ...imageUpload("avatar"),
     async (req, res) => {
         res.json(await putSingle(req));
@@ -32,13 +34,19 @@ router.put(
 );
 
 /* DELETE user */
-router.delete("/:id", authenticate, authorize(["admin"]), async (req, res) => {
+router.delete("/:id", authenticate, authorize(["admin"]), requireIds("id"), async (req, res) => {
     res.json(await deleteSingle(req));
 });
 
 /* DELETE user avatar */
-router.delete("/avatar/:id", authenticate, authorize(["admin"]), async (req, res) => {
-    res.json(await deleteImage(req));
-});
+router.delete(
+    "/avatar/:id",
+    authenticate,
+    authorize(["admin"]),
+    requireIds("id"),
+    async (req, res) => {
+        res.json(await deleteImage(req));
+    }
+);
 
 export default router;

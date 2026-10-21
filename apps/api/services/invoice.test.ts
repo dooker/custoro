@@ -12,7 +12,7 @@ vi.mock("../helper/query", async (importOriginal) => ({
     query: queryMock
 }));
 
-const { buildInvoiceLines, deleteSingleItem, postSingle, putSingle, putSingleItem } =
+const { buildInvoiceLines, deleteSingleItem, postSingle, putSingle, putSingleData, putSingleItem } =
     await import("./invoice");
 
 const request = (parts: { params?: object; body?: object }) =>
@@ -73,14 +73,34 @@ describe("putSingleItem (quantity of a line)", () => {
         expect(fake.connection.rollback).toHaveBeenCalledOnce();
     });
 
-    it("counts a quantity that is not a number as 0", async () => {
+    it("refuses a quantity that is not a number, and changes nothing", async () => {
+        for (const value of ["x", [5], { a: 5 }, "1e3", "5; DROP TABLE invoices"]) {
+            const result = await putSingleItem(
+                request({ params: { invoiceId: "12", id: "99" }, body: { value } })
+            );
+
+            expect(result, JSON.stringify(value)).toEqual({
+                success: false,
+                message: "invalidInput"
+            });
+        }
+
+        expect(fake.pool.getConnection).not.toHaveBeenCalled();
+    });
+
+    it("takes the quantity as text, with a comma, and an empty one as 0", async () => {
         fake.respondWith(() => ({ affectedRows: 1 }));
 
         await putSingleItem(
-            request({ params: { invoiceId: "12", id: "99" }, body: { value: "x" } })
+            request({ params: { invoiceId: "12", id: "99" }, body: { value: "2,5" } })
+        );
+        await putSingleItem(
+            request({ params: { invoiceId: "12", id: "99" }, body: { value: "" } })
         );
 
-        expect(fake.statements(/UPDATE invoice_items/)[0].params[0]).toBe(0);
+        const quantities = fake.statements(/UPDATE invoice_items/).map(({ params }) => params[0]);
+
+        expect(quantities).toEqual([2.5, 0]);
     });
 });
 
@@ -159,6 +179,31 @@ describe("buildInvoiceLines", () => {
         });
     });
 
+    it("refuses lines with ids or quantities that are lists, objects or not numbers, and too many lines", async () => {
+        databaseHas([cable]);
+
+        for (const item of [
+            { productId: [3], quantity: 1 },
+            { productId: "3 OR 1=1", quantity: 1 },
+            { productId: 3, quantity: [1] },
+            { productId: 3, quantity: 1, worksheetId: { a: 1 } },
+            { quantity: 1 },
+            "3",
+            null
+        ]) {
+            expect(await buildInvoiceLines("shop", [item]), JSON.stringify(item)).toEqual({
+                message: "post.newWorkSheet"
+            });
+        }
+
+        expect(
+            await buildInvoiceLines(
+                "shop",
+                Array.from({ length: 501 }, () => ({ productId: 3, quantity: 1 }))
+            )
+        ).toEqual({ message: "post.newWorkSheet" });
+    });
+
     it("refuses a quantity that is not a number and items that are not a list", async () => {
         databaseHas([cable]);
 
@@ -185,6 +230,7 @@ describe("postSingle (new invoice)", () => {
         databaseHas([cable]);
         fake.respondWith((sql) => {
             if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
+            if (/MAX\(number_sort\)/.test(sql)) return [{ highest: "41" }];
             if (/INSERT INTO invoices/.test(sql)) return { insertId: 7, affectedRows: 1 };
 
             return { affectedRows: 1 };
@@ -215,6 +261,7 @@ describe("postSingle (new invoice)", () => {
         databaseHas([cable]);
         fake.respondWith((sql) => {
             if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
+            if (/MAX\(number_sort\)/.test(sql)) return [{ highest: "41" }];
             if (/INSERT INTO invoices/.test(sql)) return { insertId: 7 };
             if (/UPDATE worksheets/.test(sql)) return { affectedRows: 0 };
 
@@ -229,6 +276,127 @@ describe("postSingle (new invoice)", () => {
 
         expect(result).toEqual({ success: false, message: "worksheet.invoiced" });
         expect(fake.connection.commit).not.toHaveBeenCalled();
+    });
+});
+
+describe("postSingle with a customer that is not a number", () => {
+    it("refuses it before anything is read or taken", async () => {
+        databaseHas([cable]);
+
+        for (const customerId of [{ a: 1 }, [5], "5 OR 1=1", 0]) {
+            const result = await postSingle(request({ body: { customerId, items: [] } }));
+
+            expect(result, JSON.stringify(customerId)).toEqual({
+                success: false,
+                message: "invalidInput"
+            });
+        }
+
+        expect(queryMock).not.toHaveBeenCalled();
+        expect(fake.pool.getConnection).not.toHaveBeenCalled();
+    });
+});
+
+describe("putSingleData (invoice details)", () => {
+    const draft = {
+        id: 7,
+        number: "42",
+        customerId: 5,
+        invoiceDate: "2026-10-21",
+        paymentType: "cash",
+        invoiceType: "offer",
+        items: [{ id: 1 }]
+    };
+
+    it("saves the details, takes the payment period from the customer and moves the worksheets along", async () => {
+        queryMock.mockImplementation(async ({ sql }: { sql: string }) =>
+            /FROM customers/.test(sql)
+                ? { success: true, data: [{ paymentPeriod: 30 }] }
+                : { success: true, data: [] }
+        );
+
+        expect(await putSingleData(request({ body: draft }))).toEqual({ success: true });
+
+        const [update] = queryMock.mock.calls
+            .map(([call]) => call)
+            .filter(({ sql }: { sql: string }) => /UPDATE invoices/.test(sql));
+        const [worksheets] = queryMock.mock.calls
+            .map(([call]) => call)
+            .filter(({ sql }: { sql: string }) => /UPDATE worksheets/.test(sql));
+
+        expect(update.params).toEqual(["2026-10-21", 5, "42", "cash", "offer", 30, 7]);
+        expect(worksheets.params).toEqual([5, 7, 5]);
+    });
+
+    const updates = () =>
+        queryMock.mock.calls
+            .map(([call]) => call)
+            .filter(({ sql }: { sql: string }) => /UPDATE (invoices|worksheets)/.test(sql));
+
+    it("does not save the invoice when its customer cannot be read, so it never keeps the old customer's terms", async () => {
+        // a failed look-up, and a customer that does not exist
+        for (const answer of [
+            { success: false, data: [] },
+            { success: true, data: [] }
+        ]) {
+            queryMock.mockReset();
+            queryMock.mockImplementation(async ({ sql }: { sql: string }) =>
+                /FROM customers/.test(sql) ? answer : { success: true, data: [] }
+            );
+
+            expect(await putSingleData(request({ body: draft })), JSON.stringify(answer)).toEqual({
+                success: false,
+                message: "get.customer"
+            });
+            expect(updates(), JSON.stringify(answer)).toHaveLength(0);
+        }
+    });
+
+    it("keeps the invoice's own payment period when its customer has none", async () => {
+        queryMock.mockImplementation(async ({ sql }: { sql: string }) =>
+            /FROM customers/.test(sql)
+                ? { success: true, data: [{ paymentPeriod: null }] }
+                : { success: true, data: [] }
+        );
+
+        expect(await putSingleData(request({ body: draft }))).toEqual({ success: true });
+
+        const [invoice] = updates();
+
+        expect(invoice.sql).toContain("COALESCE(?, payment_period)");
+        expect(invoice.params).toEqual(["2026-10-21", 5, "42", "cash", "offer", null, 7]);
+    });
+
+    it("keeps the invoice's own payment period when it has no customer", async () => {
+        queryMock.mockResolvedValue({ success: true, data: [] });
+
+        expect(await putSingleData(request({ body: { ...draft, customerId: null } }))).toEqual({
+            success: true
+        });
+
+        const calls = queryMock.mock.calls.map(([call]) => call);
+
+        // no customer to look up, no worksheets to move, and NULL leaves payment_period alone
+        expect(calls).toHaveLength(1);
+        expect(calls[0].sql).toContain("COALESCE(?, payment_period)");
+        expect(calls[0].params).toEqual(["2026-10-21", null, "42", "cash", "offer", null, 7]);
+    });
+
+    it("refuses details that are not valid, without touching the database", async () => {
+        for (const change of [
+            { id: "7 OR 1=1" },
+            { customerId: { a: 1 } },
+            { invoiceDate: "tomorrow" },
+            { paymentType: "gold" },
+            { number: ["42"] }
+        ]) {
+            expect(
+                await putSingleData(request({ body: { ...draft, ...change } })),
+                JSON.stringify(change)
+            ).toEqual({ success: false, message: "invalidInput" });
+        }
+
+        expect(queryMock).not.toHaveBeenCalled();
     });
 });
 
@@ -251,6 +419,23 @@ describe("putSingle (add a line to an invoice)", () => {
         expect(fake.statements(/UPDATE invoices/)[0].params).toEqual([12]);
         expect(fake.pool.getConnection).toHaveBeenCalledOnce();
         expect(fake.connection.commit).toHaveBeenCalledOnce();
+    });
+
+    it("refuses an invoice id that is not a number", async () => {
+        databaseHas([cable]);
+
+        for (const invoiceId of [undefined, [12], "12 OR 1=1", { a: 1 }]) {
+            const result = await putSingle(
+                request({ body: { invoiceId, items: [{ productId: 3, quantity: 1 }] } })
+            );
+
+            expect(result, JSON.stringify(invoiceId)).toEqual({
+                success: false,
+                message: "invalidInput"
+            });
+        }
+
+        expect(fake.pool.getConnection).not.toHaveBeenCalled();
     });
 
     it("says so when the product does not exist, without opening a transaction", async () => {

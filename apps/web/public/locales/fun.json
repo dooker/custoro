@@ -227,7 +227,9 @@
         "product.inUse": "Worksheets still need this product. It stays on the ship.",
         "customer.inUse": "This customer still has invoices or worksheets on board. They are not leaving.",
         "worksheet.locked": "That worksheet is part of a locked invoice. No time travel here.",
-        "worksheet.invoiced": "That worksheet already flew off on an invoice."
+        "worksheet.invoiced": "That worksheet already flew off on an invoice.",
+        "invalidInput": "Something in there looked fishy (too long, or the wrong kind of thing), nothing was saved",
+        "lastInvoiceIdTooLow": "That last invoice ID would hand out a number an invoice already wears, nothing was saved. Reload the page if invoices sneaked in meanwhile"
     },
     "settings": {
         "singular": "Settings",

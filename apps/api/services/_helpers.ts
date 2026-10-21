@@ -1,4 +1,4 @@
-import { sanitize, getEmailEnvContent, normalizeDate } from "../helper";
+import { getEmailEnvContent, normalizeDate } from "../helper";
 import path from "node:path";
 import fs from "node:fs";
 import nodemailer, { type TransportOptions } from "nodemailer";
@@ -50,15 +50,27 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
     } = request;
     const pageId = Array.isArray(page) ? page[0] : page;
     const idId = Array.isArray(rawId) ? rawId[0] : rawId;
-    const isHash = false;
     const id = idId || pageId;
 
-    // Get invoice details
+    // Get invoice details. number_sort only exists for ordering the invoice list, so it is left out.
     const { success: invoiceSuccess, data: invoiceData } = await query<InvoiceIF>({
         database,
-        sql: `SELECT *
+        sql: `SELECT id,
+                     number,
+                     customer_id,
+                     create_date,
+                     change_date,
+                     invoice_date,
+                     payment_type,
+                     invoice_type,
+                     locked,
+                     vat,
+                     sent_date,
+                     hash,
+                     filename,
+                     payment_period
               FROM invoices
-              WHERE ${isHash ? "hash" : "id"} = ?;`,
+              WHERE id = ?;`,
         params: [id],
         logger: "Get single invoice"
     });
@@ -70,11 +82,7 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
         };
     }
 
-    // number_sort only exists for ordering the invoice list
-    const row: Record<string, unknown> = { ...invoiceData[0] };
-    delete row.number_sort;
-
-    const invoice = toCamelCase(row as unknown as InvoiceIF);
+    const invoice = toCamelCase(invoiceData[0]);
 
     // Get invoice items with product details
     const { success: itemsSuccess, data: items } = await query<InvoiceItemIF>({
@@ -89,7 +97,7 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
                      invoice_items.comment
               FROM invoice_items
               WHERE invoice_id = ?;`,
-        params: [isHash ? invoice.id : sanitize(id)],
+        params: [invoice.id],
         logger: "Get single invoice items"
     });
 
@@ -165,7 +173,7 @@ export const getGeneralMultiple = async ({
         params,
         logger: `Get multiple ${type}`
     });
-    const total = totalRows ? totalRows[0].total : 0;
+    const total = totalRows?.[0]?.total ?? 0;
 
     if (type === "products" && Array.isArray(rows)) {
         rows.forEach((element, index) => {
@@ -253,15 +261,14 @@ export const getConfig = async ({
         FROM config
     `;
 
-    // params are hardcoded strings from initiator
     if (fields && fields.length) {
-        const sqlFields = fields.map((name) => `'${name}'`).join(", ");
-        sql += ` WHERE name IN (${sqlFields});`;
+        sql += ` WHERE name IN (${fields.map(() => "?").join(", ")});`;
     }
 
     const { success, data } = await query<EmailConfigIF>({
         database,
         sql,
+        params: fields ?? [],
         logger: "Get settings for email"
     });
 
@@ -272,9 +279,11 @@ export const getConfig = async ({
         };
     }
 
-    data?.forEach(({ name, value, longValue }, index) => {
-        if (mapper && mapper.length) {
-            name = mapper[index];
+    data?.forEach(({ name, value, longValue }) => {
+        // The rows come back in the database's order (by name, since the unique key on name), not
+        // in the order of `fields`, so a name is renamed by its place in `fields`
+        if (mapper && mapper.length && fields) {
+            name = mapper[fields.indexOf(name)] ?? name;
         }
 
         if (allowedEmailKeys.includes(name as AllowedEmailKey)) {
@@ -382,14 +391,17 @@ export const deleteImage = async (request: Request, userId?: number | string) =>
         params: [String(id)],
         logger: "Get avatar filename"
     });
-    const filename = data?.[0].avatar;
+    const user = data?.[0];
 
-    if (!getAvatarSuccess) {
+    // A failed query, or no such user
+    if (!getAvatarSuccess || !user) {
         return {
             success: false,
             message: "get.avatar"
         };
     }
+
+    const filename = user.avatar;
 
     if (filename) {
         deleteImageFile(filename);

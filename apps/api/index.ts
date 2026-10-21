@@ -36,6 +36,7 @@ import pkg from "./package.json";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
 import { getAppOrigin } from "./helpers/appOrigin";
+import { errorHandler } from "./helpers/errorResponse";
 import { jwtSecretProblem, trustProxyWarning } from "./helpers/startupChecks";
 import { uploadDir, pdfDir } from "./config/paths";
 import type { Request, Response, NextFunction } from "express";
@@ -43,7 +44,6 @@ import type { Request, Response, NextFunction } from "express";
 const { version } = pkg;
 const rootPath = process.cwd();
 const envFile = env === "production" ? ".env.production" : ".env.development";
-const error500 = "500 - Internal Server Booboo.";
 
 // Precedence: real environment (e.g. Docker) > .env.<env> > .env
 // quiet: dotenv 17+ otherwise logs an "injected env" line on every start
@@ -164,16 +164,7 @@ app.use(
 Sentry.setupExpressErrorHandler(app);
 
 // Custom Error handler
-app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
-    console.error("Unhandled error:", error);
-
-    // If a response was already partially sent, let Express close the connection
-    if (res.headersSent) {
-        return next(error);
-    }
-
-    return res.status(500).json({ message: error500 });
-});
+app.use(errorHandler);
 
 app.listen(servicePort, () => {
     console.log(`Server listening on port ${servicePort}`);
