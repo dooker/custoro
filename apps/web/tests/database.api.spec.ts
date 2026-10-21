@@ -915,29 +915,81 @@ test.describe('worksheets grouped by customer', () => {
 });
 
 test.describe('invoice list', () => {
-    test('lists the newest number first and pages through all invoices', async () => {
+    test('lists the newest number first, and pages through the first pages and the last one', async () => {
         const page = async (number: number, limit = 10) =>
             call('get', `/invoices?page=${number}&limit=${limit}`);
         const first = await page(1);
 
         expect(first.success).toBe(true);
 
-        const numbers = first.resource.map((row: { number: string }) => Number(row.number));
+        const numbers = (rows: { number: string }[]) => rows.map((row) => Number(row.number));
+        const descending = (values: number[]) => {
+            // numbers that are not plain digits (the demo's INV-...) sort last, as 0
+            for (let index = 1; index < values.length; index++) {
+                expect(values[index] <= values[index - 1] || Number.isNaN(values[index])).toBe(
+                    true
+                );
+            }
+        };
 
-        // numbers that are not plain digits (the demo's INV-...) sort last, as 0
-        for (let index = 1; index < numbers.length; index++) {
-            expect(numbers[index] <= numbers[index - 1] || Number.isNaN(numbers[index])).toBe(true);
-        }
-
+        descending(numbers(first.resource));
         expect(first.resource[0]).toHaveProperty('total');
 
-        const all = [];
+        // A few pages, not all of them: with 50 000 invoices there are 5000 pages of 10. The first
+        // three show the order carries over from one page to the next, the last one the end.
+        const sampled = [...new Set([1, 2, 3, first.meta.total])].filter(
+            (number) => number >= 1 && number <= first.meta.total
+        );
+        const rows: { id: number; number: string }[] = [];
+        const start: { id: number; number: string }[] = [];
 
-        for (let number = 1; number <= first.meta.total; number++) {
-            all.push(...(await page(number)).resource.map((row: { id: number }) => row.id));
+        for (const number of sampled) {
+            const body = await page(number);
+
+            expect(body.success, `page ${number}`).toBe(true);
+            expect(body.resource.length, `page ${number} has rows`).toBeGreaterThan(0);
+            rows.push(...body.resource);
+
+            if (number <= 3) start.push(...body.resource);
         }
 
-        expect(new Set(all).size, 'no invoice is listed twice').toBe(all.length);
+        descending(numbers(start));
+        expect(new Set(rows.map((row) => row.id)).size, 'no invoice is listed twice').toBe(
+            rows.length
+        );
+
+        // there is nothing after the last page
+        expect((await page(first.meta.total + 1)).resource).toHaveLength(0);
+    });
+
+    test('pages through the invoices of one customer, newest first, with the line count of each', async () => {
+        const customer = await createCustomer(`Pager ${unique}`);
+        const product = await createProduct(`PGR-${unique}`);
+        const ids: number[] = [];
+
+        for (const quantities of [[1], [1, 2], [1, 2, 3]]) {
+            const created = await call('post', '/invoice', {
+                customerId: customer,
+                items: quantities.map((quantity) => ({ productId: product, quantity })),
+            });
+
+            expect(created.success).toBe(true);
+            ids.push(created.lastId);
+        }
+
+        const page = async (number: number) =>
+            call('get', `/invoices?customer=${customer}&page=${number}&limit=2`);
+
+        const one = await page(1);
+        const two = await page(2);
+
+        // the newest first, two to a page; `total` is the number of lines
+        expect(one.resource.map((row: { id: number }) => row.id)).toEqual([ids[2], ids[1]]);
+        expect(one.resource.map((row: { total: number }) => row.total)).toEqual([3, 2]);
+        expect(two.resource.map((row: { id: number }) => row.id)).toEqual([ids[0]]);
+        expect(two.resource[0]).toMatchObject({ total: 1, name: `Pager ${unique}` });
+        expect(one.meta.total, 'pages').toBe(2);
+        expect((await page(3)).resource).toHaveLength(0);
     });
 
     test('filters by customer and keyword together', async () => {

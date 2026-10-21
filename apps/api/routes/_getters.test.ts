@@ -290,11 +290,61 @@ describe("getInvoices", () => {
     });
 
     it("lists the newest number first, with the id as tie-break, and counts lines per page row", () => {
-        const { sql } = getInvoices({});
+        for (const filter of [{}, { customerId: 7 }, { keyword: "ann" }]) {
+            const { sql } = getInvoices(filter);
 
-        expect(sql).toContain("ORDER BY invoices.number_sort DESC, invoices.id DESC");
-        expect(sql).toContain("(SELECT COUNT(*)");
-        expect(sql).not.toMatch(/GROUP BY|number \+ 0/);
+            expect(sql, JSON.stringify(filter)).toMatch(
+                /ORDER BY (invoices\.number_sort DESC, invoices\.id DESC|p\.number_sort DESC, p\.id DESC)\s*$/
+            );
+            expect(sql).toContain("(SELECT COUNT(*)");
+            expect(sql).not.toMatch(/GROUP BY|number \+ 0/);
+        }
+    });
+
+    it("picks the page first, from the index, and joins only its rows, when there is no keyword", () => {
+        for (const filter of [{}, { customerId: 7 }]) {
+            const { sql } = getInvoices(filter);
+            const inner = sql.slice(sql.indexOf("FROM (") + 6, sql.indexOf(") p"));
+
+            // the rows of the page are picked from invoices alone: no customers, no line count
+            expect(inner, JSON.stringify(filter)).toMatch(
+                /^SELECT id, number_sort\s+FROM invoices/
+            );
+            expect(inner).not.toMatch(/customers|invoice_items/);
+            expect(inner).toMatch(/ORDER BY number_sort DESC, id DESC\s+\/\* LIMIT \*\/$/);
+            // and then joined by id, in the same order
+            expect(sql).toMatch(/\) p\s+JOIN invoices ON invoices\.id = p\.id/);
+            expect(sql).toMatch(/LEFT JOIN customers ON customers\.id = invoices\.customer_id/);
+            expect(sql).toMatch(/ORDER BY p\.number_sort DESC, p\.id DESC\s*$/);
+        }
+
+        expect(getInvoices({ customerId: 7 }).sql).toMatch(
+            /FROM invoices\s+WHERE invoices\.customer_id = \?\s+ORDER BY number_sort DESC, id DESC/
+        );
+    });
+
+    it("keeps the join before the page when a keyword searches the customers' names", () => {
+        const { sql } = getInvoices({ keyword: "ann" });
+
+        expect(sql).not.toContain(limitMarker);
+        expect(sql).not.toMatch(/\) p\b/);
+        expect(sql).toMatch(
+            /FROM invoices\s+LEFT JOIN customers ON invoices\.customer_id = customers\.id\s+WHERE/
+        );
+    });
+
+    it("gets its LIMIT inside the page query, or at the end after a keyword search", () => {
+        const paging = { page: 3, limit: 20 };
+        const deferred = applyPaging(getInvoices({}).sql, paging);
+
+        expect(deferred).toMatch(/ORDER BY number_sort DESC, id DESC\s+LIMIT 40, 20\) p/);
+        expect(deferred).not.toContain(limitMarker);
+        // nothing after the outer ORDER BY
+        expect(deferred).toMatch(/ORDER BY p\.number_sort DESC, p\.id DESC\s*$/);
+
+        expect(applyPaging(getInvoices({ keyword: "ann" }).sql, paging)).toMatch(
+            /ORDER BY invoices\.number_sort DESC, invoices\.id DESC\s+LIMIT 40, 20\s*$/
+        );
     });
 
     it("only joins customers to count when a keyword searches their names", () => {

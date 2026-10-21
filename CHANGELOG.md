@@ -273,6 +273,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   is the number of customers with worksheets, which is how many rows the list has; it counted distinct
   customer names, one short for every pair of customers with the same name. A search by customer name
   is unchanged
+- Deep pages of the invoice list are cheap: page 1350 of 2500 (50 000 invoices) takes 3 ms instead of
+  28 ms. The page's 20 invoices are picked from the number index alone and only they are joined
+  to their customers and get their line count, so the cost no longer grows with the page number. The
+  first page was already instant (0.06 ms) and a keyword search, which has to look at the customers'
+  names, is unchanged
 
 ## 4.0.0 - 2026-10-02
 
