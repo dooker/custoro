@@ -48,12 +48,34 @@ warn() { printf '  warn  %s\n' "$*"; }
 # what is between them. Unquoted, a comment starts where dotenv and Compose differ: dotenv, which the
 # API uses without Docker, cuts at any "#"; Compose, which reads the file for the Docker stack, only at
 # whitespace followed by "#" (so "pa#ss" is a whole password for Compose and "pa" for dotenv). Trailing
-# spaces are dropped. scripts/selftest.sh compares this with both parsers.
+# spaces are dropped. In double quotes the parsers decode escapes (see below). A trailing newline in the
+# value is real: callers that count it must not lose it to command substitution. scripts/selftest.sh
+# compares this with both parsers.
 value() {
     local raw
     raw=$(grep -E "^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=" "$envfile" | tail -1 | sed -E 's/^[^=]*=//; s/^[[:space:]]+//')
     case "$raw" in
-        \"*) raw=${raw#\"}; raw=${raw%%\"*} ;;
+        \"*)
+            # up to the first quote that is not escaped; then the escapes the parser decodes: dotenv
+            # \n and \r, Compose also \t, \\ and \" (anything else stays as written)
+            raw=$(printf '%s' "$raw" | sed -E 's/^"(([^"\\]|\\.)*)".*$/\1/; s/^"//')
+            printf '%s' "$raw" | awk -v docker="$docker" '{
+                s = $0; out = ""; n = length(s)
+                for (i = 1; i <= n; i++) {
+                    c = substr(s, i, 1)
+                    if (c == "\\" && i < n) {
+                        d = substr(s, i + 1, 1)
+                        if (d == "n") { out = out "\n"; i++; continue }
+                        if (d == "r") { out = out "\r"; i++; continue }
+                        if (docker == 1 && d == "t") { out = out "\t"; i++; continue }
+                        if (docker == 1 && (d == "\\" || d == "\"")) { out = out d; i++; continue }
+                    }
+                    out = out c
+                }
+                printf "%s", out
+            }'
+            return
+            ;;
         \'*) raw=${raw#\'}; raw=${raw%%\'*} ;;
         *)
             if [ "$docker" = 1 ]; then
@@ -80,6 +102,9 @@ setting() {
     if [ -n "$resolved" ]; then
         v=$(printf '%s\n' "$resolved" | awk -v n="$1" '$1 == n ":" { sub(/^[^:]*:[ ]*/, ""); print; exit }')
         case "$v" in \"*\") v=${v#\"}; v=${v%\"} ;; \'*\') v=${v#\'}; v=${v%\'} ;; esac
+        # the config output writes values with a newline or a backslash as a block or an escaped scalar: read
+        # them from the file instead, parsed as Compose parses it (selftest.sh checks that)
+        case "$v" in "|"* | ">"* | *\\*) v="" ;; esac
     fi
     if [ -n "$v" ]; then printf '%s' "$v"; else value "$1"; fi
 }
@@ -112,7 +137,8 @@ else
         fi
     done
 
-    secret=$(setting JWT_SECRET)
+    secret=$(setting JWT_SECRET; printf X)
+    secret=${secret%X}
     if [ -n "$secret" ]; then
         if [ "${#secret}" -ge 32 ]; then ok "JWT_SECRET has ${#secret} characters"; else bad "JWT_SECRET has ${#secret} characters, production refuses fewer than 32 (openssl rand -hex 32)"; fi
     fi

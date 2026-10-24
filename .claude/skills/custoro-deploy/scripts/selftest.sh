@@ -31,6 +31,14 @@ cases=(
     'K='
     "K=it's"
     'K="double"'
+    'K="a\nb"'
+    'K="a\rb"'
+    'K="a\tb"'
+    'K="a\\b"'
+    'K="a\"b"'
+    "K='a\\nb'"
+    'K=a\nb'
+    'K="123456789012345678901234567890\n"'
 )
 
 n=0
@@ -46,7 +54,7 @@ docker run --rm -v "$work:/t:ro" custoro-preflight-selftest node -e '
 const dotenv = require("dotenv"), fs = require("fs");
 for (let i = 1; i <= '"$n"'; i++) {
     const v = dotenv.parse(fs.readFileSync("/t/" + i + ".env")).K;
-    console.log(v === undefined ? "<unset>" : v);
+    console.log(Buffer.from(v === undefined ? "" : v).toString("hex"));
 }' >"$work/dotenv.txt"
 
 # Compose: a service that passes K through, one run per case
@@ -58,10 +66,13 @@ services:
             K: ${K-<unset>}
 EOF
 
-compose_value() {
-    docker compose -f "$work/compose.yml" --env-file "$1" config 2>/dev/null | awk '$1 == "K:" { sub(/^[^:]*:[ ]*/, ""); print; exit }' |
-        sed -E "s/^\"(.*)\"\$/\\1/; s/^'(.*)'\$/\\1/"
+# the value Compose resolves, as hex (JSON output decodes the quoting; python3 reads it)
+compose_hex() {
+    docker compose -f "$work/compose.yml" --env-file "$1" config --format json 2>/dev/null |
+        python3 -c 'import json,sys; v=json.load(sys.stdin)["services"]["t"]["environment"]["K"]; print("" if v == "<unset>" else v.encode().hex())'
 }
+
+hex() { printf '%s' "$1" | od -An -tx1 | tr -d ' \n'; }
 
 # preflight's own value(), taken from the script so the test cannot drift from it
 envfile=""
@@ -76,13 +87,11 @@ while IFS= read -r expected; do
     line=${cases[$((i - 1))]}
     envfile="$work/$i.env"
     docker=0
-    mine=$(value K)
+    mine=$(value K; printf X); mine=$(hex "${mine%X}")
     checked=$((checked + 1))
-    [ -n "$mine" ] || mine="<unset>"
-    [ -n "$expected" ] || expected="<unset>"
     if [ "$mine" != "$expected" ]; then
         differences=$((differences + 1))
-        printf 'DIFFERENT (no Docker, dotenv):  %-48s dotenv "%s", preflight "%s"\n' "$line" "$expected" "$mine"
+        printf 'DIFFERENT (no Docker, dotenv):  %-48s dotenv %s, preflight %s (hex)\n' "$line" "$expected" "$mine"
     fi
 done <"$work/dotenv.txt"
 
@@ -90,14 +99,12 @@ for i in $(seq 1 "$n"); do
     line=${cases[$((i - 1))]}
     envfile="$work/$i.env"
     docker=1
-    expected=$(compose_value "$envfile")
-    mine=$(value K)
-    [ -n "$mine" ] || mine="<unset>"
-    [ -n "$expected" ] || expected="<unset>"
+    expected=$(compose_hex "$envfile")
+    mine=$(value K; printf X); mine=$(hex "${mine%X}")
     checked=$((checked + 1))
     if [ "$mine" != "$expected" ]; then
         differences=$((differences + 1))
-        printf 'DIFFERENT (Docker, Compose):    %-48s compose "%s", preflight "%s"\n' "$line" "$expected" "$mine"
+        printf 'DIFFERENT (Docker, Compose):    %-48s compose %s, preflight %s (hex)\n' "$line" "$expected" "$mine"
     fi
 done
 
