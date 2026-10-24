@@ -1,6 +1,6 @@
 # Probes: run these, compare with the right-hand side
 
-All answered as shown on the dev stack (2026-10-24, current `main`). Base setup:
+All answered as shown on the dev stack (2026-10-24, current `main`); see "A fast answer proves nothing without a control" below before trusting a result. Base setup:
 
 ```bash
 API=http://localhost:3999
@@ -32,12 +32,28 @@ curl -s -w ' %{http_code}\n' -X POST $API/customer/ -H "$H" -H "$J" -d '{bad jso
 head -c 200000 /dev/zero | tr '\0' a | jq -Rs '{name: .}' | \
   curl -s -w ' %{http_code}\n' -X POST $API/customer/ -H "$H" -H "$J" --data-binary @-   # Payload Too Large 413
 KW=$(python3 -c "print('%20'.join('zz%d' % i for i in range(1000)))")
-curl -s -o /dev/null -w '%{time_total}s\n' "$API/customers/1/name/ASC?keyword=$KW" -H "$H"   # milliseconds, 8 words used
-curl -s -o /dev/null -w '%{time_total}s\n' "$API/customers/1/id%20DESC,(SELECT%20SLEEP(5))/ASC" -H "$H"   # instant: order falls back to name
+# the keyword is read by the search (and the invoice and worksheet lists), not by the customer list
+curl -s -o /dev/null -w '%{time_total}s\n' "$API/search/?resource=invoices&keyword=$KW&page=1" -H "$H"   # milliseconds, 8 words used
+# the sort column and direction are read from the QUERY string (the path segments are ignored), and allowlisted
+curl -s -o /dev/null -w '%{time_total}s\n' "$API/customers/1?order=id%20DESC,(SELECT%20SLEEP(5))&direction=ASC,(SELECT%20SLEEP(5))" -H "$H"   # instant: falls back to ORDER BY name ASC
 curl -s "$API/customers/1?page=0&limit=1000000" -H "$H" | jq '.resource | length'          # at most 50 (1000 without page and limit)
 ```
 
 Time-based probes (`SLEEP`) are the cheap way to show an injection: a response that takes five seconds is a finding. Use the same on every parameter that reaches SQL (`keyword`, `order`, `direction`, `customer`, `:page`).
+
+### A fast answer proves nothing without a control
+
+A probe that "passes" because the value never reached the code looks the same as one that passes because the code is safe. Before trusting a fast answer, show that the value is read: capture the statement the API sent (the recipe is in `custoro-perf-check`: enable `events_statements_history_long`, call the endpoint, read `SQL_TEXT`) and check what it contains.
+
+| Probe                                                                   | What the statement must show                                                                                              |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| search with 1000 keyword words                                          | `LIKE '%zz0%'` up to `zz7` and no `zz8`: the cap is in force and the keyword was read                                     |
+| `GET /customers/1?keyword=zzcontrol`                                    | no statement mentions `zzcontrol`: the customer list does not read a keyword, so a keyword probe against it tests nothing |
+| `?order=email&direction=DESC`                                           | `ORDER BY email DESC`: an allowed value is honoured, so the parameter is read                                             |
+| `?order=id DESC,(SELECT SLEEP(5))&direction=ASC,(SELECT SLEEP(5))`      | `ORDER BY name ASC`: the hostile value fell back to the default                                                           |
+| the same hostile value in the path (`/customers/1/<order>/<direction>`) | `ORDER BY name ASC`: the path is ignored, so this probe would pass for any code                                           |
+
+Checked on 2026-10-24 against a database with 50 000 invoices: the search takes about 90 ms and its SQL holds exactly `zz0` to `zz7`.
 
 ## Uploads
 

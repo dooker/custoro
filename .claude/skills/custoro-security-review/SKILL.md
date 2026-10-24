@@ -54,6 +54,8 @@ Earlier findings that may still be open are in [references/known-open.md](refere
 - login limit and its spellings of one email, session revocation after a password change;
 - **query digests**: empty `performance_schema.events_statements_summary_by_digest`, run the probes, read which statements were slow, examined many rows or used no index. MariaDB has `performance_schema` off: use its slow log table instead (commands in the file).
 
+**Every probe needs a control.** A fast, harmless answer only counts when the value reached the code: capture the statement the API sent and check it (the table in `probes.md` lists what each statement must show). Two probes in an earlier version of this file passed because the customer list ignores `keyword` and the sort order is read from the query string, not the path.
+
 Time database work from the database side, not only the HTTP side. A probe that is slow on 50k invoices is a finding even if the answer is correct.
 
 When a probe cannot be run (no SMTP sink, no TLS database, production-only behaviour), say so in the report and mark the finding "read from code".
