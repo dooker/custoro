@@ -38,8 +38,19 @@ ok() { printf '  ok    %s\n' "$*"; }
 bad() { printf '  FAIL  %s\n' "$*"; fail=1; }
 warn() { printf '  warn  %s\n' "$*"; }
 
-# Value of a variable in a compose env file (last assignment wins, optional quotes removed)
-value() { grep -E "^[[:space:]]*$1=" "$envfile" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"; }
+# Value of a variable the way Compose and dotenv load it (the last assignment wins): inside quotes it
+# is what is between them; unquoted it ends where whitespace is followed by "#" (an inline comment)
+# and loses trailing spaces. The raw text of the line would count a comment as part of the secret.
+value() {
+    local raw
+    raw=$(grep -E "^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=" "$envfile" | tail -1 | sed -E 's/^[^=]*=//; s/^[[:space:]]+//')
+    case "$raw" in
+        \"*) raw=${raw#\"}; raw=${raw%%\"*} ;;
+        \'*) raw=${raw#\'}; raw=${raw%%\'*} ;;
+        *) raw=$(printf '%s' "$raw" | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//') ;;
+    esac
+    printf '%s' "$raw"
+}
 
 echo "Git"
 branch=$(git rev-parse --abbrev-ref HEAD)
