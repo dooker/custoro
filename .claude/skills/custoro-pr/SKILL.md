@@ -9,7 +9,7 @@ The repo is `dooker/custoro`, default branch `main`, PRs are squash-merged (the 
 
 ## Commits
 
-- Branch off `main` (`fix/<topic>`, `chore/<topic>`). Never commit to `main`.
+- Branch off `origin/main` as `fix/<topic>` or `chore/<topic>` and never commit to `main`. Naming, renaming the session's auto-named branch, updating from `main` and cleaning up after the merge are in `custoro-branch`.
 - Add files by path (`git add <paths>`), never `git add -A`: `.claude/settings.local.json` and `.claude/worktrees` must stay out.
 - Subject: one sentence in the imperative, no prefix, about 70 characters ("Require TRUST_PROXY in production so a forged X-Forwarded-For is not believed"). Body: the symptom and how it was found (with numbers), then bullets for what changed, then what was tested ("checked against the running API"). Wrap at about 76.
 - End every message with the trailer the session gives for attribution, for example `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`, after a blank line.
