@@ -27,7 +27,13 @@ docker=1
 while [ $# -gt 0 ]; do
     case "$1" in
         -h | --help) sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-        --deployed) deployed=${2:-}; shift 2 ;;
+        --deployed)
+            case "${2:-}" in
+                "" | -*) echo "--deployed needs a commit or tag, for example: --deployed 5416da0" >&2; exit 2 ;;
+            esac
+            deployed=$2
+            shift 2
+            ;;
         --no-docker) docker=0; shift ;;
         *) envfile=$1; shift ;;
     esac
@@ -50,6 +56,24 @@ value() {
         *) raw=$(printf '%s' "$raw" | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//') ;;
     esac
     printf '%s' "$raw"
+}
+
+# Docker mode: the values Compose really passes to the api service (variable references and defaults
+# resolved), taken from `docker compose config`. They stay in this variable and are never printed.
+resolved=""
+if [ "$docker" = 1 ] && [ -f "$envfile" ] && docker info >/dev/null 2>&1; then
+    resolved=$(docker compose -f docker-compose.prod.yml --env-file "$envfile" config 2>/dev/null || true)
+fi
+
+# The value of an api environment variable: Compose's resolved value in Docker mode, else what the env
+# file holds (without Docker the API reads the file with dotenv, which does not expand references)
+setting() {
+    local v=""
+    if [ -n "$resolved" ]; then
+        v=$(printf '%s\n' "$resolved" | awk -v n="$1" '$1 == n ":" { sub(/^[^:]*:[ ]*/, ""); print; exit }')
+        case "$v" in \"*\") v=${v#\"}; v=${v%\"} ;; \'*\') v=${v#\'}; v=${v%\'} ;; esac
+    fi
+    if [ -n "$v" ]; then printf '%s' "$v"; else value "$1"; fi
 }
 
 echo "Git"
@@ -80,12 +104,12 @@ else
         fi
     done
 
-    secret=$(value JWT_SECRET)
+    secret=$(setting JWT_SECRET)
     if [ -n "$secret" ]; then
         if [ "${#secret}" -ge 32 ]; then ok "JWT_SECRET has ${#secret} characters"; else bad "JWT_SECRET has ${#secret} characters, production refuses fewer than 32 (openssl rand -hex 32)"; fi
     fi
 
-    proxy=$(value TRUST_PROXY)
+    proxy=$(setting TRUST_PROXY)
     case "$proxy" in
         1) ok "TRUST_PROXY=1 (people reach nginx directly)" ;;
         2) ok "TRUST_PROXY=2 (a TLS proxy such as Caddy is in front of nginx)" ;;
@@ -93,7 +117,7 @@ else
         *) warn "TRUST_PROXY=$proxy: only 1 or 2 are the documented values, check it matches the proxies in front" ;;
     esac
 
-    origin=$(value APP_ORIGIN)
+    origin=$(setting APP_ORIGIN)
     case "$origin" in
         https://*) ok "APP_ORIGIN is https" ;;
         "") ;;
@@ -101,9 +125,9 @@ else
     esac
     case "$origin" in */) warn "APP_ORIGIN ends with a slash" ;; esac
 
-    [ "$(value EMAIL_REQUIRE_TLS)" = false ] && warn "EMAIL_REQUIRE_TLS=false sends the mail login in plain text: only for a mail server on the same machine"
-    [ "$(value DB_SSL)" = off ] && warn "DB_SSL=off: only over a trusted path (same host, SSH tunnel, private network)"
-    [ -n "$(value EMAIL_HOST)" ] && [ -z "$(value EMAIL_FROM)" ] && warn "EMAIL_HOST is set but EMAIL_FROM is empty"
+    [ "$(setting EMAIL_REQUIRE_TLS)" = false ] && warn "EMAIL_REQUIRE_TLS=false sends the mail login in plain text: only for a mail server on the same machine"
+    [ "$(setting DB_SSL)" = off ] && warn "DB_SSL=off: only over a trusted path (same host, SSH tunnel, private network)"
+    [ -n "$(setting EMAIL_HOST)" ] && [ -z "$(setting EMAIL_FROM)" ] && warn "EMAIL_HOST is set but EMAIL_FROM is empty"
 
     if [ "$docker" = 0 ]; then
         :
