@@ -108,5 +108,46 @@ for i in $(seq 1 "$n"); do
     fi
 done
 
+# Part B: setting() against Compose where the resolved value differs from the text of the file:
+# references (also to a value with an escape, which Compose prints as a block), defaults, escapes and
+# quotes. Both JSON readers are tried, python3 and jq, as far as they are installed.
+cd "$repo" || exit 1
+eval "$(sed -n '/^resolve_compose() {/,/^}/p; /^resolved_value_python() {/,/^}/p; /^resolved_value_jq() {/,/^}/p; /^resolved_value() {/,/^}/p; /^setting() {/,/^}/p' "$here/preflight.sh")"
+
+setting_case() {
+    local name=$1 expected=$2 got reader
+    shift 2
+    printf '%s\n' "APP_ORIGIN=https://x.example.com" "TRUST_PROXY=1" "DB_USERNAME=u" "DB_PASSWORD=p" "DB_ROOT_PASSWORD=r" "$@" >"$work/b.env"
+    envfile="$work/b.env"
+    docker=1
+    resolved=""
+    resolve_compose
+    if [ -z "$resolved" ]; then differences=$((differences + 1)); printf 'DIFFERENT (setting):             %-34s Compose did not resolve the file\n' "$name"; return; fi
+    got=$(setting JWT_SECRET; printf X)
+    got=${got%X}
+    checked=$((checked + 1))
+    if [ "$got" != "$expected" ]; then
+        differences=$((differences + 1))
+        printf 'DIFFERENT (setting):             %-34s expected %s, got %s (hex)\n' "$name" "$(hex "$expected")" "$(hex "$got")"
+    fi
+    for reader in python jq; do
+        command -v "$([ "$reader" = python ] && echo python3 || echo jq)" >/dev/null 2>&1 || continue
+        got=$(resolved_value_"$reader" JWT_SECRET)
+        got=${got%X}
+        checked=$((checked + 1))
+        if [ "$got" != "$expected" ]; then
+            differences=$((differences + 1))
+            printf 'DIFFERENT (%s reader):%*s %-34s expected %s, got %s (hex)\n' "$reader" $((12 - ${#reader})) "" "$name" "$(hex "$expected")" "$(hex "$got")"
+        fi
+    done
+}
+
+setting_case "plain" "abcdef" "JWT_SECRET=abcdef"
+setting_case "reference" "short" "REF=short" 'JWT_SECRET=${REF}'
+setting_case "reference to an escape" $'abc\n' 'REF="abc\n"' 'JWT_SECRET=${REF}'
+setting_case "default" "0123456789" 'JWT_SECRET=${NOT_SET_ANYWHERE:-0123456789}'
+setting_case "escape" $'12\n34' 'JWT_SECRET="12\n34"'
+setting_case "quoted hash" "a # b" 'JWT_SECRET="a # b"'
+
 printf '%d comparisons, %d different\n' "$checked" "$differences"
 [ "$differences" -eq 0 ]

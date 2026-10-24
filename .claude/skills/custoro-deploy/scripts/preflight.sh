@@ -88,25 +88,44 @@ value() {
     printf '%s' "$raw"
 }
 
-# Docker mode: the values Compose really passes to the api service (variable references and defaults
-# resolved), taken from `docker compose config`. They stay in this variable and are never printed.
+# Docker mode: the values Compose really passes to the api service (variable references, defaults and
+# escapes resolved), read from `docker compose config --format json`. They stay in this variable and are
+# never printed.
 resolved=""
-if [ "$docker" = 1 ] && [ -f "$envfile" ] && docker info >/dev/null 2>&1; then
-    resolved=$(docker compose -f docker-compose.prod.yml --env-file "$envfile" config 2>/dev/null || true)
-fi
+resolve_compose() {
+    if [ "$docker" = 1 ] && [ -f "$envfile" ] && docker info >/dev/null 2>&1; then
+        resolved=$(docker compose -f docker-compose.prod.yml --env-file "$envfile" config --format json 2>/dev/null || true)
+    fi
+}
+resolve_compose
+
+# One variable of the api environment from that JSON, with an X after it (command substitution would
+# drop a trailing newline, which is part of the value). Nothing at all when the variable is not there.
+resolved_value_python() {
+    printf '%s' "$resolved" | python3 -c 'import json, sys
+v = json.load(sys.stdin)["services"]["api"]["environment"].get(sys.argv[1])
+if v is not None:
+    sys.stdout.write(str(v) + "X")' "$1" 2>/dev/null
+}
+resolved_value_jq() {
+    printf '%s' "$resolved" | jq -j --arg n "$1" '(.services.api.environment[$n] // empty) | tostring + "X"' 2>/dev/null
+}
+resolved_value() {
+    if command -v python3 >/dev/null 2>&1; then resolved_value_python "$1"
+    elif command -v jq >/dev/null 2>&1; then resolved_value_jq "$1"
+    fi
+}
 
 # The value of an api environment variable: Compose's resolved value in Docker mode, else what the env
-# file holds (without Docker the API reads the file with dotenv, which does not expand references)
+# file holds (without Docker the API reads the file with dotenv, which does not expand references).
+# scripts/selftest.sh tests this against Compose, with references, defaults and escapes.
 setting() {
     local v=""
     if [ -n "$resolved" ]; then
-        v=$(printf '%s\n' "$resolved" | awk -v n="$1" '$1 == n ":" { sub(/^[^:]*:[ ]*/, ""); print; exit }')
-        case "$v" in \"*\") v=${v#\"}; v=${v%\"} ;; \'*\') v=${v#\'}; v=${v%\'} ;; esac
-        # the config output writes values with a newline or a backslash as a block or an escaped scalar: read
-        # them from the file instead, parsed as Compose parses it (selftest.sh checks that)
-        case "$v" in "|"* | ">"* | *\\*) v="" ;; esac
+        v=$(resolved_value "$1")
+        if [ -n "$v" ]; then printf '%s' "${v%X}"; return; fi
     fi
-    if [ -n "$v" ]; then printf '%s' "$v"; else value "$1"; fi
+    value "$1"
 }
 
 echo "Git"
@@ -137,6 +156,9 @@ else
         fi
     done
 
+    if [ -n "$resolved" ] && ! command -v python3 >/dev/null 2>&1 && ! command -v jq >/dev/null 2>&1; then
+        warn "neither python3 nor jq is installed: values are read from the env file, so a reference such as \${VAR} is not resolved"
+    fi
     secret=$(setting JWT_SECRET; printf X)
     secret=${secret%X}
     if [ -n "$secret" ]; then
