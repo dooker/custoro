@@ -22,7 +22,7 @@ disable-model-invocation: true
 # without Docker: ... apps/api/.env.production --no-docker
 ```
 
-It reads files only. It checks the tree and branch, every variable `docker-compose.prod.yml` requires (set in the env file **and** in the CI docker job), `JWT_SECRET` of at least 32 characters, `TRUST_PROXY`, `APP_ORIGIN`, that compose resolves; then lists the migrations added since the deployed commit, which images need a rebuild (the web image copies `CHANGELOG.md`, so it almost always does) and the bold deploy actions of the changelog. Fix every FAIL before going on. Put its output in the runbook.
+It reads files only. It checks the tree and branch, every variable `docker-compose.prod.yml` requires (set in the env file **and** in the CI docker job), `JWT_SECRET` of at least 32 characters, `TRUST_PROXY`, `APP_ORIGIN`, that compose resolves; then lists the migrations added since the deployed commit, which images need a rebuild (the web image copies `CHANGELOG.md`, so it almost always does) and the bold deploy actions of the changelog. Fix every FAIL before going on. Put its output in the runbook. It reads values the way the file is really loaded: Compose for the Docker stack, dotenv without Docker. They differ: dotenv starts a comment at any `#`, so in `apps/api/.env.production` a password such as `pa#ss` loads as `pa` unless it is quoted (`"pa#ss"`), while Compose only treats `#` after whitespace as a comment. `scripts/selftest.sh` compares the pre-flight's reading with both real parsers (needs Docker); add a line there whenever a form is misread.
 
 ## 2. Rehearse a migration
 

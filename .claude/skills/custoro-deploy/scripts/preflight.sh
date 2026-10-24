@@ -44,16 +44,24 @@ ok() { printf '  ok    %s\n' "$*"; }
 bad() { printf '  FAIL  %s\n' "$*"; fail=1; }
 warn() { printf '  warn  %s\n' "$*"; }
 
-# Value of a variable the way Compose and dotenv load it (the last assignment wins): inside quotes it
-# is what is between them; unquoted it ends where whitespace is followed by "#" (an inline comment)
-# and loses trailing spaces. The raw text of the line would count a comment as part of the secret.
+# Value of a variable the way the file is really loaded (the last assignment wins): inside quotes it is
+# what is between them. Unquoted, a comment starts where dotenv and Compose differ: dotenv, which the
+# API uses without Docker, cuts at any "#"; Compose, which reads the file for the Docker stack, only at
+# whitespace followed by "#" (so "pa#ss" is a whole password for Compose and "pa" for dotenv). Trailing
+# spaces are dropped. scripts/selftest.sh compares this with both parsers.
 value() {
     local raw
     raw=$(grep -E "^[[:space:]]*(export[[:space:]]+)?$1[[:space:]]*=" "$envfile" | tail -1 | sed -E 's/^[^=]*=//; s/^[[:space:]]+//')
     case "$raw" in
         \"*) raw=${raw#\"}; raw=${raw%%\"*} ;;
         \'*) raw=${raw#\'}; raw=${raw%%\'*} ;;
-        *) raw=$(printf '%s' "$raw" | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//') ;;
+        *)
+            if [ "$docker" = 1 ]; then
+                raw=$(printf '%s' "$raw" | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//')
+            else
+                raw=$(printf '%s' "$raw" | sed -E 's/#.*$//; s/[[:space:]]+$//')
+            fi
+            ;;
     esac
     printf '%s' "$raw"
 }
