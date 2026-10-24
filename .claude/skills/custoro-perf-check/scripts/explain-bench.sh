@@ -16,10 +16,11 @@
 # statements.sql: `-- name: <label>` then one SELECT ending in `;`, see references/statements.example.sql.
 # The statements really run, so they are checked twice: an entry must be one SELECT or WITH with no
 # second statement and no INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, GRANT, CALL, LOAD,
-# INTO OUTFILE or DUMPFILE outside quotes, and no comment (`--`, `#`, `/*`, which also covers `/*! ... */`
+# INTO OUTFILE, DUMPFILE or DELIMITER outside quotes, no backslash outside quotes (the client would read
+# \\! as a shell command), and no comment (`--`, `#`, `/*`, which also covers `/*! ... */`
 # code) outside quotes: a quote inside a comment would hide the rest from the scan. Every run is in a
-# READ ONLY session with backslash escapes switched on, so the server refuses a write that got past the
-# check and reads quotes the way the scan does.
+# READ ONLY session with a fixed SQL mode and the client's own commands switched off (--binary-mode),
+# so the server refuses a write that got past the check and reads quotes the way the scan does.
 #
 # Executor time is the database's own number, without the client round trip. Compare runs only on the
 # same machine, server version and data in one sitting. `digest` before and after a rewrite shows the
@@ -90,10 +91,24 @@ awk -v dir="$work" '
         for (i = 1; i <= n; i++) {
             c = substr(s, i, 1); d = substr(s, i + 1, 1)
             if (q != "") {
-                if (c == "\\") i++
+                if (c == "\\" && q != "`") i++
                 else if (c == q) { if (d == q) i++; else q = "" }
             } else if (c == "\047" || c == "\"" || c == "`") q = c
             else if (c == "#" || (c == "-" && d == "-") || (c == "/" && d == "*")) return 1
+        }
+        return 0
+    }
+    # 1 when a backslash stands outside quotes: the mysql client reads "\\!" (shell command), "\\." (source a
+    # file), "\\C" (character set) and others from the text before the server sees it
+    function client_command(s,    i, c, q, n) {
+        n = length(s); q = ""
+        for (i = 1; i <= n; i++) {
+            c = substr(s, i, 1)
+            if (q != "") {
+                if (c == "\\" && q != "`") i++
+                else if (c == q) { if (substr(s, i + 1, 1) == q) i++; else q = "" }
+            } else if (c == "\047" || c == "\"" || c == "`") q = c
+            else if (c == "\\") return 1
         }
         return 0
     }
@@ -103,7 +118,7 @@ awk -v dir="$work" '
         for (i = 1; i <= n; i++) {
             c = substr(s, i, 1)
             if (q != "") {
-                if (c == "\\") i++
+                if (c == "\\" && q != "`") i++
                 else if (c == q) { if (substr(s, i + 1, 1) == q) i++; else q = "" }
             } else if (c == "\047" || c == "\"" || c == "`") q = c
             else if (c == ";") return 1
@@ -116,7 +131,7 @@ awk -v dir="$work" '
         for (i = 1; i <= n; i++) {
             c = substr(s, i, 1)
             if (q != "") {
-                if (c == "\\") i++
+                if (c == "\\" && q != "`") i++
                 else if (c == q) { if (substr(s, i + 1, 1) == q) i++; else q = "" }
                 t = t " "
             } else if (c == "\047" || c == "\"" || c == "`") { q = c; t = t " " }
@@ -124,7 +139,7 @@ awk -v dir="$work" '
         }
         gsub(/[^A-Za-z0-9_]+/, " ", t)
         t = " " toupper(t) " "
-        n = split("INSERT UPDATE DELETE DROP ALTER TRUNCATE CREATE GRANT CALL LOAD OUTFILE DUMPFILE", words, " ")
+        n = split("INSERT UPDATE DELETE DROP ALTER TRUNCATE CREATE GRANT CALL LOAD OUTFILE DUMPFILE DELIMITER", words, " ")
         for (k = 1; k <= n; k++) { w = words[k]; if (index(t, " " w " ")) return w }
         return ""
     }
@@ -134,6 +149,7 @@ awk -v dir="$work" '
         sub(/[ \t\r\n;]+$/, "", buf)
         if (toupper(buf) !~ /^(SELECT|WITH)[ \t\r\n(]/) { print "Only SELECT or WITH is run, not: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
         if (comment_marker(buf)) { print "Comments (--, #, /*) are not accepted inside a statement: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
+        if (client_command(buf)) { print "A backslash outside quotes is a client command (\\!, \\., \\C ...), not accepted: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
         if (extra_statement(buf)) { print "One statement per entry, but there is a \";\" inside: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
         word = forbidden(buf)
         if (word != "") { print "Not read-only: " word " in " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
@@ -168,12 +184,13 @@ fi
 # The client of whichever server this is, logged in as root through the socket
 q() {
     docker exec -i "$container" sh -c \
-        'c=$(command -v mariadb || command -v mysql); MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-$MARIADB_ROOT_PASSWORD}" exec "$c" -uroot -N -B "$@"' sh "$@"
+        'c=$(command -v mariadb || command -v mysql); MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-$MARIADB_ROOT_PASSWORD}" exec "$c" -uroot -N -B --binary-mode=1 "$@"' sh "$@"
 }
 
-# Every session reads quotes the way the scan does (a server with NO_BACKSLASH_ESCAPES ends a string at
-# `\'`, the scan does not) and refuses writes
-session_setup="SET SESSION sql_mode = REPLACE(@@sql_mode, 'NO_BACKSLASH_ESCAPES', ''); SET SESSION TRANSACTION READ ONLY;"
+# Every session starts from the same SQL mode, so quotes and backslashes mean what the scan assumes
+# whatever the server default is (NO_BACKSLASH_ESCAPES, ANSI_QUOTES, ORACLE ... change how a statement
+# is read), and refuses writes. Timings are not affected by the mode.
+session_setup="SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'; SET SESSION TRANSACTION READ ONLY;"
 
 version=$(q -e 'SELECT VERSION()' </dev/null)
 case "$version" in *aria*) maria=1 ;; *) maria=0 ;; esac
