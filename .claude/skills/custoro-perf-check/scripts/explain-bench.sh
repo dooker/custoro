@@ -13,7 +13,10 @@
 #   -n 6     timed runs per statement (after the warm-up run)
 #
 # statements.sql: `-- name: <label>` then one SELECT ending in `;`, see references/statements.example.sql.
-# Only SELECT or WITH is accepted, because the statements really run.
+# The statements really run, so they are checked twice: an entry must be one SELECT or WITH with no
+# second statement and no INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, GRANT, CALL, LOAD,
+# INTO OUTFILE or DUMPFILE outside quotes, and every run is in a READ ONLY session, so the server
+# refuses a write that got past the check.
 #
 # Executor time is the database's own number, without the client round trip. Compare runs only on the
 # same machine, server version and data in one sitting. `digest` before and after a rewrite shows the
@@ -90,11 +93,45 @@ case "$version" in *aria*) maria=1 ;; *) maria=0 ;; esac
 
 # Split the file into numbered statements: label.N and sql.N
 awk -v dir="$work" '
-    function flush() {
+    # 1 when a ";" stands outside quotes: a second statement on the same entry
+    function extra_statement(s,    i, c, q, n) {
+        n = length(s); q = ""
+        for (i = 1; i <= n; i++) {
+            c = substr(s, i, 1)
+            if (q != "") {
+                if (c == "\\") i++
+                else if (c == q) { if (substr(s, i + 1, 1) == q) i++; else q = "" }
+            } else if (c == "\047" || c == "\"" || c == "`") q = c
+            else if (c == ";") return 1
+        }
+        return 0
+    }
+    # the first word that writes or reads files, found outside quotes (else "")
+    function forbidden(s,    i, c, q, n, t, k, words, w) {
+        n = length(s); q = ""; t = ""
+        for (i = 1; i <= n; i++) {
+            c = substr(s, i, 1)
+            if (q != "") {
+                if (c == "\\") i++
+                else if (c == q) { if (substr(s, i + 1, 1) == q) i++; else q = "" }
+                t = t " "
+            } else if (c == "\047" || c == "\"" || c == "`") { q = c; t = t " " }
+            else t = t c
+        }
+        gsub(/[^A-Za-z0-9_]+/, " ", t)
+        t = " " toupper(t) " "
+        split("INSERT UPDATE DELETE DROP ALTER TRUNCATE CREATE GRANT CALL LOAD OUTFILE DUMPFILE", words, " ")
+        for (k = 1; k <= 11; k++) { w = words[k]; if (index(t, " " w " ")) return w }
+        return ""
+    }
+    function flush(    word) {
         if (buf == "") return
         if (label == "") { print "Statement without a `-- name:` line: " buf > "/dev/stderr"; bad = 1; exit 2 }
         sub(/[ \t\r\n;]+$/, "", buf)
         if (toupper(buf) !~ /^(SELECT|WITH)[ \t\r\n(]/) { print "Only SELECT or WITH is run, not: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
+        if (extra_statement(buf)) { print "One statement per entry, but there is a \";\" inside: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
+        word = forbidden(buf)
+        if (word != "") { print "Not read-only: " word " in " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
         n++
         print label > (dir "/label." n)
         print buf > (dir "/sql." n)
@@ -116,17 +153,24 @@ if [ "$cmd" = digest ]; then
     i=1
     while [ "$i" -le "$count" ]; do
         label=$(cat "$work/label.$i")
-        result=$(q -D "$database" <"$work/sql.$i")
-        printf '%-44s %7s rows  %s\n' "$label" "$(printf '%s\n' "$result" | grep -c '')" \
-            "$(printf '%s' "$result" | shasum -a 256 | cut -c1-12)"
+        # The result goes to a file: command substitution would drop trailing newlines, and zero rows
+        # would look like one empty row
+        if ! { printf 'SET SESSION TRANSACTION READ ONLY;\n'; cat "$work/sql.$i"; printf ';\n'; } |
+            q -D "$database" >"$work/out.$i" 2>"$work/err"; then
+            echo "The database refused: $label" >&2
+            cat "$work/err" >&2
+            exit 1
+        fi
+        printf '%-44s %7s rows  %s\n' "$label" "$(wc -l <"$work/out.$i" | tr -d ' ')" \
+            "$(shasum -a 256 <"$work/out.$i" | cut -c1-12)"
         i=$((i + 1))
     done
     exit 0
 fi
 
-# One session: a marker line, then the statement under ANALYZE, runs + 1 times
+# One read-only session: a marker line, then the statement under ANALYZE, runs + 1 times
 script="$work/script.sql"
-: >"$script"
+printf 'SET SESSION TRANSACTION READ ONLY;\n' >"$script"
 i=1
 while [ "$i" -le "$count" ]; do
     printf "SELECT '@@ %s';\n" "$(sed "s/'/''/g" "$work/label.$i")" >>"$script"

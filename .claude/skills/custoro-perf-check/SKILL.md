@@ -20,7 +20,7 @@ For MariaDB start a container, wait until it answers (the image restarts once wh
 
 ```bash
 docker run -d --rm --name perf-ma -e MARIADB_ROOT_PASSWORD=custoro mariadb:11.4
-until docker exec perf-ma sh -c 'exec 3<>/dev/tcp/127.0.0.1/3306' 2>/dev/null; do sleep 1; done   # the final server listens on TCP
+until docker exec perf-ma bash -c 'exec 3<>/dev/tcp/127.0.0.1/3306' 2>/dev/null; do sleep 1; done   # the final server listens on TCP; /dev/tcp needs bash, not sh
 M="docker exec -i -e MYSQL_PWD=custoro perf-ma mariadb -uroot"
 $M -e 'CREATE DATABASE custoro'
 for f in apps/api/db/01-schema.sql apps/api/db/02-seed.sql .claude/skills/custoro-db-migration/scripts/gen-volume.sql; do $M custoro < $f; done
@@ -47,7 +47,7 @@ $B run -p custoro-perf statements.sql after.tsv         # MySQL: EXPLAIN ANALYZE
 $B run -c perf-ma statements.sql after-maria.tsv        # MariaDB container: ANALYZE FORMAT=JSON
 ```
 
-`-p` is a compose project (its `db` service), `-c` a container, `-d` the database, `-n` the number of timed runs. Only `SELECT` is accepted, since the statements really run. It prints the table and saves a TSV.
+`-p` is a compose project (its `db` service), `-c` a container, `-d` the database, `-n` the number of timed runs. The statements really run, so an entry must be one `SELECT` or `WITH` (no second statement, no `INSERT`, `UPDATE`, `DELETE`, `INTO OUTFILE` and the like outside quotes), and every run is in a `READ ONLY` session, so the server refuses a write that got past that check. It prints the table and saves a TSV.
 
 **Before and after.** Capture the _before_ statements from `main` (`git switch --detach main` in the worktree, since `main` is checked out elsewhere, and switch back afterwards; the api container restarts on change) and the _after_ statements from the branch, then:
 
