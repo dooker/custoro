@@ -65,5 +65,7 @@ cd apps/web && npx playwright test --project=api --workers=1
 | `custoro-security-review` | review the API for security problems and report what was verified by running              |
 | `custoro-api-endpoint`    | add or change an endpoint: route, service, validation, texts, tests                       |
 | `custoro-pr`              | commits, CHANGELOG entry, PR description, CI, Copilot review comments                     |
+| `custoro-perf-check`      | time queries on the 50k-invoice data, before/after table for a PR                         |
+| `custoro-deploy`          | prepare a production deploy runbook (user-invoked only, never runs on the server)         |
 
 Never commit `.claude/settings.local.json` or `.claude/worktrees`.
