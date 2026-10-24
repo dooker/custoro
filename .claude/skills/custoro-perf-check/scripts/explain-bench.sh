@@ -6,6 +6,7 @@
 #   explain-bench.sh run     [target] [-n runs] <statements.sql> [out.tsv]
 #   explain-bench.sh digest  [target] <statements.sql>          rows and a checksum of each result
 #   explain-bench.sh compare <before.tsv> <after.tsv>            the Before / After table for a PR
+#   explain-bench.sh check   <statements.sql>                    validate the file, no database needed
 #
 #   target:  -p <compose project> (its `db` service; default `custoro`) or -c <container>,
 #            and -d <database> (default custoro). The login is root with the container's
@@ -28,7 +29,7 @@ usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; }
 
 cmd=${1:-}
 case "$cmd" in
-    run | digest | compare) shift ;;
+    run | digest | compare | check) shift ;;
     -h | --help | "") usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
 esac
@@ -49,6 +50,7 @@ if [ "$cmd" != compare ]; then
         esac
     done
     shift $((OPTIND - 1))
+    case "$runs" in '' | *[!0-9]* | 0) echo "-n must be a positive whole number" >&2; exit 2 ;; esac
 fi
 
 work=$(mktemp -d)
@@ -59,11 +61,13 @@ if [ "$cmd" = compare ]; then
     awk -F'\t' '
         function ms(x) { return (x < 0.1) ? sprintf("%.3f", x) : sprintf("%.2f", x) }
         FNR == NR { before[$1] = $2; next }
+        function cell(x) { return (x == "n/a") ? "n/a" : ms(x + 0) " ms" }
         {
             if (!($1 in before)) next
-            b = before[$1] + 0; a = $2 + 0
-            change = (a > 0 && b > 0) ? (a <= b ? sprintf("%.1fx faster", b / a) : sprintf("%.1fx slower", a / b)) : ""
-            printf "| %s | %s ms | %s ms | %s |\n", $1, ms(b), ms(a), change
+            # a statement without a measured time stays n/a and gets no ratio
+            b = before[$1]; a = $2
+            change = (b != "n/a" && a != "n/a" && a + 0 > 0 && b + 0 > 0) ? ((a + 0) <= (b + 0) ? sprintf("%.1fx faster", b / a) : sprintf("%.1fx slower", a / b)) : ""
+            printf "| %s | %s | %s | %s |\n", $1, cell(b), cell(a), change
         }
         BEGIN { print "| Statement | Before | After | Change |"; print "| --- | ---: | ---: | --- |" }
     ' "$1" "$2"
@@ -74,22 +78,6 @@ fi
 statements=$1
 out=${2:-}
 [ -f "$statements" ] || { echo "No such file: $statements" >&2; exit 2; }
-
-repo=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
-
-if [ -z "$container" ]; then
-    container=$(cd "$repo" && docker compose -p "${project:-custoro}" ps -q db)
-    [ -n "$container" ] || { echo "No running db service in compose project ${project:-custoro}" >&2; exit 1; }
-fi
-
-# The client of whichever server this is, logged in as root through the socket
-q() {
-    docker exec -i "$container" sh -c \
-        'c=$(command -v mariadb || command -v mysql); MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-$MARIADB_ROOT_PASSWORD}" exec "$c" -uroot -N -B "$@"' sh "$@"
-}
-
-version=$(q -e 'SELECT VERSION()' </dev/null)
-case "$version" in *aria*) maria=1 ;; *) maria=0 ;; esac
 
 # Split the file into numbered statements: label.N and sql.N
 awk -v dir="$work" '
@@ -120,8 +108,8 @@ awk -v dir="$work" '
         }
         gsub(/[^A-Za-z0-9_]+/, " ", t)
         t = " " toupper(t) " "
-        split("INSERT UPDATE DELETE DROP ALTER TRUNCATE CREATE GRANT CALL LOAD OUTFILE DUMPFILE", words, " ")
-        for (k = 1; k <= 11; k++) { w = words[k]; if (index(t, " " w " ")) return w }
+        n = split("INSERT UPDATE DELETE DROP ALTER TRUNCATE CREATE GRANT CALL LOAD OUTFILE DUMPFILE", words, " ")
+        for (k = 1; k <= n; k++) { w = words[k]; if (index(t, " " w " ")) return w }
         return ""
     }
     function flush(    word) {
@@ -148,6 +136,27 @@ awk -v dir="$work" '
 count=$(cat "$work/count")
 [ "$count" -gt 0 ] || { echo "No statements found in $statements" >&2; exit 2; }
 
+if [ "$cmd" = check ]; then
+    echo "ok: $count statement(s), each one read-only SELECT or WITH"
+    exit 0
+fi
+
+repo=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
+
+if [ -z "$container" ]; then
+    container=$(cd "$repo" && docker compose -p "${project:-custoro}" ps -q db)
+    [ -n "$container" ] || { echo "No running db service in compose project ${project:-custoro}" >&2; exit 1; }
+fi
+
+# The client of whichever server this is, logged in as root through the socket
+q() {
+    docker exec -i "$container" sh -c \
+        'c=$(command -v mariadb || command -v mysql); MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-$MARIADB_ROOT_PASSWORD}" exec "$c" -uroot -N -B "$@"' sh "$@"
+}
+
+version=$(q -e 'SELECT VERSION()' </dev/null)
+case "$version" in *aria*) maria=1 ;; *) maria=0 ;; esac
+
 if [ "$cmd" = digest ]; then
     printf '%s\n' "server: $version" >&2
     i=1
@@ -173,7 +182,8 @@ script="$work/script.sql"
 printf 'SET SESSION TRANSACTION READ ONLY;\n' >"$script"
 i=1
 while [ "$i" -le "$count" ]; do
-    printf "SELECT '@@ %s';\n" "$(sed "s/'/''/g" "$work/label.$i")" >>"$script"
+    # The marker is the entry's number: a label is text from the file and never goes into SQL
+    printf "SELECT '@@ %d';\n" "$i" >>"$script"
     r=0
     while [ "$r" -le "$runs" ]; do
         if [ "$maria" = 1 ]; then printf 'ANALYZE FORMAT=JSON '; else printf 'EXPLAIN ANALYZE '; fi >>"$script"
@@ -189,8 +199,16 @@ if ! q -D "$database" <"$script" >"$work/raw" 2>"$work/err"; then
     exit 1
 fi
 
+i=1
+: >"$work/labels.txt"
+while [ "$i" -le "$count" ]; do
+    cat "$work/label.$i" >>"$work/labels.txt"
+    i=$((i + 1))
+done
+
 awk -F'\n' -v maria="$maria" -v runs="$runs" '
-    /^@@ / { label = substr($0, 4); labels[++L] = label; seen = 0; next }
+    FNR == NR { names[FNR] = $0; next }
+    /^@@ / { label = names[substr($0, 4) + 0]; labels[++L] = label; seen = 0; next }
     {
         seen++
         if (seen == 1) next                                  # warm-up run
@@ -217,7 +235,7 @@ awk -F'\n' -v maria="$maria" -v runs="$runs" '
             printf "%s\t%.3f\t%.3f\t%.3f\t%d\n", label, median, s[1], s[c], c
         }
     }
-' "$work/raw" >"$work/result.tsv"
+' "$work/labels.txt" "$work/raw" >"$work/result.tsv"
 
 echo "Server: $version, database $database, median of $runs warm runs, executor time" >&2
 echo "| Statement | Median | Min | Max |"
