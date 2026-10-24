@@ -97,12 +97,22 @@ column_order() {
            GROUP BY TABLE_NAME" | LC_ALL=C sort
 }
 
+# Rows per table. With table names given (the ones from before the migrations) only those are
+# counted: a table the migrations add is not a difference, while an original table that is gone,
+# or has other counts, is
 row_counts() {
-    local table
-    for table in $(q -e "SELECT TABLE_NAME FROM information_schema.TABLES
-                          WHERE TABLE_SCHEMA = '$1' AND TABLE_TYPE = 'BASE TABLE'
-                            AND TABLE_NAME <> 'migrations' ORDER BY 1"); do
-        printf '%s: %s\n' "$table" "$(q -e "SELECT COUNT(*) FROM \`$1\`.\`$table\`")"
+    local database=$1 table count tables
+    shift
+    if [ $# -gt 0 ]; then
+        tables="$*"
+    else
+        tables=$(q -e "SELECT TABLE_NAME FROM information_schema.TABLES
+                        WHERE TABLE_SCHEMA = '$database' AND TABLE_TYPE = 'BASE TABLE'
+                          AND TABLE_NAME <> 'migrations' ORDER BY 1")
+    fi
+    for table in $tables; do
+        count=$(q -e "SELECT COUNT(*) FROM \`$database\`.\`$table\`" 2>/dev/null) || count="<missing>"
+        printf '%s: %s\n' "$table" "$count"
     done
 }
 
@@ -181,7 +191,7 @@ for image in "${engines[@]}"; do
         echo "  migrations on the previous schema took $((SECONDS - started)) s"
         structure migrated >"$work/migrated.txt"
         column_order migrated >"$work/migrated-order.txt"
-        row_counts migrated >"$work/rows-after.txt"
+        row_counts migrated $(cut -d: -f1 "$work/rows-before.txt") >"$work/rows-after.txt"
         verdict "fresh schema == previous schema + migrations" "$work/fresh.txt" "$work/migrated.txt"
         verdict "column order (not a failure)" "$work/fresh-order.txt" "$work/migrated-order.txt" note
         verdict "row counts unchanged by the migrations" "$work/rows-before.txt" "$work/rows-after.txt"
