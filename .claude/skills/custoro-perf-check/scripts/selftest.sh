@@ -84,5 +84,14 @@ expect "" "WITH x AS (SELECT 1 AS a) SELECT a FROM x;"
 expect "" "SELECT 1;" "\\'; DROP TABLE x; #"
 expect "" "SELECT 1;" "a label with 'quotes', \"double\" and a backslash \\"
 
+# The database name goes into a GRANT: anything but letters, digits and _ is refused before Docker is touched
+printf -- '-- name: t\nSELECT 1;\n' >"$work/ok.sql"
+for bad in 'a;b' 'a b' 'a`b' "a'b" 'a-b' ''; do
+    if out=$("$bench" run -d "$bad" "$work/ok.sql" 2>&1); then
+        failed=$((failed + 1)); printf 'FAIL accepted -d "%s"\n' "$bad"
+    elif printf '%s' "$out" | grep -q '^-d must be'; then pass=$((pass + 1))
+    else failed=$((failed + 1)); printf 'FAIL -d "%s" refused with "%s"\n' "$bad" "$(printf '%s' "$out" | head -1)"; fi
+done
+
 printf '%d passed, %d failed\n' "$pass" "$failed"
 [ "$failed" -eq 0 ]

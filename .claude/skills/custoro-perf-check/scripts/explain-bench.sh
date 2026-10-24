@@ -3,24 +3,30 @@
 # to warm up, then N times under EXPLAIN ANALYZE (MySQL) or ANALYZE FORMAT=JSON (MariaDB); the
 # table shows the median of the executor time. Needs Docker and a running MySQL or MariaDB container.
 #
-#   explain-bench.sh run     [target] [-n runs] <statements.sql> [out.tsv]
-#   explain-bench.sh digest  [target] <statements.sql>          rows and a checksum of each result
-#   explain-bench.sh compare <before.tsv> <after.tsv>            the Before / After table for a PR
-#   explain-bench.sh check   <statements.sql>                    validate the file, no database needed
+#   explain-bench.sh run        [target] [-n runs] <statements.sql> [out.tsv]
+#   explain-bench.sh digest     [target] <statements.sql>      rows and a checksum of each result
+#   explain-bench.sh compare    <before.tsv> <after.tsv>        the Before / After table for a PR
+#   explain-bench.sh check      <statements.sql>                validate the file, no database needed
+#   explain-bench.sh privileges [target]                        prove the benchmark user cannot write or read files
 #
 #   target:  -p <compose project> (its `db` service; default `custoro`) or -c <container>,
-#            and -d <database> (default custoro). The login is root with the container's
-#            MYSQL_ROOT_PASSWORD (MARIADB_ROOT_PASSWORD on MariaDB).
+#            and -d <database> (default custoro, letters, digits and _ only). Setup and cleanup use root
+#            with the container's MYSQL_ROOT_PASSWORD (MARIADB_ROOT_PASSWORD on MariaDB).
 #   -n 6     timed runs per statement (after the warm-up run)
 #
 # statements.sql: `-- name: <label>` then one SELECT ending in `;`, see references/statements.example.sql.
-# The statements really run, so they are checked twice: an entry must be one SELECT or WITH with no
-# second statement and no INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, GRANT, CALL, LOAD,
-# INTO OUTFILE, DUMPFILE or DELIMITER outside quotes, no backslash outside quotes (the client would read
-# \\! as a shell command), and no comment (`--`, `#`, `/*`, which also covers `/*! ... */`
-# code) outside quotes: a quote inside a comment would hide the rest from the scan. Every run is in a
-# READ ONLY session with a fixed SQL mode and the client's own commands switched off (--binary-mode),
-# so the server refuses a write that got past the check and reads quotes the way the scan does.
+# The statements really run, so the benchmark is fenced in layers, and layer 2 is the one that counts:
+#   1. a scan of the file (the same as `check`): one SELECT or WITH per entry, no second statement, no
+#      INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, GRANT, CALL, LOAD, OUTFILE, DUMPFILE or
+#      DELIMITER outside quotes, no backslash and no comment (`--`, `#`, `/*`) outside quotes. It catches
+#      mistakes and the obvious, and refuses a bad file before anything runs, but it is a word list over
+#      text and is not the security boundary
+#   2. the statements run as a throwaway database user that has SELECT on the one database and nothing
+#      else (no FILE, so no INTO OUTFILE, DUMPFILE or LOAD_FILE; no write, no stored routine, no
+#      SET GLOBAL). It is created for the run and dropped at the end. This is the boundary, enforced
+#      by the server; `privileges` tests it
+#   3. every session has a fixed SQL mode and is READ ONLY, and the client runs with --binary-mode so
+#      it ignores its own backslash commands
 #
 # Executor time is the database's own number, without the client round trip. Compare runs only on the
 # same machine, server version and data in one sitting. `digest` before and after a rewrite shows the
@@ -32,7 +38,7 @@ usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; }
 
 cmd=${1:-}
 case "$cmd" in
-    run | digest | compare | check) shift ;;
+    run | digest | compare | check | privileges) shift ;;
     -h | --help | "") usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
 esac
@@ -54,10 +60,52 @@ if [ "$cmd" != compare ]; then
     done
     shift $((OPTIND - 1))
     case "$runs" in '' | *[!0-9]* | 0) echo "-n must be a positive whole number" >&2; exit 2 ;; esac
+    # the database name goes into GRANT: letters, digits and underscore only
+    case "$database" in '' | *[!A-Za-z0-9_]*) echo "-d must be a database name of letters, digits and _" >&2; exit 2 ;; esac
 fi
 
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+container=${container:-}
+bench_user=explain_bench
+bench_pw=""
+
+# The client of whichever server this is. root_q logs in as root (setup, cleanup, version); bench_q as
+# the throwaway user the statements run as. Both use the socket inside the container.
+root_q() {
+    docker exec -i "$container" sh -c \
+        'c=$(command -v mariadb || command -v mysql); MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-$MARIADB_ROOT_PASSWORD}" exec "$c" -uroot -N -B --binary-mode=1 "$@"' sh "$@"
+}
+bench_q() {
+    docker exec -i -e MYSQL_PWD="$bench_pw" "$container" sh -c \
+        'c=$(command -v mariadb || command -v mysql); exec "$c" -uexplain_bench -N -B --binary-mode=1 "$@"' sh "$@"
+}
+
+cleanup() {
+    if [ -n "$bench_pw" ]; then
+        root_q -e "DROP USER IF EXISTS '$bench_user'@'localhost'; DROP USER IF EXISTS 'explain_bench_probe'@'localhost'" </dev/null >/dev/null 2>&1 || true
+    fi
+    rm -rf "$work"
+}
+trap cleanup EXIT
+
+resolve_container() {
+    local repo
+    if [ -z "$container" ]; then
+        repo=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
+        container=$(cd "$repo" && docker compose -p "${project:-custoro}" ps -q db)
+        [ -n "$container" ] || { echo "No running db service in compose project ${project:-custoro}" >&2; exit 1; }
+    fi
+}
+
+# A user with SELECT on the one database and nothing else. A fresh random password every run, the user
+# is dropped at the end (and any left behind by a killed run is reset here).
+create_bench_user() {
+    bench_pw=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+    root_q -e "CREATE USER IF NOT EXISTS '$bench_user'@'localhost' IDENTIFIED BY '$bench_pw';
+               ALTER USER '$bench_user'@'localhost' IDENTIFIED BY '$bench_pw';
+               REVOKE ALL PRIVILEGES, GRANT OPTION FROM '$bench_user'@'localhost';
+               GRANT SELECT ON \`$database\`.* TO '$bench_user'@'localhost'" </dev/null
+}
 
 if [ "$cmd" = compare ]; then
     [ $# -eq 2 ] || { usage >&2; exit 2; }
@@ -75,6 +123,50 @@ if [ "$cmd" = compare ]; then
         BEGIN { print "| Statement | Before | After | Change |"; print "| --- | ---: | ---: | --- |" }
     ' "$1" "$2"
     exit 0
+fi
+
+if [ "$cmd" = privileges ]; then
+    resolve_container
+    version=$(root_q -e 'SELECT VERSION()' </dev/null)
+    create_bench_user
+    printf 'Server: %s, database %s, user %s\n' "$version" "$database" "$bench_user"
+    failed=0
+    denied_re='denied|ERROR 1045|ERROR 1044|ERROR 1142|ERROR 1227|ERROR 1370|ERROR 1410'
+    # try <name> <sql> <denied | the exact output expected>: every statement runs as the benchmark user,
+    # without the session fences, so it is the privileges alone that are tested. The statements that
+    # would do harm if the boundary were broken point at objects that do not exist.
+    try() {
+        local out
+        out=$(bench_q -D "$database" -e "$2" 2>&1 </dev/null) || true
+        if { [ "$3" = denied ] && printf '%s' "$out" | grep -qiE "$denied_re"; } || [ "$out" = "$3" ]; then
+            printf '  ok    %s\n' "$1"
+        else
+            printf '  FAIL  %s: %s\n' "$1" "$(printf '%s' "$out" | head -1 | cut -c1-110)"
+            failed=1
+        fi
+    }
+    try "SELECT works" "SELECT 1" "1"
+    try "INTO OUTFILE is denied" "SELECT 'x' INTO OUTFILE '/tmp/explain-bench-privileges'" denied
+    try "INTO DUMPFILE is denied" "SELECT 'x' INTO DUMPFILE '/tmp/explain-bench-privileges'" denied
+    try "LOAD_FILE reads nothing" "SELECT LOAD_FILE('/etc/passwd') IS NULL" "1"
+    try "INSERT is denied" "INSERT INTO \`$database\`.explain_bench_probe VALUES (1)" denied
+    try "UPDATE is denied" "UPDATE \`$database\`.explain_bench_probe SET id = 1" denied
+    try "DELETE is denied" "DELETE FROM \`$database\`.explain_bench_probe" denied
+    try "CREATE TABLE is denied" "CREATE TABLE \`$database\`.explain_bench_probe (id INT)" denied
+    try "DROP TABLE is denied" "DROP TABLE IF EXISTS \`$database\`.explain_bench_probe" denied
+    try "CREATE USER is denied" "CREATE USER 'explain_bench_probe'@'localhost'" denied
+    try "GRANT is denied" "GRANT ALL ON *.* TO '$bench_user'@'localhost'" denied
+    try "SET GLOBAL is denied" "SET GLOBAL sql_mode = @@GLOBAL.sql_mode" denied
+    try "the mysql schema is closed" "SELECT * FROM mysql.user LIMIT 1" denied
+    grants=$(bench_q -e "SHOW GRANTS" 2>&1 </dev/null || true)
+    if printf '%s' "$grants" | grep -q "GRANT SELECT ON" && ! printf '%s' "$grants" | grep -qE 'FILE|ALL PRIVILEGES|GRANT OPTION|SUPER|INSERT|UPDATE|DELETE'; then
+        printf '  ok    SHOW GRANTS lists SELECT on %s and nothing else\n' "$database"
+    else
+        printf '  FAIL  SHOW GRANTS lists more than SELECT on %s\n' "$database"
+        failed=1
+    fi
+    [ "$failed" -eq 0 ] && echo "The benchmark user can only read $database." || echo "The benchmark user can do more than read." >&2
+    exit "$failed"
 fi
 
 [ $# -ge 1 ] || { usage >&2; exit 2; }
@@ -174,26 +266,17 @@ if [ "$cmd" = check ]; then
     exit 0
 fi
 
-repo=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
-
-if [ -z "$container" ]; then
-    container=$(cd "$repo" && docker compose -p "${project:-custoro}" ps -q db)
-    [ -n "$container" ] || { echo "No running db service in compose project ${project:-custoro}" >&2; exit 1; }
-fi
-
-# The client of whichever server this is, logged in as root through the socket
-q() {
-    docker exec -i "$container" sh -c \
-        'c=$(command -v mariadb || command -v mysql); MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-$MARIADB_ROOT_PASSWORD}" exec "$c" -uroot -N -B --binary-mode=1 "$@"' sh "$@"
-}
+resolve_container
+version=$(root_q -e 'SELECT VERSION()' </dev/null)
+case "$version" in *aria*) maria=1 ;; *) maria=0 ;; esac
+create_bench_user
+# From here on every statement runs as the benchmark user
+q() { bench_q "$@"; }
 
 # Every session starts from the same SQL mode, so quotes and backslashes mean what the scan assumes
 # whatever the server default is (NO_BACKSLASH_ESCAPES, ANSI_QUOTES, ORACLE ... change how a statement
 # is read), and refuses writes. Timings are not affected by the mode.
 session_setup="SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'; SET SESSION TRANSACTION READ ONLY;"
-
-version=$(q -e 'SELECT VERSION()' </dev/null)
-case "$version" in *aria*) maria=1 ;; *) maria=0 ;; esac
 
 if [ "$cmd" = digest ]; then
     printf '%s\n' "server: $version" >&2
