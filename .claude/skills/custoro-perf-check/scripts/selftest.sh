@@ -68,6 +68,13 @@ expect "client command" $'SELECT 1\n\\. /etc/passwd\n;'
 expect "client command" $'SELECT 1\n\\C gbk\n;'
 expect "client command" "SELECT 1 \\g"
 
+# Accepted: SQL as the API sends it, with the indentation of its templates (the review of PR 8, round 7)
+expect "" $'        SELECT 1;'
+expect "" $'\tSELECT 1;'
+expect "" $'\n\n        SELECT customers.name,\n               invoices.id\n        FROM invoices\n                 LEFT JOIN customers ON customers.id = invoices.customer_id\n        ORDER BY invoices.id DESC\n        LIMIT 0, 20;'
+expect "" $'   WITH x AS (SELECT 1 AS a)\n   SELECT a FROM x;'
+expect "Only SELECT or WITH" $'   DELETE FROM invoices;'
+
 # Accepted: the same characters and words inside quotes or as names are text
 expect "" "SELECT 'a;b' AS x;"
 expect "" "SELECT 'delete outfile dumpfile; drop' AS x;"

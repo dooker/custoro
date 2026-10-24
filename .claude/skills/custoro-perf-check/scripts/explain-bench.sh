@@ -8,6 +8,7 @@
 #   explain-bench.sh compare    <before.tsv> <after.tsv>        the Before / After table for a PR
 #   explain-bench.sh check      <statements.sql>                validate the file, no database needed
 #   explain-bench.sh privileges [target]                        prove the benchmark user cannot write or read files
+#   explain-bench.sh drop-users [target]                        drop explain_bench_* users that a killed run left behind
 #
 #   target:  -p <compose project> (its `db` service; default `custoro`) or -c <container>,
 #            and -d <database> (default custoro, letters, digits and _ only). Setup and cleanup use root
@@ -23,8 +24,9 @@
 #      text and is not the security boundary
 #   2. the statements run as a throwaway database user that has SELECT on the one database and nothing
 #      else (no FILE, so no INTO OUTFILE, DUMPFILE or LOAD_FILE; no write, no stored routine, no
-#      SET GLOBAL). It is created for the run and dropped at the end. This is the boundary, enforced
-#      by the server; `privileges` tests it
+#      SET GLOBAL). It is created for the run with a random name and password, so overlapping runs
+#      do not touch each other's, and dropped at the end. This is the boundary, enforced by the
+#      server; `privileges` tests it
 #   3. every session has a fixed SQL mode and is READ ONLY, and the client runs with --binary-mode so
 #      it ignores its own backslash commands
 #
@@ -38,7 +40,7 @@ usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; }
 
 cmd=${1:-}
 case "$cmd" in
-    run | digest | compare | check | privileges) shift ;;
+    run | digest | compare | check | privileges | drop-users) shift ;;
     -h | --help | "") usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
 esac
@@ -66,8 +68,9 @@ fi
 
 work=$(mktemp -d)
 container=${container:-}
-bench_user=explain_bench
+bench_user=""
 bench_pw=""
+made_sibling=""
 
 # The client of whichever server this is. root_q logs in as root (setup, cleanup, version); bench_q as
 # the throwaway user the statements run as. Both use the socket inside the container.
@@ -76,13 +79,16 @@ root_q() {
         'c=$(command -v mariadb || command -v mysql); MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-$MARIADB_ROOT_PASSWORD}" exec "$c" -uroot -N -B --binary-mode=1 "$@"' sh "$@"
 }
 bench_q() {
-    docker exec -i -e MYSQL_PWD="$bench_pw" "$container" sh -c \
-        'c=$(command -v mariadb || command -v mysql); exec "$c" -uexplain_bench -N -B --binary-mode=1 "$@"' sh "$@"
+    docker exec -i -e MYSQL_PWD="$bench_pw" -e BENCH_USER="$bench_user" "$container" sh -c \
+        'c=$(command -v mariadb || command -v mysql); exec "$c" -u"$BENCH_USER" -N -B --binary-mode=1 "$@"' sh "$@"
 }
 
 cleanup() {
-    if [ -n "$bench_pw" ]; then
-        root_q -e "DROP USER IF EXISTS '$bench_user'@'localhost'; DROP USER IF EXISTS 'explain_bench_probe'@'localhost'" </dev/null >/dev/null 2>&1 || true
+    if [ -n "$bench_user" ]; then
+        root_q -e "DROP USER IF EXISTS '$bench_user'@'localhost'; DROP USER IF EXISTS '${bench_user}_p'@'localhost'" </dev/null >/dev/null 2>&1 || true
+    fi
+    if [ -n "$made_sibling" ]; then
+        root_q -e "DROP DATABASE IF EXISTS \`$made_sibling\`" </dev/null >/dev/null 2>&1 || true
     fi
     rm -rf "$work"
 }
@@ -97,14 +103,16 @@ resolve_container() {
     fi
 }
 
-# A user with SELECT on the one database and nothing else. A fresh random password every run, the user
-# is dropped at the end (and any left behind by a killed run is reset here).
+# A user with SELECT on the one database and nothing else. A random name and a random password every
+# run, so overlapping runs on one container do not touch each other's account; the user is dropped at
+# the end (`drop-users` removes what a killed run left). In a database-level GRANT an underscore is a
+# wildcard, even inside backticks, so it is escaped: -d custoro_test must not open custoroXtest too.
 create_bench_user() {
+    local grant_db=${database//_/\\_}
+    bench_user="explain_bench_$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n')"
     bench_pw=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
-    root_q -e "CREATE USER IF NOT EXISTS '$bench_user'@'localhost' IDENTIFIED BY '$bench_pw';
-               ALTER USER '$bench_user'@'localhost' IDENTIFIED BY '$bench_pw';
-               REVOKE ALL PRIVILEGES, GRANT OPTION FROM '$bench_user'@'localhost';
-               GRANT SELECT ON \`$database\`.* TO '$bench_user'@'localhost'" </dev/null
+    root_q -e "CREATE USER '$bench_user'@'localhost' IDENTIFIED BY '$bench_pw';
+               GRANT SELECT ON \`$grant_db\`.* TO '$bench_user'@'localhost'" </dev/null
 }
 
 if [ "$cmd" = compare ]; then
@@ -122,6 +130,18 @@ if [ "$cmd" = compare ]; then
         }
         BEGIN { print "| Statement | Before | After | Change |"; print "| --- | ---: | ---: | --- |" }
     ' "$1" "$2"
+    exit 0
+fi
+
+if [ "$cmd" = drop-users ]; then
+    resolve_container
+    list=$(root_q -e "SELECT CONCAT('DROP USER IF EXISTS ', QUOTE(user), '@', QUOTE(host), ';') FROM mysql.user WHERE LEFT(user, 14) = 'explain_bench_' OR user = 'explain_bench'" </dev/null)
+    if [ -z "$list" ]; then
+        echo "No explain_bench users."
+    else
+        printf '%s\n' "$list" | root_q
+        printf '%s user(s) dropped.\n' "$(printf '%s\n' "$list" | wc -l | tr -d ' ')"
+    fi
     exit 0
 fi
 
@@ -154,10 +174,19 @@ if [ "$cmd" = privileges ]; then
     try "DELETE is denied" "DELETE FROM \`$database\`.explain_bench_probe" denied
     try "CREATE TABLE is denied" "CREATE TABLE \`$database\`.explain_bench_probe (id INT)" denied
     try "DROP TABLE is denied" "DROP TABLE IF EXISTS \`$database\`.explain_bench_probe" denied
-    try "CREATE USER is denied" "CREATE USER 'explain_bench_probe'@'localhost'" denied
+    try "CREATE USER is denied" "CREATE USER '${bench_user}_p'@'localhost'" denied
     try "GRANT is denied" "GRANT ALL ON *.* TO '$bench_user'@'localhost'" denied
     try "SET GLOBAL is denied" "SET GLOBAL sql_mode = @@GLOBAL.sql_mode" denied
     try "the mysql schema is closed" "SELECT * FROM mysql.user LIMIT 1" denied
+    # a database that an unescaped underscore in the grant would also open (custoro_test and custoroXtest)
+    sibling=${database//_/X}
+    if [ "$sibling" != "$database" ]; then
+        if [ "$(root_q -e "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = '$sibling'" </dev/null)" = 0 ]; then
+            root_q -e "CREATE DATABASE \`$sibling\`" </dev/null
+            made_sibling=$sibling
+        fi
+        try "a sibling database ($sibling) is closed" "SELECT 1 FROM \`$sibling\`.explain_bench_probe" denied
+    fi
     grants=$(bench_q -e "SHOW GRANTS" 2>&1 </dev/null || true)
     if printf '%s' "$grants" | grep -q "GRANT SELECT ON" && ! printf '%s' "$grants" | grep -qE 'FILE|ALL PRIVILEGES|GRANT OPTION|SUPER|INSERT|UPDATE|DELETE'; then
         printf '  ok    SHOW GRANTS lists SELECT on %s and nothing else\n' "$database"
@@ -239,6 +268,7 @@ awk -v dir="$work" '
         if (buf == "") return
         if (label == "") { print "Statement without a `-- name:` line: " buf > "/dev/stderr"; bad = 1; exit 2 }
         sub(/[ \t\r\n;]+$/, "", buf)
+        sub(/^[ \t\r\n]+/, "", buf)                        # the SQL templates of the API are indented
         if (toupper(buf) !~ /^(SELECT|WITH)[ \t\r\n(]/) { print "Only SELECT or WITH is run, not: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
         if (comment_marker(buf)) { print "Comments (--, #, /*) are not accepted inside a statement: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
         if (client_command(buf)) { print "A backslash outside quotes is a client command (\\!, \\., \\C ...), not accepted: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
