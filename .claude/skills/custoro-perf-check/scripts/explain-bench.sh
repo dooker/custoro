@@ -16,8 +16,10 @@
 # statements.sql: `-- name: <label>` then one SELECT ending in `;`, see references/statements.example.sql.
 # The statements really run, so they are checked twice: an entry must be one SELECT or WITH with no
 # second statement and no INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, GRANT, CALL, LOAD,
-# INTO OUTFILE or DUMPFILE outside quotes, and every run is in a READ ONLY session, so the server
-# refuses a write that got past the check.
+# INTO OUTFILE or DUMPFILE outside quotes, and no comment (`--`, `#`, `/*`, which also covers `/*! ... */`
+# code) outside quotes: a quote inside a comment would hide the rest from the scan. Every run is in a
+# READ ONLY session with backslash escapes switched on, so the server refuses a write that got past the
+# check and reads quotes the way the scan does.
 #
 # Executor time is the database's own number, without the client round trip. Compare runs only on the
 # same machine, server version and data in one sitting. `digest` before and after a rewrite shows the
@@ -81,6 +83,20 @@ out=${2:-}
 
 # Split the file into numbered statements: label.N and sql.N
 awk -v dir="$work" '
+    # 1 when a comment starts outside quotes: "--", "#" or "/*". Comments are refused, not skipped,
+    # because a quote inside one (`/* \047 */`) would make the scans below read the rest as a string
+    function comment_marker(s,    i, c, d, q, n) {
+        n = length(s); q = ""
+        for (i = 1; i <= n; i++) {
+            c = substr(s, i, 1); d = substr(s, i + 1, 1)
+            if (q != "") {
+                if (c == "\\") i++
+                else if (c == q) { if (d == q) i++; else q = "" }
+            } else if (c == "\047" || c == "\"" || c == "`") q = c
+            else if (c == "#" || (c == "-" && d == "-") || (c == "/" && d == "*")) return 1
+        }
+        return 0
+    }
     # 1 when a ";" stands outside quotes: a second statement on the same entry
     function extra_statement(s,    i, c, q, n) {
         n = length(s); q = ""
@@ -117,6 +133,7 @@ awk -v dir="$work" '
         if (label == "") { print "Statement without a `-- name:` line: " buf > "/dev/stderr"; bad = 1; exit 2 }
         sub(/[ \t\r\n;]+$/, "", buf)
         if (toupper(buf) !~ /^(SELECT|WITH)[ \t\r\n(]/) { print "Only SELECT or WITH is run, not: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
+        if (comment_marker(buf)) { print "Comments (--, #, /*) are not accepted inside a statement: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
         if (extra_statement(buf)) { print "One statement per entry, but there is a \";\" inside: " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
         word = forbidden(buf)
         if (word != "") { print "Not read-only: " word " in " substr(buf, 1, 60) > "/dev/stderr"; bad = 1; exit 2 }
@@ -154,6 +171,10 @@ q() {
         'c=$(command -v mariadb || command -v mysql); MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-$MARIADB_ROOT_PASSWORD}" exec "$c" -uroot -N -B "$@"' sh "$@"
 }
 
+# Every session reads quotes the way the scan does (a server with NO_BACKSLASH_ESCAPES ends a string at
+# `\'`, the scan does not) and refuses writes
+session_setup="SET SESSION sql_mode = REPLACE(@@sql_mode, 'NO_BACKSLASH_ESCAPES', ''); SET SESSION TRANSACTION READ ONLY;"
+
 version=$(q -e 'SELECT VERSION()' </dev/null)
 case "$version" in *aria*) maria=1 ;; *) maria=0 ;; esac
 
@@ -164,7 +185,7 @@ if [ "$cmd" = digest ]; then
         label=$(cat "$work/label.$i")
         # The result goes to a file: command substitution would drop trailing newlines, and zero rows
         # would look like one empty row
-        if ! { printf 'SET SESSION TRANSACTION READ ONLY;\n'; cat "$work/sql.$i"; printf ';\n'; } |
+        if ! { printf '%s\n' "$session_setup"; cat "$work/sql.$i"; printf ';\n'; } |
             q -D "$database" >"$work/out.$i" 2>"$work/err"; then
             echo "The database refused: $label" >&2
             cat "$work/err" >&2
@@ -179,7 +200,7 @@ fi
 
 # One read-only session: a marker line, then the statement under ANALYZE, runs + 1 times
 script="$work/script.sql"
-printf 'SET SESSION TRANSACTION READ ONLY;\n' >"$script"
+printf '%s\n' "$session_setup" >"$script"
 i=1
 while [ "$i" -le "$count" ]; do
     # The marker is the entry's number: a label is text from the file and never goes into SQL

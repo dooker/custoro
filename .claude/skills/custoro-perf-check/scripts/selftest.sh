@@ -49,12 +49,26 @@ expect "Not read-only: DUMPFILE" "SELECT 'x' INTO DUMPFILE '/tmp/x';"
 printf 'SELECT 1;\n' >"$work/noname.sql"
 if "$bench" check "$work/noname.sql" >/dev/null 2>&1; then failed=$((failed + 1)); echo "FAIL accepted a statement without a -- name: line"; else pass=$((pass + 1)); fi
 
+# Refused: a comment hides what follows from a scan that reads quotes (the review of PR 8, round 4)
+expect "Comments" "SELECT 'benchmark-check' /* ' */ INTO OUTFILE '/tmp/x' -- '"
+expect "Comments" "SELECT 1 # '"
+expect "Comments" "SELECT 1 -- '"
+expect "Comments" "SELECT 1 /*! INTO OUTFILE '/tmp/x' */"
+expect "Comments" "SELECT 1 /*!50000 INTO OUTFILE '/tmp/x' */"
+expect "Comments" "SELECT 1 INTO/**/OUTFILE '/tmp/x'"
+expect "Comments" "SELECT 1 /* ordinary */"
+expect "Comments" "SELECT 1 FROM t WHERE a = 1 --"
+printf -- "-- name: t\nSELECT 'x' # '\nINTO OUTFILE '/tmp/x'\n;\n" >"$work/multi.sql"
+if "$bench" check "$work/multi.sql" >/dev/null 2>&1; then failed=$((failed + 1)); echo "FAIL accepted a # comment that hides OUTFILE on the next line"; else pass=$((pass + 1)); fi
+
 # Accepted: the same characters and words inside quotes or as names are text
 expect "" "SELECT 'a;b' AS x;"
 expect "" "SELECT 'delete outfile dumpfile; drop' AS x;"
 expect "" 'SELECT "q;delete" AS x;'
 expect "" "SELECT 'it''s; fine' AS x;"
 expect "" "SELECT 'a\\';b' AS x;"
+expect "" "SELECT '-- not a comment', '# nor this', '/* nor this */' AS x;"
+expect "" 'SELECT "-- no", `a#b` FROM t;'
 expect "" 'SELECT `update` FROM `drop`;'
 expect "" "SELECT LOAD_FILE_NAME, created_at FROM t;"
 expect "" "WITH x AS (SELECT 1 AS a) SELECT a FROM x;"
