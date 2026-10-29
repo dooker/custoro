@@ -21,6 +21,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   foreign and unique keys, worksheets on open and locked invoices, all-or-nothing invoice creation and
   the invoice list; unit tests for the transaction helper, invoice creation, the services and the
   search and list queries
+- Component tests for the login, forgot-password and reset-password screens (`apps/web/src/components/Login`):
+  what the user sees for a refused login, a failed request, invalid input, an unknown reset link and
+  a refused new password, and that nothing is sent when the form is invalid. `vitest.config.ts` now
+  extends `vite.config.ts`, so tests resolve the same `@css`, `@components` and `@images` aliases
 
 ### Security
 
