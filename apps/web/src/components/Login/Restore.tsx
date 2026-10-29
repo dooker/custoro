@@ -4,6 +4,7 @@ import '@css/shared/Modal.sass';
 import '@css/shared/Form.sass';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useLogin } from '../../hooks/useLogin';
+import { deadResetLinkMessage } from '../../utils/auth';
 import { PATHS, RESOURCE } from '../../variables';
 
 import Button from '../_shared/Form/Button';
@@ -61,7 +62,7 @@ const Restore = () => {
                         text={t('button.save')}
                         additionalClassName="large primary"
                         onClick={(event) => onSubmit({ event, type: RESOURCE.RESTORE, token })}
-                        disabled={isLoading || !!errors.api}
+                        disabled={isLoading || errors.api === deadResetLinkMessage}
                     />
 
                     <Link to={PATHS.LOGIN}>{t('login.login')}</Link>

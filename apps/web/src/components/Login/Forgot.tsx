@@ -15,7 +15,6 @@ const Forgot = () => {
 
     return (
         <section className="modal large">
-            {isSent}
             <div className="component modal-content">
                 <div className="header">
                     <h1>{t('login.forgotTitle')}</h1>

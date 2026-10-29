@@ -151,7 +151,7 @@
             "passwordConfirmation": "Password confirmation",
             "passwordRequiredForgot": "Password is required",
             "passwordConfirmationRequired": "Password confirmation is required",
-            "passwordsDoNotMatch": "Passwords do not mach",
+            "passwordsDoNotMatch": "Passwords do not match",
             "passwordLength": "Password must be 8 to 72 characters long"
         },
         "error": {

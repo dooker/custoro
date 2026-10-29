@@ -21,6 +21,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   foreign and unique keys, worksheets on open and locked invoices, all-or-nothing invoice creation and
   the invoice list; unit tests for the transaction helper, invoice creation, the services and the
   search and list queries
+- Component tests for the login, forgot-password and reset-password screens (`apps/web/src/components/Login`):
+  what the user sees for a refused login, a failed request, invalid input, an unknown reset link and
+  a refused new password, and that nothing is sent when the form is invalid. `vitest.config.ts` now
+  extends `vite.config.ts`, so tests resolve the same `@css`, `@components` and `@images` aliases
 
 ### Security
 
@@ -242,6 +246,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   assigned by the position of the settings rows in the database's answer, and since the unique key on
   `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the
   subject, the subject the text and the text the HTML. Each setting is now matched by its name
+- On the reset-password page, a new password the API rejected (`passwordLength`) left the Save
+  button disabled, so only the Enter key could send another one. Save is now disabled only for a link
+  the API does not accept (unknown, used or expired). The English text for two passwords that differ
+  said "mach" instead of "match"
 
 ### Changed
 
