@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { type AxiosResponse } from 'axios';
+import { AxiosError, type AxiosResponse } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Axios } from '../../Axios';
 import { renderScreen } from '../../test/renderScreen';
@@ -101,6 +101,24 @@ describe('Restore', () => {
 
         expect(await screen.findByText(/Token is not recognized/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    // The link was never judged, only the request to check it failed, so the user can still try
+    it('shows a failed link check and still lets the user save', async () => {
+        vi.mocked(Axios.post).mockRejectedValue(new AxiosError('Network Error'));
+        answer('put', { success: true });
+        renderRestore();
+
+        expect(await screen.findByText('Network Error')).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled());
+
+        await save('new password', 'new password');
+
+        expect(await screen.findByTestId('path')).toHaveTextContent(/^\/$/);
+        expect(Axios.put).toHaveBeenCalledWith(getResetTokenUrl(endpoint), {
+            password: 'new password',
+            token,
+        });
     });
 
     // A rejected password can be changed and sent again; a link the API refuses cannot be saved
