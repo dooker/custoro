@@ -4,6 +4,7 @@ import { Axios } from '../Axios';
 import { tokenName, useAuth } from '../contexts/Auth';
 import {
     buildLoginPayload,
+    deadResetLinkMessage,
     emptyLoginErrors,
     getApiErrorMessage,
     getLoginUrl,
@@ -74,7 +75,7 @@ export const useLogin = () => {
         mutationFn: (token: string) => Axios.post(tokenUrl, { token }),
         onSuccess: ({ data: { success } }) => {
             if (!success) {
-                setErrors((prev) => ({ ...prev, api: 'login.error.noToken' }));
+                setErrors((prev) => ({ ...prev, api: deadResetLinkMessage }));
                 return;
             }
         },
@@ -95,9 +96,12 @@ export const useLogin = () => {
         onSuccess: ({ data: { success, message } }) => {
             if (!success) {
                 // The API answers noToken or passwordLength
-                const reason = message === 'passwordLength' ? 'passwordLength' : 'noToken';
+                const text =
+                    message === 'passwordLength'
+                        ? 'login.error.passwordLength'
+                        : deadResetLinkMessage;
 
-                setErrors((prev) => ({ ...prev, api: `login.error.${reason}` }));
+                setErrors((prev) => ({ ...prev, api: text }));
                 return;
             }
 

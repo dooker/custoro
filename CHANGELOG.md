@@ -246,6 +246,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   assigned by the position of the settings rows in the database's answer, and since the unique key on
   `config.name` (the 2026-10-19 migration) MySQL answers in alphabetical order, so the HTML became the
   subject, the subject the text and the text the HTML. Each setting is now matched by its name
+- On the reset-password page, a new password the API rejected (`passwordLength`) left the Save
+  button disabled, so only the Enter key could send another one. Save is now disabled only for a link
+  the API does not accept (unknown, used or expired). The English text for two passwords that differ
+  said "mach" instead of "match"
 
 ### Changed
 

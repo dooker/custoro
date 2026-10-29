@@ -71,7 +71,7 @@ describe('Restore', () => {
 
         await save('new password', 'other password');
 
-        expect(await screen.findAllByText(/Passwords do not ma/)).toHaveLength(2);
+        expect(await screen.findAllByText('Passwords do not match')).toHaveLength(2);
         expect(Axios.put).not.toHaveBeenCalled();
     });
 
@@ -103,11 +103,12 @@ describe('Restore', () => {
         expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     });
 
+    // A rejected password can be changed and sent again; a link the API refuses cannot be saved
     it.each([
-        ['passwordLength', 'Password must be 8 to 72 characters long'],
-        ['noToken', 'Token is not recognized'],
-        ['anything else', 'Token is not recognized'],
-    ])('stays on the page when the API answers %s', async (message, text) => {
+        ['passwordLength', 'Password must be 8 to 72 characters long', true],
+        ['noToken', 'Token is not recognized', false],
+        ['anything else', 'Token is not recognized', false],
+    ])('stays on the page when the API answers %s', async (message, text, canSaveAgain) => {
         answer('put', { success: false, message });
         renderRestore();
 
@@ -115,6 +116,28 @@ describe('Restore', () => {
 
         expect(await screen.findByText(new RegExp(text))).toBeInTheDocument();
         expect(screen.queryByTestId('path')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(
+            !canSaveAgain
+        );
+    });
+
+    it('lets the user send another password after the API rejected the first', async () => {
+        vi.mocked(Axios.put)
+            .mockResolvedValueOnce({
+                data: { success: false, message: 'passwordLength' },
+            } as AxiosResponse)
+            .mockResolvedValueOnce({ data: { success: true } } as AxiosResponse);
+        renderRestore();
+
+        await save('new password', 'new password');
+        await screen.findByText(/Password must be 8 to 72/);
+        await save('another password', 'another password');
+
+        expect(await screen.findByTestId('path')).toHaveTextContent(/^\/$/);
+        expect(Axios.put).toHaveBeenLastCalledWith(getResetTokenUrl(endpoint), {
+            password: 'another password',
+            token,
+        });
     });
 
     it('links back to the login page', async () => {

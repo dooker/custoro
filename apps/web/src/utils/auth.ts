@@ -95,6 +95,10 @@ export const getLoginUrl = (apiEndpoint: string, type: AuthType): string | null 
 export const getResetTokenUrl = (apiEndpoint: string): string =>
     `${apiEndpoint}${PATHS.LOGIN}token`;
 
+// The text for a reset link the API does not accept (unknown, used or expired). Nothing can be
+// saved on that page, unlike after a rejected password, which can be changed and sent again.
+export const deadResetLinkMessage = 'login.error.noToken';
+
 export const getApiErrorMessage = (error: AxiosError<ApiErrorResponse>): string =>
     error.response?.data.message || error.message || 'general error';
 
