@@ -11,8 +11,6 @@ import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useParams } from 'react-router';
 import { useHeadlineHandler } from '../../hooks/useHeadline';
 import { useButtonsHandler } from '../../hooks/useButtons';
-import { useAuth } from '../../contexts/Auth';
-import PageNotFound from '../PageNotFound/PageNotFound';
 
 const tabs = {
     general: 'general',
@@ -70,11 +68,5 @@ const SettingsPage = () => {
     );
 };
 
-// The API only lets admins change settings, so everyone else gets nothing to see or save
-const Settings = () => {
-    const { user } = useAuth();
-
-    return user?.role === 'admin' ? <SettingsPage /> : <PageNotFound />;
-};
-
-export default Settings;
+// Only mounted for admins (AdminRoute): the API lets nobody else change settings
+export default SettingsPage;

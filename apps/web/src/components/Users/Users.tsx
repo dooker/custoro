@@ -13,16 +13,13 @@ import Loader from '../_shared/Loader/Loader';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { visibleRowCount } from '../../shared/helpers';
 import { useHeadlineHandler } from '../../hooks/useHeadline';
-import { lazy, useEffect } from 'react';
+import { useEffect } from 'react';
 import type { HeaderIF } from '../../types/header';
 import { useButtonsHandler } from '../../hooks/useButtons';
 import { useImage } from '../../hooks/useImage';
-import { useAuth } from '../../contexts/Auth';
 import type { UserAvatarIF, UserIF } from '../../types/user';
 import type { ComponentIF } from '../../types/general';
 import style from './Users.module.sass';
-
-const PageNotFound = lazy(() => import('../PageNotFound/PageNotFound'));
 
 const UserAvatar = ({ src, alt }: UserAvatarIF) => {
     const image = useImage({ src, alt });
@@ -38,8 +35,6 @@ const Users = ({ compact }: ComponentIF) => {
     const limit = visibleRowCount(compact);
     const updateTitle = useHeadlineHandler();
     const updateButtons = useButtonsHandler();
-    const { user } = useAuth();
-    const { role } = user || {};
 
     // Set up header config
     useEffect(() => {
@@ -142,9 +137,6 @@ const Users = ({ compact }: ComponentIF) => {
         );
     };
 
-    if (role !== 'admin') {
-        return <PageNotFound />;
-    }
     if (loading) {
         return <Loader />;
     }

@@ -145,6 +145,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   word is a `LIKE '%word%'` on several columns, and the number of words was unlimited (the URL limit
   allows thousands): 1000 words took 3.1 s on 50 000 invoices and 3000 words 1 s on 2000 customers, so
   any logged-in user could keep the database busy
+- The users and settings pages are now admin-only in the web app at the route, as they are in the API.
+  A regular user who typed `/user/1/0/` got the empty "New user" form with a role selector, and Save
+  answered 403 without a word; the user list also asked the API for users before it checked the role.
+  Every one of these URLs now shows the 404 page to anyone but an admin and sends no request. The API
+  already refused all of it, so no data was exposed
 
 ### Fixed
 
