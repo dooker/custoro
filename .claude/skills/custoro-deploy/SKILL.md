@@ -30,9 +30,22 @@ Restore a dump of the live database into a scratch `mariadb:11.4` container and 
 
 ## 3. Backup
 
-- The database: `mysqldump --single-transaction <database> > backup-<date>.sql` (`mariadb-dump` on MariaDB). The structure changes of the migrations cannot be undone, so the dump is the way back. Check that it is not empty and restore it once into the scratch container.
-- The volumes `uploads` and `invoices` (README: back up `dbdata`, `uploads` and `invoices`). On the compose project `custoro`: `docker run --rm -v custoro_uploads:/data -v "$PWD":/backup alpine tar czf /backup/uploads.tgz -C /data .`, and the same for `custoro_invoices`.
-- When migrating, stop the API **before** the dump so nothing is written after it.
+The structure changes of the migrations cannot be undone, so the backup is the way back.
+
+**The stack's own `db` service** (the Docker setup of the README): stop the API first when migrating, so nothing is written after the dump, then
+
+```bash
+docker compose -f docker-compose.prod.yml stop api
+apps/api/scripts/backup.sh                     # npm run docker:backup; --dir, --project, --env-file as in --help
+```
+
+It writes `backups/custoro-<UTC time>/`: `db.sql.gz` (`mysqldump --single-transaction` inside the db container, the password read there from the container's environment, never printed or on a command line), `uploads.tar.gz` and `invoices.tar.gz` (read through the `api` service, which works while the API is stopped), `SHA256SUMS` and `manifest.txt`. It refuses to go on when the dump is empty, cut off (no `Dump completed` last line) or has no rows, and keeps nothing then; a folder without `.partial` is complete. Put the folder somewhere off the server and put its name in the runbook. The folder is private (password hashes, customer data): never paste its content anywhere.
+
+Not in it, so put them in the runbook: `.env` (secrets, the owner keeps a copy) and the mail server settings of the admin page (`/app/.env.email` inside the API container, in no volume, lost when the container is recreated: they must be in `.env` as `EMAIL_*`).
+
+**The hosted database** is outside the stack, and `backup.sh` cannot reach it. The owner takes the dump by hand, `mysqldump --single-transaction <database> > backup-<date>.sql` (`mariadb-dump` on MariaDB; the hosting plan may refuse `--routines` and `--events`, the app has neither), checks that it is not empty and ends with `-- Dump completed`, and restores it once into the scratch container of step 2: `mariadb:11.4`, not MySQL (a dump only loads into the same kind of server). This was not run against the hosted database here.
+
+**Prove the scripts** after changing them, the `db` service or the database version: `.claude/skills/custoro-deploy/scripts/rehearse-backup.sh` (Docker, 2 GB, about 3 minutes with the images cached, private compose projects `custoro-backup-*`, never the default project). It backs up 50 000 invoices from MySQL 8.4 and from MariaDB 11.4 and restores each into a new server of the same kind with `restore.sh`, comparing rows, content checksums, money totals, structure and every file. A backup does not load into the other kind (the generated column `invoices.number_sort`: MySQL's dump writes it as `regexp_like()`, which MariaDB refuses, MariaDB's dump writes its value into every INSERT, which MySQL refuses), so `restore.sh` refuses that before it drops anything, and the rehearsal checks the refusal and that the target is untouched; it also takes a backup while writers insert customer and product pairs in single transactions (the restored counts must match), and starts the API on the restored database. Exit 1 on any difference.
 
 ## 4. Order of work
 
@@ -79,8 +92,16 @@ If migration `20261009180000-secure-password-reset` has not run yet on a databas
 
 ## 6. Rollback
 
-There is no `down`. Stop the API, restore the dump into the database (data written since the backup is lost, which is why the API is stopped before it), start the previous images (keep their tags: `API_IMAGE`, `WEB_IMAGE`), restore the volumes only if files changed.
+There is no `down`. The way back is the backup of step 3, and everything written since it is lost, which is why the API is stopped before it:
+
+```bash
+docker compose -f docker-compose.prod.yml stop api
+apps/api/scripts/restore.sh backups/custoro-<UTC time> --db-only    # drop --db-only to restore uploads and invoices too
+docker compose -f docker-compose.prod.yml up -d                     # API_IMAGE and WEB_IMAGE set to the previous tags
+```
+
+`restore.sh` checks the backup before it changes anything (checksums, a complete dump, readable archives), asks for the project name (`--yes` skips it, only for a script the owner wrote), stops the API, drops every table, loads the dump and prints the row count of every table: compare those with what the owner expects. Use `--db-only` unless files changed since the backup; without it `uploads` and `invoices` are emptied and unpacked from the archives. Start the **previous** images (keep their tags): the restored schema is the old one. If the restore stops half way it says the database or volume is incomplete: fix the cause and run it again with the same backup. For the hosted database the owner loads the hand-made dump, with the same rule about the API.
 
 ## 7. Hand over
 
-Write the runbook to the PR or a notes file: the pre-flight output, the commands in order with the owner's values as placeholders, the rollback, and what you could not check (the live server's real settings, the hosted TLS certificate, a restore test of the backup).
+Write the runbook to the PR or a notes file: the pre-flight output, the commands in order with the owner's values as placeholders, the rollback, and what you could not check (the live server's real settings, the hosted TLS certificate, a restore of the owner's own backup: the rehearsal uses generated data).

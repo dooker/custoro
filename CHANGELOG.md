@@ -7,6 +7,19 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Added
 
+- Backup and restore for the production Docker stack: `npm run docker:backup` and
+  `npm run docker:restore -- backups/<folder>` (`apps/api/scripts/backup.sh` and `restore.sh`). A
+  backup is a dated folder with a `mysqldump --single-transaction` of the database, taken inside the
+  `db` container with its own credentials while the API keeps running, the `uploads` and `invoices`
+  volumes as archives, and checksums. It stops and keeps nothing when the dump is empty, cut off or
+  has no rows. A restore checks the backup first, asks you to type the project name, then replaces
+  the database and both volumes. Rehearsed with 50 000 invoices on MySQL 8.4 and MariaDB 11.4 (rows,
+  content checksums, money totals, files; also a backup taken while the API writes). A backup only
+  restores into the same kind of server (MySQL or MariaDB) as the one it came from, because of the
+  generated column `invoices.number_sort`; `restore.sh` refuses the other kind before it changes
+  anything. The mail server settings saved on the admin page are in no volume (`/app/.env.email`
+  inside the API container), so they are not in a backup: set `EMAIL_*` in `.env`. Back up before
+  every update and copy the folder off the server; see "Backup and restore" in the README
 - Database schema, config seed and demo data (`apps/api/db`); local Docker starts with demo customers,
   invoices and two demo logins, production gets the schema and seed only
 - Unit tests for the login logic in both apps, run in CI; the Playwright suite now also tests the login
