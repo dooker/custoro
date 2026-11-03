@@ -15,7 +15,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
             Sentry.browserTracingIntegration(),
             Sentry.replayIntegration({ beforeAddRecordingEvent: scrubSentryPayload }),
         ],
-        // Keeps password reset tokens out of everything sent to Sentry
+        // Keeps password reset tokens and public PDF links out of everything sent to Sentry
         beforeSend: scrubSentryPayload,
         beforeSendTransaction: scrubSentryPayload,
         beforeBreadcrumb: scrubSentryPayload,
