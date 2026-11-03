@@ -86,7 +86,7 @@ jobs:
               uses: actions/checkout@v4
 
             - name: Build production images
-              run: docker compose -f docker-compose.prod.yml build
+              run: docker compose -f docker-compose.prod.yml --profile migrate build
               env:
                   # Required by the compose file, not used at build time
                   DB_ROOT_PASSWORD: ci

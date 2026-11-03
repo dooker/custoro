@@ -68,6 +68,33 @@ services:
             db:
                 condition: service_healthy
 
+    # Applies the database migrations (apps/api/migrations). `up` does not start it; run it by hand,
+    # after a backup and before starting a new version, whenever the changelog or db/README.md says
+    # a release has migrations:
+    #   docker compose -f docker-compose.prod.yml run --rm --build migrate
+    # --build matters: a plain `build` skips services behind a profile, so without it an old image
+    # with the old migrations would run
+    # It is built from the build stage of the API image, which still has the migration tool that
+    # the runtime image leaves out. Plain TLS by default: the database is on this Docker network.
+    migrate:
+        profiles: ["migrate"]
+        image: custoro-migrate:latest
+        build:
+            context: ./apps/api
+            target: build
+        environment:
+            NODE_ENV: production
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_USERNAME: ${DB_USERNAME}
+            DB_PASSWORD: ${DB_PASSWORD}
+            DB_NAME: ${DB_NAME:-custoro}
+            DB_SSL: ${DB_SSL:-off}
+        command: ["npm", "run", "migrate:up"]
+        depends_on:
+            db:
+                condition: service_healthy
+
     web:
         image: ${WEB_IMAGE:-custoro-web:latest}
         build:

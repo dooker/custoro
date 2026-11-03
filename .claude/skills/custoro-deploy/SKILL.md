@@ -42,7 +42,7 @@ With migrations (the old API cannot run on the new schema, the new API needs the
 
 Without migrations: build, `docker compose -f docker-compose.prod.yml up -d`, verify.
 
-**Migrating.** The production API image has no `db-migrate` (a dev dependency), so run it from a checkout with `npm ci` (Node 24, or inside the `api` container) or from the dev image:
+**Migrating.** With the stack's own `db` service (stop the API first, back up first): `docker compose -f docker-compose.prod.yml run --rm --build migrate` (`--build` matters: a plain `build` skips the service, which sits behind a profile, so an old image would run old migrations). It is built from the build stage of the API image and connects to `db` without TLS (`DB_SSL` defaults to `off` there). The production API image has no `db-migrate` (a dev dependency), so for a database outside the stack (the hosted MariaDB) run it from a checkout with `npm ci` (Node 24, or inside the `api` container) or from the dev image:
 
 ```bash
 cd apps/api && NODE_ENV=production npm run migrate:up        # a checkout with dependencies

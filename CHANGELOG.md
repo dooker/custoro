@@ -30,6 +30,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   asks for the password (hidden), or reads it from standard input, and never takes it as an argument.
   With `--reset` it gives an existing user a new password and the admin role, which also gets a
   locked-out admin back in; that ends the user's other sessions and any pending reset link
+- A `migrate` service in `docker-compose.prod.yml` that applies the database migrations:
+  `docker compose -f docker-compose.prod.yml run --rm --build migrate`. The production API image has
+  no migration tool, so an upgrade needed a checkout of the repository with Node 24. `up` does not
+  start the service, and it is safe on a database that is already up to date. See "Updating" in the
+  README
 
 ### Security
 

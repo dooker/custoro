@@ -81,6 +81,17 @@ The same command with `--reset` gives an existing user a new password and the ad
 
 Only the web container is exposed (`WEB_PORT`, default 80). It serves the built frontend and proxies `/api/*` to the API. Put a TLS-terminating proxy (for example Caddy) in front of it. Back up the `dbdata`, `uploads` and `invoices` volumes.
 
+To update, back up first, then build the new images and apply the migrations while the API is stopped (the old API cannot run on a new schema). Run `migrate` only when the changelog says the release has migrations; it is harmless otherwise:
+
+```bash
+git pull && docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml stop api
+docker compose -f docker-compose.prod.yml run --rm --build migrate
+docker compose -f docker-compose.prod.yml up -d
+```
+
+`--build` makes `migrate` use the migrations of this checkout: it sits behind a profile, so the `build` above does not rebuild it. It connects to the bundled `db` service without TLS (it is on the Docker network). For another database see [apps/api/db/README.md](apps/api/db/README.md).
+
 Set `TRUST_PROXY` in `.env`, or the stack will not start: `1` if people reach the web container directly, `2` if a TLS proxy such as Caddy is in front of it. It tells the API how many proxies to believe when it reads a visitor's address for the login limits; a wrong value lets a client forge its address (too high) or makes all visitors share the proxy's (too low). See `.env.production.example`.
 
 ## Scripts
