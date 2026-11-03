@@ -262,6 +262,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   the settings that were changed (the counter only when it is edited, the logo only when a new file
   is picked), sends nothing when nothing changed, and shows the error when the API refuses an
   autosave. A refused change is sent again with the next one
+- Saving a new logo with no other setting changed failed with `put.settings.short`: the API built
+  `WHERE name IN (, ?)` when the file was all there was. The settings page always sent every setting
+  with the file, so it never showed; it now sends only what was changed, so the API takes a logo
+  alone. **Existing production setups must rebuild the API image** together with the web image
 - A new product saved with its unit left at the default failed in Estonian: the form sent the
   Estonian label of the unit ("tk") instead of its value ("pc"), and the API answered `invalidInput`,
   so the product could only be saved after picking a unit by hand. The form now sends the value in
