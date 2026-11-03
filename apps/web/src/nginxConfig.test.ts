@@ -7,6 +7,7 @@ const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf
 
 const appHeaders = read('../nginx/app-headers.conf');
 const serverConfig = read('../nginx.conf');
+const indexHtml = read('../index.html');
 
 const contentSecurityPolicy = (() => {
     const match = appHeaders.match(/add_header Content-Security-Policy "([^"]+)"/);
@@ -57,6 +58,23 @@ describe('Content-Security-Policy of the app', () => {
 
     it('lets the app talk to itself and Sentry only', () => {
         expect(contentSecurityPolicy['connect-src']).toEqual(["'self'", 'https://*.sentry.io']);
+    });
+
+    // Styles and fonts come with the app: a visitor of the public invoice page (the customer who
+    // got the link) should not be sent to a third party's server just to open it
+    it('loads styles, fonts and images from the app only', () => {
+        for (const name of ['style-src', 'font-src', 'img-src']) {
+            const hosts = contentSecurityPolicy[name].filter((source) => source.includes('://'));
+
+            expect(hosts, name).toEqual([]);
+        }
+    });
+});
+
+describe('index.html', () => {
+    it('loads nothing from another site', () => {
+        expect(indexHtml).not.toMatch(/(?:src|href)="(?:https?:)?\/\//);
+        expect(indexHtml).not.toMatch(/googleapis|gstatic/);
     });
 });
 
