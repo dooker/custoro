@@ -270,6 +270,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   users or settings (and a production install had no way to make a new admin). The API refuses it
   with a message, also when two admins delete each other at the same moment. A deleted user's avatar
   file is now removed only after the user is gone
+- Stopping the API (`docker compose stop`, a redeploy, Ctrl+C) now lets the requests that are running
+  finish, for up to 25 seconds, before the process ends. It used to ignore the stop signal and was
+  killed (exit code 137), which cut off whatever it was doing, such as a PDF or an email. The
+  production compose file gives the API 30 seconds to stop, and keeps each service's container log to
+  5 files of 10 MB, where Docker on a Linux server keeps one file that grows without limit
 
 ### Changed
 
