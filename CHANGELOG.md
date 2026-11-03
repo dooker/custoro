@@ -293,6 +293,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
   killed (exit code 137), which cut off whatever it was doing, such as a PDF or an email. The
   production compose file gives the API 30 seconds to stop, and keeps each service's container log to
   5 files of 10 MB, where Docker on a Linux server keeps one file that grows without limit
+- The settings page sent every setting on each autosave, including the invoice counter it had loaded
+  when the page opened. Once anyone created an invoice meanwhile, the API refused the old counter
+  (`lastInvoiceIdTooLow`) and with it every later save, and the autosave failed without a word, so
+  edits to the VAT, company details or email texts were lost on leaving the page. It now sends only
+  the settings that were changed (the counter only when it is edited, the logo only when a new file
+  is picked), sends nothing when nothing changed, and shows the error when the API refuses an
+  autosave. A refused change is sent again with the next one
 
 ### Changed
 
