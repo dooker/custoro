@@ -13,6 +13,9 @@ apps/api/uploads/
 apps/api/storage/
 apps/api/pdf/
 
+# Backups written by apps/api/scripts/backup.sh: password hashes and customer data, never commit
+/backups/
+
 # Web
 apps/web/app.config.json
 apps/web/public/config.json
