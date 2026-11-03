@@ -255,6 +255,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
   button disabled, so only the Enter key could send another one. Save is now disabled only for a link
   the API does not accept (unknown, used or expired). The English text for two passwords that differ
   said "mach" instead of "match"
+- The settings page sent every setting on each autosave, including the invoice counter it had loaded
+  when the page opened. Once anyone created an invoice meanwhile, the API refused the old counter
+  (`lastInvoiceIdTooLow`) and with it every later save, and the autosave failed without a word, so
+  edits to the VAT, company details or email texts were lost on leaving the page. It now sends only
+  the settings that were changed (the counter only when it is edited, the logo only when a new file
+  is picked), sends nothing when nothing changed, and shows the error when the API refuses an
+  autosave. A refused change is sent again with the next one
 
 ### Changed
 

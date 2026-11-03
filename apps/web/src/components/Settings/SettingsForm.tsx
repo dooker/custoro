@@ -1,4 +1,4 @@
-import { lazy, useImperativeHandle, useState } from 'react';
+import { lazy, useImperativeHandle, useRef, useState } from 'react';
 import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { Axios } from '../../Axios';
 import { handleError } from '../../shared/helpers';
@@ -11,6 +11,7 @@ import General from './Views/General';
 import type { AxiosResponse } from 'axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import type { FormRefIF } from '../../types/form';
+import { changedSettings } from './settingsChanges';
 
 const Pdf = lazy(() => import('./Views/Pdf'));
 const Invoice = lazy(() => import('./Views/Invoice'));
@@ -47,13 +48,15 @@ export const SettingsForm = ({
 }: SettingsFormIF) => {
     const queryClient = useQueryClient();
     const [draft, setDraft] = useState<SettingsIF>(initialData);
+    // What the API has: the page's data, then every change it accepted. A save sends the difference
+    const savedRef = useRef<SettingsIF>(initialData);
     const notification = useNotificationHandler();
 
     const invalidator = async () => {
         await queryClient.invalidateQueries({ queryKey: [type] });
     };
 
-    const { mutate: doSave } = useMutation<AxiosResponse, Error, MutateIF<SettingsIF>>({
+    const { mutate: doSave } = useMutation<AxiosResponse, Error, MutateIF<Partial<SettingsIF>>>({
         mutationFn: ({ data }) => {
             return Axios.put(`${endpoint}${PATHS.SETTINGS}`, data, {
                 headers: {
@@ -64,13 +67,32 @@ export const SettingsForm = ({
         onSuccess: async (response, variables) => {
             const { success, message } = response.data;
 
-            await notification({ success, message, invalidator, show: variables.show });
+            if (success) {
+                savedRef.current = { ...savedRef.current, ...variables.data };
+            }
+
+            // An autosave is silent, unless the API refused it: the change is not saved then
+            await notification({ success, message, invalidator, show: variables.show || !success });
         },
-        onError: (err: Error) => handleError(err.message),
+        onError: async (err: Error) => {
+            handleError(err.message);
+
+            await notification({ success: false, show: true });
+        },
     });
 
+    const save = async (data: SettingsIF, show?: boolean) => {
+        const changes = changedSettings(savedRef.current, data);
+
+        if (Object.keys(changes).length) {
+            doSave({ data: changes, show });
+        } else if (show) {
+            await notification({ success: true, show });
+        }
+    };
+
     const debouncedAutoSave = useDebounce<[SettingsIF]>((data) => {
-        doSave({ data });
+        void save(data);
     }, debounceTimer);
 
     const onChange = ({ name, value }: EntityOnChangeIF) => {
@@ -85,14 +107,14 @@ export const SettingsForm = ({
 
     useImperativeHandle(ref, () => ({
         submitSave() {
-            doSave({ data: draft, show: true });
+            void save(draft, true);
         },
     }));
 
     return (
         <section className="component customer">
             <Tabs
-                doSave={() => doSave({ data: draft })}
+                doSave={() => void save(draft)}
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
             />
