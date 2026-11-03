@@ -6,6 +6,7 @@ import { useSessionEnd } from './hooks/useSessionEnd';
 
 import Navigation from './components/_shared/Navigation/Navigation';
 import PrivateRoute from './PrivateRoute';
+import AdminRoute from './AdminRoute';
 import Loader from './components/_shared/Loader/Loader';
 import BiggerError from './components/BiggerError/BiggerError';
 import Confirmation from './components/_shared/Confirmation/Confirmation';
@@ -100,15 +101,17 @@ const AppContent = () => {
                             element={<Invoice />}
                         />
 
-                        {/* Profile & Settings */}
                         <Route path={PATHS.PROFILE} element={<Profile />} />
-                        <Route path={PATHS.SETTINGS} element={<Settings />} />
-                        <Route path={`${PATHS.SETTINGS}:type/`} element={<Settings />} />
 
-                        {/* Users */}
-                        <Route path={PATHS.USERS} element={<Users />} />
-                        <Route path={`${PATHS.USERS}:page/`} element={<Users />} />
-                        <Route path={`${PATHS.USER}:page/:id/`} element={<User />} />
+                        {/* Settings and users: admins only, as in the API */}
+                        <Route element={<AdminRoute />}>
+                            <Route path={PATHS.SETTINGS} element={<Settings />} />
+                            <Route path={`${PATHS.SETTINGS}:type/`} element={<Settings />} />
+
+                            <Route path={PATHS.USERS} element={<Users />} />
+                            <Route path={`${PATHS.USERS}:page/`} element={<Users />} />
+                            <Route path={`${PATHS.USER}:page/:id/`} element={<User />} />
+                        </Route>
                     </Route>
 
                     {/* Public routes */}
