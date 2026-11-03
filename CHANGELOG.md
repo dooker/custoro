@@ -304,12 +304,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
   Estonian label of the unit ("tk") instead of its value ("pc"), and the API answered `invalidInput`,
   so the product could only be saved after picking a unit by hand. The form now sends the value in
   every language
-- After the API limited the logins (10 failed attempts in 15 minutes) or the reset emails, the web
-  app replaced the whole login page with the "We encountered an error" page: no form, no reason, and
-  the person had to reload. A refusal by the API now stays on the form with a text in the language of
-  the page ("Too many attempts. Please wait a while and try again"); only a request nobody answered
-  or a server error still shows the error page. An answer without a body no longer breaks the error
-  handling either
+- After the API limited the logins (10 failed attempts in 15 minutes), the web app replaced the whole
+  login page with the "We encountered an error" page: no form, no reason, and the person had to
+  reload. A refusal by the API (on the login, forgot-password and reset-password pages) now stays on
+  the form with a text in the language of the page ("Too many attempts. Please wait a while and try
+  again"); only a request nobody answered or a server error still shows the error page. An answer
+  without a body no longer breaks the error handling either
 - Logging in could leave the person on the login page, signed in but not forwarded: the page they
   were on before (kept in `lastUrl`) can be a path such as `//example.com/x`, which the router refuses
   to open (it throws "External navigation is not allowed"). The web app now goes back only to a path
