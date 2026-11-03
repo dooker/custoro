@@ -81,15 +81,15 @@ describe('Login', () => {
     });
 
     it.each([
-        [
-            'the message of an HTTP error',
-            new AxiosError('Request failed', 'ERR_BAD_RESPONSE', undefined, undefined, {
-                status: 429,
-                data: { success: false, message: 'Too many attempts' },
-            } as AxiosResponse),
-            'Too many attempts',
-        ],
         ['a network error', new AxiosError('Network Error'), 'Network Error'],
+        [
+            'a server error',
+            new AxiosError('Request failed', 'ERR_BAD_RESPONSE', undefined, undefined, {
+                status: 502,
+                data: '',
+            } as AxiosResponse),
+            'Request failed',
+        ],
     ])('shows %s and tells the session', async (_name, error, message) => {
         fail(error);
         renderLogin();
@@ -98,6 +98,27 @@ describe('Login', () => {
 
         expect(await screen.findByText(message)).toBeInTheDocument();
         expect(auth.setErrorMessage).toHaveBeenCalledWith(message);
+        expect(localStorage.getItem(tokenName)).toBeNull();
+    });
+
+    // The API limits failed logins (HTTP 429). The person who typed the wrong password ten times
+    // needs the form and an explanation, not the page for a broken server
+    it('keeps the form and says to wait when the API limits the logins', async () => {
+        fail(
+            new AxiosError('Request failed', 'ERR_BAD_REQUEST', undefined, undefined, {
+                status: 429,
+                data: { success: false, message: 'Too many attempts. Please try again later.' },
+            } as AxiosResponse)
+        );
+        renderLogin();
+
+        await logIn('cadet@example.test', 'correct horse');
+
+        expect(
+            await screen.findByText('Too many attempts. Please wait a while and try again')
+        ).toBeInTheDocument();
+        expect(auth.setErrorMessage).not.toHaveBeenCalled();
+        expect(screen.getByLabelText('Username')).toBeInTheDocument();
         expect(localStorage.getItem(tokenName)).toBeNull();
     });
 

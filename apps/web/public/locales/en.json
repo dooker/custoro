@@ -158,7 +158,8 @@
             "missingInfo": "Error while trying to send reminder email",
             "noToken": "Token is not recognized. Please send new forgot password email",
             "noUpdate": "Updating password failed",
-            "passwordLength": "Password must be 8 to 72 characters long"
+            "passwordLength": "Password must be 8 to 72 characters long",
+            "tooManyAttempts": "Too many attempts. Please wait a while and try again"
         },
         "forgot": "Forgot password?",
         "forgotTitle": "Restore password",

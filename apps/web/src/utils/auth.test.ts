@@ -4,6 +4,7 @@ import type { ApiErrorResponse } from '../types/api';
 import {
     buildLoginPayload,
     getApiErrorMessage,
+    isRefusal,
     getLoginUrl,
     getResetTokenUrl,
     getRedirectAfterLogin,
@@ -256,6 +257,41 @@ describe('getApiErrorMessage', () => {
 
     it('falls back to a generic message when both are empty', () => {
         expect(getApiErrorMessage(error('', ''))).toBe('general error');
+    });
+
+    it("names the text for the login limit, not the API's English message", () => {
+        expect(
+            getApiErrorMessage({
+                message: 'Request failed',
+                response: { status: 429, data: { message: 'Too many attempts. Try later.' } },
+            } as AxiosError<ApiErrorResponse>)
+        ).toBe('login.error.tooManyAttempts');
+    });
+
+    it('survives an answer with no body', () => {
+        expect(
+            getApiErrorMessage({
+                message: 'Request failed with status code 400',
+                response: { status: 400, data: undefined },
+            } as unknown as AxiosError<ApiErrorResponse>)
+        ).toBe('Request failed with status code 400');
+    });
+});
+
+describe('isRefusal', () => {
+    const status = (code?: number) =>
+        ({ response: code === undefined ? undefined : { status: code } }) as AxiosError;
+
+    it.each([400, 403, 429])('is true for an answer of the API: HTTP %i', (code) => {
+        expect(isRefusal(status(code))).toBe(true);
+    });
+
+    it.each([500, 502, 503])('is false for a server error: HTTP %i', (code) => {
+        expect(isRefusal(status(code))).toBe(false);
+    });
+
+    it('is false when nothing answered', () => {
+        expect(isRefusal(status())).toBe(false);
     });
 });
 
