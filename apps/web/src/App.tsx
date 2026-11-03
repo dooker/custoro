@@ -1,4 +1,9 @@
 import { useEffect } from 'react';
+// Roboto comes with the app (Latin and Latin Extended, for Estonian), not from Google's servers
+import '@fontsource/roboto/latin-400.css';
+import '@fontsource/roboto/latin-ext-400.css';
+import '@fontsource/roboto/latin-700.css';
+import '@fontsource/roboto/latin-ext-700.css';
 import '@css/application.sass';
 import './tailwind.css';
 import { BrowserRouter } from 'react-router';

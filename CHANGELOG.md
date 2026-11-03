@@ -332,6 +332,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
   uses them: the three places that sanitize HTML use the default settings, the translation path
   has the language between slashes and only `en`, `et` and `fun` are loaded, and the browser build of
   axios does not use `follow-redirects`. `npm audit --omit=dev` now finds nothing
+- The web app loaded its font from Google's servers, on every page including the public invoice
+  page that a customer opens from the email link: each visit sent the visitor's address to Google,
+  and the Content-Security-Policy had to allow two Google hosts for styles and fonts. Roboto (Latin
+  and Latin Extended, so Estonian letters work) is now part of the build, the page loads nothing from
+  another site and the policy allows none for styles, fonts or images. **Existing production setups
+  must rebuild the web image**
 
 ### Changed
 
