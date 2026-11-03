@@ -63,7 +63,7 @@ describe('Forgot', () => {
         expect(auth.setErrorMessage).toHaveBeenCalledWith('Network Error');
     });
 
-    it('keeps the form and says to wait when the API limits the reset emails', async () => {
+    it('keeps the form and says to wait when the API answers 429', async () => {
         vi.mocked(Axios.post).mockRejectedValue(
             new AxiosError('Request failed', 'ERR_BAD_REQUEST', undefined, undefined, {
                 status: 429,
