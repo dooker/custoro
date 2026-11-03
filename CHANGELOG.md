@@ -51,12 +51,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Security
 
-- Dependencies that run in production had known vulnerabilities (`npm audit --omit=dev`): in the API
-  `multer` and `body-parser`, which let a crafted request keep the server busy (denial of service),
-  and in the web app DOMPurify (critical, a bypass of its `SAFE_FOR_TEMPLATES` option, which the app
-  does not use) and `follow-redirects`. They are updated within their version ranges, so none is
-  left at high or critical in either app. **Rebuild both images.** A new Audit workflow repeats the
-  check on every pull request, on `main` and weekly, and Dependabot proposes updates weekly
+- The API's production dependencies `multer` and `body-parser` had known vulnerabilities
+  (`npm audit --omit=dev`) that let a crafted request keep the server busy (denial of service). They
+  are updated within their version ranges, as are `qs`, `nodemailer` and Sentry; the web app's
+  advisories are in the "Web dependencies" entry below. No production dependency is left at high or
+  critical in either app. **Rebuild both images.** A new Audit workflow repeats the check on every
+  pull request, on `main` and weekly, and Dependabot proposes updates weekly
 - Password reset could be used by anyone to set the password of any user who had finished a reset
   before: the API cleared used tokens to an empty string and accepted an empty token. Tokens must now
   be well-formed, are stored only as a SHA-256 hash, expire after one hour and work once.
