@@ -272,6 +272,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   the page ("Too many attempts. Please wait a while and try again"); only a request nobody answered
   or a server error still shows the error page. An answer without a body no longer breaks the error
   handling either
+- Logging in could leave the person on the login page, signed in but not forwarded: the page they
+  were on before (kept in `lastUrl`) can be a path such as `//example.com/x`, which the router refuses
+  to open (it throws "External navigation is not allowed"). The web app now goes back only to a path
+  of its own and otherwise to the home page. It was never an open redirect
 
 ### Changed
 
