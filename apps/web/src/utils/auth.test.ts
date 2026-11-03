@@ -339,4 +339,22 @@ describe('getRedirectAfterLogin', () => {
             expect(getRedirectAfterLogin(lastUrl)).toBe('/home/');
         }
     );
+
+    // lastUrl is whatever path the browser was last at, and a link can make that "//host/path"
+    // (a double slash opens fine on the app's server). The router refuses to navigate to another
+    // origin by throwing, which left the person logged in on the login page.
+    it.each([
+        '//example.com/phish/',
+        '///example.com/',
+        '/\\example.com/phish/',
+        'https://example.com/phish/',
+        'javascript:alert(1)',
+        'customers/2/',
+    ])('goes home instead of to %s, which is not a page of the app', (lastUrl) => {
+        expect(getRedirectAfterLogin(lastUrl)).toBe('/home/');
+    });
+
+    it('keeps the query and anchor of a page of the app', () => {
+        expect(getRedirectAfterLogin('/invoices/2/?x=1#top')).toBe('/invoices/2/?x=1#top');
+    });
 });

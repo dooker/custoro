@@ -132,10 +132,19 @@ export const isSessionEndResponse = (data: unknown): boolean => {
     return success === false && typeof message === 'string' && sessionEndMessages.includes(message);
 };
 
-// Where to go after login: back to the last visited page, unless that was a login page
+// A path of this app: one slash first, then not another slash or a backslash (browsers read
+// "//host/x" and "/\host/x" as another site)
+const isAppPath = (url: string): boolean => /^\/(?![/\\])/.test(url);
+
+// Where to go after login: back to the last visited page, unless that was a login page or is not
+// a path of this app
 export const getRedirectAfterLogin = (lastVisitedUrl: string | null): string => {
     const loginPages = [PATHS.LOGIN, PATHS.FORGOT, PATHS.RESTORE];
     const isLoginPage = loginPages.some((path) => lastVisitedUrl?.startsWith(path));
 
-    return isLoginPage ? PATHS.HOME : lastVisitedUrl || PATHS.HOME;
+    if (isLoginPage || !lastVisitedUrl || !isAppPath(lastVisitedUrl)) {
+        return PATHS.HOME;
+    }
+
+    return lastVisitedUrl;
 };
