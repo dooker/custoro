@@ -217,6 +217,7 @@
         "uploadFailed": "The upload tripped over its own feet",
         "missingInfo": "It seems we are missing some vital info to actually send the email",
         "user.exists": "Well well well, there is already user with this email",
+        "user.lastAdmin": "The last admin standing! Crown another one before this one leaves",
         "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73.",
         "currentPassword": "Nice try. That is not your current password.",
         "emailFormat": "That email looks like it came from another galaxy",

@@ -217,6 +217,7 @@
         "uploadFailed": "Upload failed",
         "missingInfo": "Missing some info to send email",
         "user.exists": "User with this email already exists",
+        "user.lastAdmin": "This is the last admin. Make another user an admin first",
         "passwordLength": "Password must be 8 to 72 characters long",
         "currentPassword": "Current password is missing or wrong",
         "emailFormat": "Email format is incorrect",

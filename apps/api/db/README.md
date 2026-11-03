@@ -12,7 +12,7 @@ MySQL runs these files the **first time** the database volume is created.
 | `demo/demo-data.sql`  | Demo company, customers, invoices and two logins (dev only)    |
 | `demo/demo-logins.md` | Emails and passwords of the demo logins                        |
 
-> **Production has no users yet.** The seed creates no admin, so a production install needs another way to create its first admin.
+> **Production starts without users.** The seed creates no admin: create the first one with `docker compose -f docker-compose.prod.yml exec api node dist/scripts/createAdmin.js <email>` (see the README).
 
 To reload locally: `npm run docker:reset`, then start again.
 

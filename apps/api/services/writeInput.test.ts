@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
+import { createFakeDb } from "../helper/testing/fakeDb";
 
 // The write routes refuse a body whose values are not text, numbers or enum values, before any SQL
 // is built: {"a":1} as a customer name was stored as "[object Object]" and [["x"]] as a product code
 // was expanded into SQL by mysql2
+const fake = createFakeDb();
 const queryMock = vi.fn();
 const deleteImageFile = vi.fn();
 
-vi.mock("../db", () => ({ getPool: () => ({}) }));
+vi.mock("../db", () => ({ getPool: () => fake.pool }));
 vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 vi.mock("../helper/query", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../helper/query")>()),
@@ -31,6 +33,7 @@ const request = (parts: { params?: object; body?: unknown; file?: object; query?
 const sqlStatements = () => queryMock.mock.calls.map(([call]) => call);
 
 beforeEach(() => {
+    fake.reset();
     queryMock.mockReset();
     deleteImageFile.mockReset();
     queryMock.mockResolvedValue({ success: true, data: [], insertId: 7, message: "OK" });
@@ -234,10 +237,12 @@ describe("user", () => {
             data: [{ count: 0, avatar: "" }],
             insertId: 7
         });
+        // another admin exists, so making user 2 a regular user is allowed
+        fake.respondWith((sql) => (/FOR UPDATE/.test(sql) ? [{ id: 1 }] : {}));
 
         await user.putSingle(request({ params: { id: "2" }, body: { ...body, id: 99 } }));
 
-        const update = sqlStatements().find(({ sql }) => /UPDATE users/.test(sql));
+        const [update] = fake.statements(/UPDATE users/);
 
         expect(update.params).toEqual([
             "ann@example.test",

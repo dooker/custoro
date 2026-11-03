@@ -71,6 +71,14 @@ cp .env.production.example .env   # fill in secrets - never commit .env
 npm run docker:prod               # or: docker compose -f docker-compose.prod.yml up -d --build
 ```
 
+A new database has no users. Create the first admin once the stack is up (it asks for the password; add `--name "Full Name"` to set the name shown in the app):
+
+```bash
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/createAdmin.js you@example.com
+```
+
+The same command with `--reset` gives an existing user a new password and the admin role, if every admin is locked out. Only someone who can run commands on the server can use it.
+
 Only the web container is exposed (`WEB_PORT`, default 80). It serves the built frontend and proxies `/api/*` to the API. Put a TLS-terminating proxy (for example Caddy) in front of it. Back up the `dbdata`, `uploads` and `invoices` volumes.
 
 Set `TRUST_PROXY` in `.env`, or the stack will not start: `1` if people reach the web container directly, `2` if a TLS proxy such as Caddy is in front of it. It tells the API how many proxies to believe when it reads a visitor's address for the login limits; a wrong value lets a client forge its address (too high) or makes all visitors share the proxy's (too low). See `.env.production.example`.

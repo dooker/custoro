@@ -218,6 +218,7 @@
         "uploadFailed": "Üleslaadimine ebaõnnestus",
         "missingInfo": "E-kirja saatmine ebaõnnestus",
         "user.exists": "Sellise e-postiga kasutaja on juba olemas",
+        "user.lastAdmin": "See on viimane administraator. Tee esmalt keegi teine administraatoriks",
         "passwordLength": "Parool peab olema 8 kuni 72 märki pikk",
         "currentPassword": "Praegune parool puudub või on vale",
         "emailFormat": "E-posti aadress on vales vormingus",

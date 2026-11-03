@@ -1,7 +1,9 @@
 import { deleteImageFile, postGeneralSingle, sanitizeFilename } from "./_helpers";
 import { query } from "../helper/query";
+import { TransactionRefusal, withTransaction } from "../helper/transaction";
 import type { QueryResult } from "../types/query";
 import type { Request } from "express";
+import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { currentRoute as type } from "../routes/user";
 import type { UserIF } from "../types/user";
 import { isUsernameTaken } from "../helpers/users";
@@ -16,6 +18,23 @@ const duplicateEntry = "ER_DUP_ENTRY";
 const discardUpload = (file?: { filename?: string }) => {
     if (file?.filename) {
         deleteImageFile(file.filename);
+    }
+};
+
+// Without an admin nobody can manage the users or the settings, and a production install can
+// only make a new one from the command line (scripts/createAdmin.ts). So the last admin cannot
+// be deleted or made a regular user. The admins' rows are locked while the caller checks, so two
+// requests that each remove a different admin cannot both pass.
+const refuseLastAdmin = async (connection: PoolConnection, id: number) => {
+    const [admins] = await connection.query<RowDataPacket[]>(
+        `SELECT id
+         FROM users
+         WHERE role = 'admin'
+         FOR UPDATE;`
+    );
+
+    if (admins.length === 1 && Number(admins[0].id) === id) {
+        throw new TransactionRefusal("user.lastAdmin");
     }
 };
 
@@ -189,19 +208,26 @@ export const putSingle = async (request: Request) => {
     sql += ` WHERE id = ?;`;
     params.push(Number(id));
 
-    const { success, code } = await query({
+    const saved = await withTransaction(
         database,
-        sql,
-        params,
-        logger: "Update user details"
-    });
+        "Update user details",
+        "put.user",
+        async (connection) => {
+            // Only making an admin a regular user can take the last admin away
+            if (role !== "admin") {
+                await refuseLastAdmin(connection, Number(id));
+            }
 
-    if (!success) {
+            await connection.query(sql, params);
+        }
+    );
+
+    if (!saved.ok) {
         discardUpload(file);
 
         return {
             success: false,
-            message: code === duplicateEntry ? "user.exists" : "put.user"
+            message: saved.code === duplicateEntry ? "user.exists" : saved.message
         };
     }
 
@@ -247,20 +273,34 @@ export const deleteSingle = async (request: Request) => {
 
     const avatar = data[0].avatar || null;
 
+    const removed = await withTransaction(
+        database,
+        `Delete single ${type}`,
+        "error",
+        async (connection) => {
+            await refuseLastAdmin(connection, Number(id));
+            await connection.query(
+                `DELETE
+                 FROM users
+                 WHERE id = ?;`,
+                [Number(id)]
+            );
+        }
+    );
+
+    if (!removed.ok) {
+        return {
+            success: false,
+            message: removed.message
+        };
+    }
+
+    // The avatar goes only once the user is gone: a refused delete keeps both
     if (avatar) {
         deleteImageFile(avatar);
     }
 
-    const { success } = await query({
-        database,
-        sql: `DELETE
-              FROM users
-              WHERE id = ?;`,
-        params: [id as string],
-        logger: `Delete single ${type}`
-    });
-
     return {
-        success
+        success: true
     };
 };

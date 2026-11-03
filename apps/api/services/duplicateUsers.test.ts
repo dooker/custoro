@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
+import { createFakeDb } from "../helper/testing/fakeDb";
 
 // The login email is unique. A look-up before the insert cannot stop two requests that run at the
 // same time, so the database's own refusal (ER_DUP_ENTRY) has to give the same answer as the look-up
+const fake = createFakeDb();
 const queryMock = vi.fn();
 const deleteImageFile = vi.fn();
 
-vi.mock("../db", () => ({ getPool: () => ({}) }));
+vi.mock("../db", () => ({ getPool: () => fake.pool }));
 vi.mock("@sentry/node", () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
 vi.mock("../helper/query", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../helper/query")>()),
@@ -46,6 +48,7 @@ const databaseAnswers = (answer: object) =>
     });
 
 beforeEach(() => {
+    fake.reset();
     queryMock.mockReset();
     deleteImageFile.mockReset();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -93,8 +96,18 @@ describe("POST /user with an email that another request took first", () => {
 });
 
 describe("PUT /user/:id with an email that another request took first", () => {
+    // Another admin exists, so the demotion check passes; then the UPDATE runs into `code`
+    const updateFailsWith = (code: string) => {
+        databaseAnswers({ success: true, data: [] });
+        fake.respondWith((sql) => {
+            if (/FOR UPDATE/.test(sql)) return [{ id: 1 }];
+
+            throw Object.assign(new Error(code), { code });
+        });
+    };
+
     it("answers user.exists, and drops the avatar", async () => {
-        databaseAnswers(duplicate);
+        updateFailsWith("ER_DUP_ENTRY");
 
         expect(await user.putSingle(request({ params: { id: "2" }, body: ann, file }))).toEqual({
             success: false,
@@ -104,7 +117,7 @@ describe("PUT /user/:id with an email that another request took first", () => {
     });
 
     it("keeps put.user for any other failure", async () => {
-        databaseAnswers(deadlock);
+        updateFailsWith("ER_LOCK_DEADLOCK");
 
         expect(await user.putSingle(request({ params: { id: "2" }, body: ann }))).toEqual({
             success: false,

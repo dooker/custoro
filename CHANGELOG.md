@@ -25,6 +25,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   what the user sees for a refused login, a failed request, invalid input, an unknown reset link and
   a refused new password, and that nothing is sent when the form is invalid. `vitest.config.ts` now
   extends `vite.config.ts`, so tests resolve the same `@css`, `@components` and `@images` aliases
+- A way to create the first admin of a production install, which starts without users:
+  `docker compose -f docker-compose.prod.yml exec api node dist/scripts/createAdmin.js <email>`. It
+  asks for the password (hidden), or reads it from standard input, and never takes it as an argument.
+  With `--reset` it gives an existing user a new password and the admin role, which also gets a
+  locked-out admin back in; that ends the user's other sessions and any pending reset link
 
 ### Security
 
@@ -250,6 +255,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   button disabled, so only the Enter key could send another one. Save is now disabled only for a link
   the API does not accept (unknown, used or expired). The English text for two passwords that differ
   said "mach" instead of "match"
+- The last admin can no longer be deleted or made a regular user, which left nobody able to manage
+  users or settings (and a production install had no way to make a new admin). The API refuses it
+  with a message, also when two admins delete each other at the same moment. A deleted user's avatar
+  file is now removed only after the user is gone
 
 ### Changed
 

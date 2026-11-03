@@ -49,6 +49,16 @@ export const hashPassword = (password: string): Promise<string> =>
 export const verifyPassword = (password: string, hash: string): Promise<boolean> =>
     bcrypt.compare(password, hash);
 
+// Simple shape check; the address is only used as the login name and for reset emails.
+// 254 is the longest address there is, and the size of users.username.
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const maxEmailLength = 254;
+
+export const isValidEmail = (email: unknown): email is string =>
+    typeof email === "string" &&
+    email.trim().length <= maxEmailLength &&
+    emailPattern.test(email.trim());
+
 // Rule for a new password (reset and profile); login accepts whatever was stored
 export const isValidNewPassword = (password: unknown): password is string =>
     typeof password === "string" &&

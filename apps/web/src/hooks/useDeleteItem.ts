@@ -9,7 +9,7 @@ import type { PromptDeleteIF } from '../types/store';
 
 // Reasons the API gives for refusing a delete that have their own notification text; any other
 // failure shows the general error
-const deleteRefusals = ['product.inUse', 'customer.inUse', 'worksheet.locked'];
+const deleteRefusals = ['product.inUse', 'customer.inUse', 'worksheet.locked', 'user.lastAdmin'];
 
 export const useDeleteItem = (queryKeyToInvalidate: string[]) => {
     const queryClient = useQueryClient();
