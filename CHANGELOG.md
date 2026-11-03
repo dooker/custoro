@@ -288,6 +288,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
   304 when nothing changed. The fingerprinted files under `/assets/` are still cached for a year.
   **Existing production setups must rebuild the web image** (`docker compose -f
   docker-compose.prod.yml up -d --build web`)
+- Web dependencies: `dompurify` 3.4.17, `i18next-http-backend` 4.0.10 and `follow-redirects` 1.16.2
+  close the three advisories `npm audit --omit=dev` reported (DOMPurify option bypasses, the language
+  in the translation URL, redirects in Node's HTTP client). None could be reached with how the app
+  uses them: the three places that sanitize HTML use the default settings, the translation path
+  has the language between slashes and only `en`, `et` and `fun` are loaded, and the browser build of
+  axios does not use `follow-redirects`. `npm audit --omit=dev` now finds nothing
 
 ### Changed
 
