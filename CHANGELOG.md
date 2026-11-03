@@ -150,6 +150,23 @@ version number, kept in each app's `package.json`. The web app shows this file o
   answered 403 without a word; the user list also asked the API for users before it checked the role.
   Every one of these URLs now shows the 404 page to anyone but an admin and sends no request. The API
   already refused all of it, so no data was exposed
+- The web app's Sentry scrubbing removed password reset tokens from what it sends but not the public
+  PDF link: `/pdf/<hash>` opens an invoice without a login, and Sentry records page URLs and the
+  request for the PDF in errors, traces, breadcrumbs and replays. The hash is now replaced there too,
+  as the API already did. Error tracking in the web app is only active when `VITE_SENTRY_DSN` is set
+  when the app is built
+- Web dependencies: `dompurify` 3.4.17, `i18next-http-backend` 4.0.10 and `follow-redirects` 1.16.2
+  close the three advisories `npm audit --omit=dev` reported (DOMPurify option bypasses, the language
+  in the translation URL, redirects in Node's HTTP client). None could be reached with how the app
+  uses them: the three places that sanitize HTML use the default settings, the translation path
+  has the language between slashes and only `en`, `et` and `fun` are loaded, and the browser build of
+  axios does not use `follow-redirects`. `npm audit --omit=dev` now finds nothing
+- The web app loaded its font from Google's servers, on every page including the public invoice
+  page that a customer opens from the email link: each visit sent the visitor's address to Google,
+  and the Content-Security-Policy had to allow two Google hosts for styles and fonts. Roboto (Latin
+  and Latin Extended, so Estonian letters work) is now part of the build, the page loads nothing from
+  another site and the policy allows none for styles, fonts or images. **Existing production setups
+  must rebuild the web image**
 
 ### Fixed
 
@@ -280,11 +297,6 @@ version number, kept in each app's `package.json`. The web app shows this file o
   were on before (kept in `lastUrl`) can be a path such as `//example.com/x`, which the router refuses
   to open (it throws "External navigation is not allowed"). The web app now goes back only to a path
   of its own and otherwise to the home page. It was never an open redirect
-- The web app's Sentry scrubbing removed password reset tokens from what it sends but not the public
-  PDF link: `/pdf/<hash>` opens an invoice without a login, and Sentry records page URLs and the
-  request for the PDF in errors, traces, breadcrumbs and replays. The hash is now replaced there too,
-  as the API already did. Error tracking in the web app is only active when `VITE_SENTRY_DSN` is set
-  when the app is built
 - The web server sent `index.html`, the translation files and `CHANGELOG.md` without `Cache-Control`,
   so a browser could keep them for hours (a share of the time since `Last-Modified`). After an
   update the old page pointed at build files that no longer exist and showed a blank page until a
@@ -292,18 +304,6 @@ version number, kept in each app's `package.json`. The web app shows this file o
   304 when nothing changed. The fingerprinted files under `/assets/` are still cached for a year.
   **Existing production setups must rebuild the web image** (`docker compose -f
   docker-compose.prod.yml up -d --build web`)
-- Web dependencies: `dompurify` 3.4.17, `i18next-http-backend` 4.0.10 and `follow-redirects` 1.16.2
-  close the three advisories `npm audit --omit=dev` reported (DOMPurify option bypasses, the language
-  in the translation URL, redirects in Node's HTTP client). None could be reached with how the app
-  uses them: the three places that sanitize HTML use the default settings, the translation path
-  has the language between slashes and only `en`, `et` and `fun` are loaded, and the browser build of
-  axios does not use `follow-redirects`. `npm audit --omit=dev` now finds nothing
-- The web app loaded its font from Google's servers, on every page including the public invoice
-  page that a customer opens from the email link: each visit sent the visitor's address to Google,
-  and the Content-Security-Policy had to allow two Google hosts for styles and fonts. Roboto (Latin
-  and Latin Extended, so Estonian letters work) is now part of the build, the page loads nothing from
-  another site and the policy allows none for styles, fonts or images. **Existing production setups
-  must rebuild the web image**
 
 ### Changed
 
