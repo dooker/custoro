@@ -276,6 +276,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   were on before (kept in `lastUrl`) can be a path such as `//example.com/x`, which the router refuses
   to open (it throws "External navigation is not allowed"). The web app now goes back only to a path
   of its own and otherwise to the home page. It was never an open redirect
+- The web app's Sentry scrubbing removed password reset tokens from what it sends but not the public
+  PDF link: `/pdf/<hash>` opens an invoice without a login, and Sentry records page URLs and the
+  request for the PDF in errors, traces, breadcrumbs and replays. The hash is now replaced there too,
+  as the API already did. Error tracking in the web app is only active when `VITE_SENTRY_DSN` is set
+  when the app is built
 
 ### Changed
 
