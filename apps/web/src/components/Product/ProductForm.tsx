@@ -66,7 +66,8 @@ export const ProductForm = ({ initialProduct, isNew, type, ref }: ProductFormIF)
         name: '',
         price: 0,
         discountPrice: 0,
-        unit: units[0].label,
+        // The API's value, not the label: in Estonian the label is "tk", which the API refuses
+        unit: units[0].value,
         comment: '',
     };
     const [draft, setDraft] = useState<ProductIF>(() => {
