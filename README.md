@@ -79,13 +79,14 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/createAdmin
 
 The same command with `--reset` gives an existing user a new password and the admin role, if every admin is locked out. Only someone who can run commands on the server can use it.
 
-Only the web container is exposed (`WEB_PORT`, default 80). It serves the built frontend and proxies `/api/*` to the API. Put a TLS-terminating proxy (for example Caddy) in front of it. Back up the `dbdata`, `uploads` and `invoices` volumes.
+Only the web container is exposed (`WEB_PORT`, default 80). It serves the built frontend and proxies `/api/*` to the API. Put a TLS-terminating proxy (for example Caddy) in front of it. Set up backups of the `dbdata`, `uploads` and `invoices` volumes, see [Backup and restore](#backup-and-restore) below.
 
-To update, back up first, then build the new images and apply the migrations while the API is stopped (the old API cannot run on a new schema). Run `migrate` only when the changelog says the release has migrations; it is harmless otherwise:
+To update, build the new images, stop the API, take a backup and apply the migrations (the old API cannot run on a new schema, and nothing may be written after the backup). Run `migrate` only when the changelog says the release has migrations; it is harmless otherwise:
 
 ```bash
 git pull && docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml stop api
+apps/api/scripts/backup.sh                    # see "Backup and restore" below; works while the API is stopped
 docker compose -f docker-compose.prod.yml run --rm --build migrate
 docker compose -f docker-compose.prod.yml up -d
 ```

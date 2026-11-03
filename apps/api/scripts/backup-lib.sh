@@ -183,7 +183,8 @@ archive_problem() {
         echo "$1 is missing"
         return 1
     fi
-    if ! tar -tzf "$1" >/dev/null 2>&1; then
+    # gzip -t first: BSD tar (macOS) lists a zero-byte file as an empty archive without an error
+    if ! gzip -t "$1" >/dev/null 2>&1 || ! tar -tzf "$1" >/dev/null 2>&1; then
         echo "$(basename "$1") is not a complete .tar.gz archive"
         return 1
     fi
