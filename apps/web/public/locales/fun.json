@@ -158,7 +158,8 @@
             "missingInfo": "Uhm... smth went very-very wrong now...",
             "noToken": "Who you trying to get crazy with, ése?<br/>Don't you know I'm loco?<br/><br/>You cannot just type in random token...",
             "noUpdate": "Bam! Zoom! Password did not update :(",
-            "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73."
+            "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73.",
+            "tooManyAttempts": "Easy, space cadet! Too many tries. Take a breather and try again"
         },
         "forgot": "Wait... password?",
         "forgotTitle": "Lets get you back in the game",

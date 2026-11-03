@@ -9,6 +9,7 @@ import {
     getApiErrorMessage,
     getLoginUrl,
     getResetTokenUrl,
+    isRefusal,
     validateLoginForm,
 } from '../utils/auth';
 import type { CredentialsIF, LoginErrorsIF, OnSubmitIF, SetPasswordIF } from '../types/auth';
@@ -26,6 +27,18 @@ export const useLogin = () => {
     const [errors, setErrors] = useState<LoginErrorsIF>(emptyLoginErrors);
     const tokenUrl = getResetTokenUrl(endpoint);
     const navigate = useNavigate();
+
+    // A refusal by the API (too many attempts) is shown on the form, which stays. A request nobody
+    // answered, or a server error, replaces the app with the error page
+    const onFailure = (error: AxiosError<ApiErrorResponse>) => {
+        const msg = getApiErrorMessage(error);
+
+        setErrors((prev) => ({ ...prev, api: msg }));
+
+        if (!isRefusal(error)) {
+            setErrorMessage(msg);
+        }
+    };
 
     const { mutate: login, isPending: isLoginLoading } = useMutation<
         AxiosResponse,
@@ -60,11 +73,7 @@ export const useLogin = () => {
                 setIsSent(true);
             }
         },
-        onError: (error: AxiosError<ApiErrorResponse>) => {
-            const msg = getApiErrorMessage(error);
-            setErrors((prev) => ({ ...prev, api: msg }));
-            setErrorMessage(msg);
-        },
+        onError: onFailure,
     });
 
     const { mutate: getToken, isPending: isTokenLoading } = useMutation<
@@ -79,11 +88,7 @@ export const useLogin = () => {
                 return;
             }
         },
-        onError: (error: AxiosError<ApiErrorResponse>) => {
-            const msg = getApiErrorMessage(error);
-            setErrors((prev) => ({ ...prev, api: msg }));
-            setErrorMessage(msg);
-        },
+        onError: onFailure,
     });
 
     const { mutate: setPassword, isPending: isSetPasswordLoading } = useMutation<
@@ -107,11 +112,7 @@ export const useLogin = () => {
 
             navigate('/');
         },
-        onError: (error: AxiosError<ApiErrorResponse>) => {
-            const msg = getApiErrorMessage(error);
-            setErrors((prev) => ({ ...prev, api: msg }));
-            setErrorMessage(msg);
-        },
+        onError: onFailure,
     });
 
     const onSubmit = ({ event, type, token }: OnSubmitIF) => {

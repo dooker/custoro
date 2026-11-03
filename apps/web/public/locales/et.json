@@ -158,7 +158,8 @@
             "missingInfo": "Parooli taastamise e-kirja saatmisel tekkis viga",
             "noToken": "Märgist ei tuntud ära. Palun saatke uus parooli taastamise e-kiri",
             "noUpdate": "Parooli uuendamine ebaõnnestus",
-            "passwordLength": "Parool peab olema 8 kuni 72 märki pikk"
+            "passwordLength": "Parool peab olema 8 kuni 72 märki pikk",
+            "tooManyAttempts": "Liiga palju katseid. Oodake veidi ja proovige uuesti"
         },
         "forgot": "Unustasid parooli?",
         "forgotTitle": "Taasta parool",

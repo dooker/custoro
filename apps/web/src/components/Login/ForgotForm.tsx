@@ -29,7 +29,7 @@ const ForgotForm = ({ onSubmit, usernameRef, errors, isLoading }: ForgotFormIF) 
                 <input type="submit" className="hidden" />
             </form>
 
-            {errors.api && <div className="error">{errors.api}</div>}
+            {errors.api && <div className="error">{t(errors.api)}</div>}
 
             <div className="footer">
                 <Button
