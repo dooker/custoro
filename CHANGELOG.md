@@ -319,6 +319,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
   request for the PDF in errors, traces, breadcrumbs and replays. The hash is now replaced there too,
   as the API already did. Error tracking in the web app is only active when `VITE_SENTRY_DSN` is set
   when the app is built
+- The web server sent `index.html`, the translation files and `CHANGELOG.md` without `Cache-Control`,
+  so a browser could keep them for hours (a share of the time since `Last-Modified`). After an
+  update the old page pointed at build files that no longer exist and showed a blank page until a
+  hard reload. These files now carry `Cache-Control: no-cache`: the browser asks each time and gets a
+  304 when nothing changed. The fingerprinted files under `/assets/` are still cached for a year.
+  **Existing production setups must rebuild the web image** (`docker compose -f
+  docker-compose.prod.yml up -d --build web`)
 
 ### Changed
 
