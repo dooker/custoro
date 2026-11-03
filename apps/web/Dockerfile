@@ -27,7 +27,7 @@ ENV VITE_API_ENDPOINT=$VITE_API_ENDPOINT
 RUN npm run build
 
 # --- Production: nginx serving the SPA and proxying the API
-FROM nginx:1.29-alpine AS prod
+FROM nginx:1.31-alpine AS prod
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/web/nginx/ /etc/nginx/snippets/
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
