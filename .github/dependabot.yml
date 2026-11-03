@@ -1,0 +1,69 @@
+version: 2
+
+# One pull request a week per area, with the minor and patch updates of an area grouped. Major
+# versions come as their own pull request, except the ones that are held back on purpose below.
+updates:
+    - package-ecosystem: npm
+      directory: /apps/api
+      schedule:
+          interval: weekly
+      groups:
+          api-minor-and-patch:
+              update-types: [minor, patch]
+      ignore:
+          # The runtime is Node 24 (.nvmrc, engines, Dockerfile): the types stay on 24
+          - dependency-name: "@types/node"
+            update-types: ["version-update:semver-major"]
+          # TypeScript 7 has no JS compiler API yet, which typescript-eslint needs
+          - dependency-name: typescript
+            update-types: ["version-update:semver-major"]
+
+    - package-ecosystem: npm
+      directory: /apps/web
+      schedule:
+          interval: weekly
+      groups:
+          web-minor-and-patch:
+              update-types: [minor, patch]
+      ignore:
+          - dependency-name: "@types/node"
+            update-types: ["version-update:semver-major"]
+          - dependency-name: typescript
+            update-types: ["version-update:semver-major"]
+
+    - package-ecosystem: npm
+      directory: /
+      schedule:
+          interval: weekly
+
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+
+    - package-ecosystem: docker
+      directory: /apps/api
+      schedule:
+          interval: weekly
+      ignore:
+          # Node 24 is set in .nvmrc, engines and CI together: a new Node is one decision
+          - dependency-name: node
+            update-types: ["version-update:semver-major"]
+
+    - package-ecosystem: docker
+      directory: /apps/web
+      schedule:
+          interval: weekly
+      ignore:
+          - dependency-name: node
+            update-types: ["version-update:semver-major"]
+
+    - package-ecosystem: docker-compose
+      directory: /
+      schedule:
+          interval: weekly
+      ignore:
+          # The hosted database is MariaDB 11.4 and both must run the migrations: a new MySQL
+          # major is a decision, not an update
+          - dependency-name: mysql
+            update-types: ["version-update:semver-major"]

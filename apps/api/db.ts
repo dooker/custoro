@@ -39,3 +39,8 @@ export const getPool = (database: string) => {
 
     return pools[database];
 };
+
+// Waits for the queries that are running, then closes every connection. Used when the API stops.
+export const closePools = async () => {
+    await Promise.all(Object.values(pools).map((pool) => pool.end()));
+};

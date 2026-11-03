@@ -12,7 +12,7 @@ MySQL runs these files the **first time** the database volume is created.
 | `demo/demo-data.sql`  | Demo company, customers, invoices and two logins (dev only)    |
 | `demo/demo-logins.md` | Emails and passwords of the demo logins                        |
 
-> **Production has no users yet.** The seed creates no admin, so a production install needs another way to create its first admin.
+> **Production starts without users.** The seed creates no admin: create the first one with `docker compose -f docker-compose.prod.yml exec api node dist/scripts/createAdmin.js <email>` (see the README).
 
 To reload locally: `npm run docker:reset`, then start again.
 
@@ -29,7 +29,15 @@ Later schema changes go into `apps/api/migrations/` (db-migrate), not into these
 
 ## Upgrading an existing database
 
-The files above only run on an empty database. A database created earlier, including one from before this repository had schema files, needs the migrations. Run them from a checkout of the repository with the API's dev dependencies installed (`npm ci` in `apps/api`), with `apps/api/.env.production` or the `DB_*` environment variables pointing at that database:
+The files above only run on an empty database. A database created earlier, including one from before this repository had schema files, needs the migrations.
+
+With the production compose file and its bundled `db` service, the `migrate` service runs them (it is built from the build stage of the API image, which has the migration tool the runtime image leaves out; `up` does not start it, and `--build` makes it use the migrations of this checkout). Stop the API first and take a backup:
+
+```sh
+docker compose -f docker-compose.prod.yml run --rm --build migrate
+```
+
+For a database outside that stack, run them from a checkout of the repository with the API's dev dependencies installed (`npm ci` in `apps/api`), with `apps/api/.env.production` or the `DB_*` environment variables pointing at that database:
 
 ```sh
 cd apps/api

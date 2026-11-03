@@ -4,7 +4,12 @@ import { query } from "../helper/query";
 import type { UserIF } from "../types/user";
 import type { Request } from "express";
 import { authUser } from "../helpers/authorize";
-import { hashPassword, isValidNewPassword, verifyPassword } from "../helpers/credentials";
+import {
+    hashPassword,
+    isValidEmail,
+    isValidNewPassword,
+    verifyPassword
+} from "../helpers/credentials";
 import { checkResetToken, requestPasswordReset, resetPassword } from "../helpers/passwordReset";
 import { accountKey, getLoginThrottle, getResetThrottle } from "../helpers/rateLimit";
 import { getAppOrigin } from "../helpers/appOrigin";
@@ -67,11 +72,6 @@ export const getSingle = async (request: Request) => {
     };
 };
 
-// Simple shape check; the address is only used as the login name and for reset emails.
-// 254 is the longest address there is, and the size of users.username.
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const maxEmailLength = 254;
-
 interface ProfileUserIF {
     username: string | null;
     password: string | null;
@@ -96,11 +96,7 @@ export const putSingle = async (request: Request) => {
         };
     }
 
-    if (
-        typeof email !== "string" ||
-        email.trim().length > maxEmailLength ||
-        !emailPattern.test(email.trim())
-    ) {
+    if (!isValidEmail(email)) {
         return {
             success: false,
             message: "emailFormat"

@@ -7,6 +7,19 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Added
 
+- Backup and restore for the production Docker stack: `npm run docker:backup` and
+  `npm run docker:restore -- backups/<folder>` (`apps/api/scripts/backup.sh` and `restore.sh`). A
+  backup is a dated folder with a `mysqldump --single-transaction` of the database, taken inside the
+  `db` container with its own credentials while the API keeps running, the `uploads` and `invoices`
+  volumes as archives, and checksums. It stops and keeps nothing when the dump is empty, cut off or
+  has no rows. A restore checks the backup first, asks you to type the project name, then replaces
+  the database and both volumes. Rehearsed with 50 000 invoices on MySQL 8.4 and MariaDB 11.4 (rows,
+  content checksums, money totals, files; also a backup taken while the API writes). A backup only
+  restores into the same kind of server (MySQL or MariaDB) as the one it came from, because of the
+  generated column `invoices.number_sort`; `restore.sh` refuses the other kind before it changes
+  anything. The mail server settings saved on the admin page are in no volume (`/app/.env.email`
+  inside the API container), so they are not in a backup: set `EMAIL_*` in `.env`. Back up before
+  every update and copy the folder off the server; see "Backup and restore" in the README
 - Database schema, config seed and demo data (`apps/api/db`); local Docker starts with demo customers,
   invoices and two demo logins, production gets the schema and seed only
 - Unit tests for the login logic in both apps, run in CI; the Playwright suite now also tests the login
@@ -25,9 +38,25 @@ version number, kept in each app's `package.json`. The web app shows this file o
   what the user sees for a refused login, a failed request, invalid input, an unknown reset link and
   a refused new password, and that nothing is sent when the form is invalid. `vitest.config.ts` now
   extends `vite.config.ts`, so tests resolve the same `@css`, `@components` and `@images` aliases
+- A way to create the first admin of a production install, which starts without users:
+  `docker compose -f docker-compose.prod.yml exec api node dist/scripts/createAdmin.js <email>`. It
+  asks for the password (hidden), or reads it from standard input, and never takes it as an argument.
+  With `--reset` it gives an existing user a new password and the admin role, which also gets a
+  locked-out admin back in; that ends the user's other sessions and any pending reset link
+- A `migrate` service in `docker-compose.prod.yml` that applies the database migrations:
+  `docker compose -f docker-compose.prod.yml run --rm --build migrate`. The production API image has
+  no migration tool, so an upgrade needed a checkout of the repository with Node 24. `up` does not
+  start the service, and it is safe on a database that is already up to date. See "Updating" in the
+  README
 
 ### Security
 
+- The API's production dependencies `multer` and `body-parser` had known vulnerabilities
+  (`npm audit --omit=dev`) that let a crafted request keep the server busy (denial of service). They
+  are updated within their version ranges, as are `qs`, `nodemailer` and Sentry; the web app's
+  advisories are in the "Web dependencies" entry below. No production dependency is left at high or
+  critical in either app. **Rebuild both images.** A new Audit workflow repeats the check on every
+  pull request, on `main` and weekly, and Dependabot proposes updates weekly
 - Password reset could be used by anyone to set the password of any user who had finished a reset
   before: the API cleared used tokens to an empty string and accepted an empty token. Tokens must now
   be well-formed, are stored only as a SHA-256 hash, expire after one hour and work once.
@@ -145,6 +174,28 @@ version number, kept in each app's `package.json`. The web app shows this file o
   word is a `LIKE '%word%'` on several columns, and the number of words was unlimited (the URL limit
   allows thousands): 1000 words took 3.1 s on 50 000 invoices and 3000 words 1 s on 2000 customers, so
   any logged-in user could keep the database busy
+- The users and settings pages are now admin-only in the web app at the route, as they are in the API.
+  A regular user who typed `/user/1/0/` got the empty "New user" form with a role selector, and Save
+  answered 403 without a word; the user list also asked the API for users before it checked the role.
+  Every one of these URLs now shows the 404 page to anyone but an admin and sends no request. The API
+  already refused all of it, so no data was exposed
+- The web app's Sentry scrubbing removed password reset tokens from what it sends but not the public
+  PDF link: `/pdf/<hash>` opens an invoice without a login, and Sentry records page URLs and the
+  request for the PDF in errors, traces, breadcrumbs and replays. The hash is now replaced there too,
+  as the API already did. Error tracking in the web app is only active when `VITE_SENTRY_DSN` is set
+  when the app is built
+- Web dependencies: `dompurify` 3.4.17, `i18next-http-backend` 4.0.10 and `follow-redirects` 1.16.2
+  close the three advisories `npm audit --omit=dev` reported (DOMPurify option bypasses, the language
+  in the translation URL, redirects in Node's HTTP client). None could be reached with how the app
+  uses them: the three places that sanitize HTML use the default settings, the translation path
+  has the language between slashes and only `en`, `et` and `fun` are loaded, and the browser build of
+  axios does not use `follow-redirects`. `npm audit --omit=dev` now finds nothing
+- The web app loaded its font from Google's servers, on every page including the public invoice
+  page that a customer opens from the email link: each visit sent the visitor's address to Google,
+  and the Content-Security-Policy had to allow two Google hosts for styles and fonts. Roboto (Latin
+  and Latin Extended, so Estonian letters work) is now part of the build, the page loads nothing from
+  another site and the policy allows none for styles, fonts or images. **Existing production setups
+  must rebuild the web image**
 
 ### Fixed
 
@@ -250,6 +301,47 @@ version number, kept in each app's `package.json`. The web app shows this file o
   button disabled, so only the Enter key could send another one. Save is now disabled only for a link
   the API does not accept (unknown, used or expired). The English text for two passwords that differ
   said "mach" instead of "match"
+- The last admin can no longer be deleted or made a regular user, which left nobody able to manage
+  users or settings (and a production install had no way to make a new admin). The API refuses it
+  with a message, also when two admins delete each other at the same moment. A deleted user's avatar
+  file is now removed only after the user is gone
+- Stopping the API (`docker compose stop`, a redeploy, Ctrl+C) now lets the requests that are running
+  finish, for up to 25 seconds, before the process ends. It used to ignore the stop signal and was
+  killed (exit code 137), which cut off whatever it was doing, such as a PDF or an email. The
+  production compose file gives the API 30 seconds to stop, and keeps each service's container log to
+  5 files of 10 MB, where Docker on a Linux server keeps one file that grows without limit
+- The settings page sent every setting on each autosave, including the invoice counter it had loaded
+  when the page opened. Once anyone created an invoice meanwhile, the API refused the old counter
+  (`lastInvoiceIdTooLow`) and with it every later save, and the autosave failed without a word, so
+  edits to the VAT, company details or email texts were lost on leaving the page. It now sends only
+  the settings that were changed (the counter only when it is edited, the logo only when a new file
+  is picked), sends nothing when nothing changed, and shows the error when the API refuses an
+  autosave. A refused change is sent again with the next one
+- Saving a new logo with no other setting changed failed with `put.settings.short`: the API built
+  `WHERE name IN (, ?)` when the file was all there was. The settings page always sent every setting
+  with the file, so it never showed; it now sends only what was changed, so the API takes a logo
+  alone. **Existing production setups must rebuild the API image** together with the web image
+- A new product saved with its unit left at the default failed in Estonian: the form sent the
+  Estonian label of the unit ("tk") instead of its value ("pc"), and the API answered `invalidInput`,
+  so the product could only be saved after picking a unit by hand. The form now sends the value in
+  every language
+- After the API limited the logins (10 failed attempts in 15 minutes), the web app replaced the whole
+  login page with the "We encountered an error" page: no form, no reason, and the person had to
+  reload. A refusal by the API (on the login, forgot-password and reset-password pages) now stays on
+  the form with a text in the language of the page ("Too many attempts. Please wait a while and try
+  again"); only a request nobody answered or a server error still shows the error page. An answer
+  without a body no longer breaks the error handling either
+- Logging in could leave the person on the login page, signed in but not forwarded: the page they
+  were on before (kept in `lastUrl`) can be a path such as `//example.com/x`, which the router refuses
+  to open (it throws "External navigation is not allowed"). The web app now goes back only to a path
+  of its own and otherwise to the home page. It was never an open redirect
+- The web server sent `index.html`, the translation files and `CHANGELOG.md` without `Cache-Control`,
+  so a browser could keep them for hours (a share of the time since `Last-Modified`). After an
+  update the old page pointed at build files that no longer exist and showed a blank page until a
+  hard reload. These files now carry `Cache-Control: no-cache`: the browser asks each time and gets a
+  304 when nothing changed. The fingerprinted files under `/assets/` are still cached for a year.
+  **Existing production setups must rebuild the web image** (`docker compose -f
+  docker-compose.prod.yml up -d --build web`)
 
 ### Changed
 

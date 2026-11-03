@@ -169,7 +169,8 @@ export const putAll = async (request: Request) => {
         // Logo
         if (file?.filename) {
             shortCases += ` WHEN name = ? THEN ?`;
-            shortNames += `, ?`;
+            // The list is empty when the logo is the only thing that was sent: "IN (, ?)" is not SQL
+            shortNames += shortNames ? `, ?` : `?`;
             shortCaseParams.push("logo", file.filename);
             shortInParams.push("logo");
             filename = file.filename;

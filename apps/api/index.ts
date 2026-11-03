@@ -38,6 +38,8 @@ import { config } from "./config/config";
 import { getAppOrigin } from "./helpers/appOrigin";
 import { errorHandler } from "./helpers/errorResponse";
 import { jwtSecretProblem, trustProxyWarning } from "./helpers/startupChecks";
+import { createShutdown, shutdownSignals } from "./helpers/shutdown";
+import { closePools } from "./db";
 import { uploadDir, pdfDir } from "./config/paths";
 import type { Request, Response, NextFunction } from "express";
 
@@ -166,6 +168,19 @@ Sentry.setupExpressErrorHandler(app);
 // Custom Error handler
 app.use(errorHandler);
 
-app.listen(servicePort, () => {
+const server = app.listen(servicePort, () => {
     console.log(`Server listening on port ${servicePort}`);
 });
+
+// A stop from Docker or Ctrl+C lets the running requests finish before the process ends
+const shutdown = createShutdown({
+    server,
+    closeResources: async () => {
+        await closePools();
+        // Sends what error tracking still holds; does nothing when SENTRY_DSN is not set
+        await Sentry.close(2000);
+    },
+    exit: (code) => process.exit(code)
+});
+
+shutdownSignals.forEach((signal) => process.on(signal, () => void shutdown(signal)));

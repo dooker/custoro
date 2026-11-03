@@ -63,6 +63,24 @@ describe('Forgot', () => {
         expect(auth.setErrorMessage).toHaveBeenCalledWith('Network Error');
     });
 
+    it('keeps the form and says to wait when the API answers 429', async () => {
+        vi.mocked(Axios.post).mockRejectedValue(
+            new AxiosError('Request failed', 'ERR_BAD_REQUEST', undefined, undefined, {
+                status: 429,
+                data: { success: false, message: 'Too many attempts. Please try again later.' },
+            } as AxiosResponse)
+        );
+        renderForgot();
+
+        await send('cadet@example.test');
+
+        expect(
+            await screen.findByText('Too many attempts. Please wait a while and try again')
+        ).toBeInTheDocument();
+        expect(auth.setErrorMessage).not.toHaveBeenCalled();
+        expect(screen.getByLabelText('Username')).toBeInTheDocument();
+    });
+
     it.each([
         ['an empty address', '', 'Username is required'],
         ['an address that is not an email', 'captain', 'Email format is incorrect'],

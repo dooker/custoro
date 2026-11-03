@@ -250,3 +250,23 @@ describe("the logo that came with a refused request", () => {
         expect(deleteImageFile).not.toHaveBeenCalled();
     });
 });
+
+// The web app sends only the settings that were changed, so a new logo can be all there is
+describe("PUT /settings with a new logo and no other setting", () => {
+    it("updates the logo row with a valid statement", async () => {
+        plainQueriesWork();
+
+        expect(await putAll(request({}, { filename: "logo-2.png" }))).toEqual({
+            success: true,
+            resource: "logo-2.png"
+        });
+
+        const update = queryMock.mock.calls
+            .map(([call]) => call as { sql: string; params: string[] })
+            .find(({ sql }) => /UPDATE config/.test(sql));
+
+        // "IN (, ?)" is a syntax error: the list must hold the logo's name alone
+        expect(update?.sql).toMatch(/WHEN name = \? THEN \? END\s+WHERE name IN \(\?\);/);
+        expect(update?.params).toEqual(["logo", "logo-2.png", "logo"]);
+    });
+});

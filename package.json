@@ -17,6 +17,8 @@
         "docker:down": "docker compose down",
         "docker:reset": "docker compose down -v",
         "docker:prod": "docker compose -f docker-compose.prod.yml up -d --build",
+        "docker:backup": "apps/api/scripts/backup.sh",
+        "docker:restore": "apps/api/scripts/restore.sh",
         "build": "npm run build --prefix apps/api && npm run build --prefix apps/web",
         "lint": "npm run lint --prefix apps/api && npm run lint --prefix apps/web",
         "type-check": "npm run type-check --prefix apps/api && npm run type-check --prefix apps/web",

@@ -99,8 +99,24 @@ export const getResetTokenUrl = (apiEndpoint: string): string =>
 // saved on that page, unlike after a rejected password, which can be changed and sent again.
 export const deadResetLinkMessage = 'login.error.noToken';
 
-export const getApiErrorMessage = (error: AxiosError<ApiErrorResponse>): string =>
-    error.response?.data.message || error.message || 'general error';
+// The API limits failed logins and reset emails with HTTP 429; its English sentence is replaced by
+// a text in the language of the page (login.error.tooManyAttempts)
+export const tooManyAttemptsMessage = 'login.error.tooManyAttempts';
+
+export const getApiErrorMessage = (error: AxiosError<ApiErrorResponse>): string => {
+    if (error.response?.status === 429) return tooManyAttemptsMessage;
+
+    return error.response?.data?.message || error.message || 'general error';
+};
+
+// Whether the API itself refused the request (a 4xx answer such as the login limit). Then the
+// form stays and says why. When nothing answered, or the server failed (5xx), the whole app shows
+// its error page instead.
+export const isRefusal = (error: AxiosError): boolean => {
+    const status = error.response?.status;
+
+    return status !== undefined && status < 500;
+};
 
 // The API answers a login token it no longer accepts with HTTP 200 and success:false, not with 401
 // (apps/api/helpers/authenticate.ts): the token expired, or the password or email changed and ended
@@ -116,10 +132,19 @@ export const isSessionEndResponse = (data: unknown): boolean => {
     return success === false && typeof message === 'string' && sessionEndMessages.includes(message);
 };
 
-// Where to go after login: back to the last visited page, unless that was a login page
+// A path of this app: one slash first, then not another slash or a backslash (browsers read
+// "//host/x" and "/\host/x" as another site)
+const isAppPath = (url: string): boolean => /^\/(?![/\\])/.test(url);
+
+// Where to go after login: back to the last visited page, unless that was a login page or is not
+// a path of this app
 export const getRedirectAfterLogin = (lastVisitedUrl: string | null): string => {
     const loginPages = [PATHS.LOGIN, PATHS.FORGOT, PATHS.RESTORE];
     const isLoginPage = loginPages.some((path) => lastVisitedUrl?.startsWith(path));
 
-    return isLoginPage ? PATHS.HOME : lastVisitedUrl || PATHS.HOME;
+    if (isLoginPage || !lastVisitedUrl || !isAppPath(lastVisitedUrl)) {
+        return PATHS.HOME;
+    }
+
+    return lastVisitedUrl;
 };

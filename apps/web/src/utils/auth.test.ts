@@ -4,6 +4,7 @@ import type { ApiErrorResponse } from '../types/api';
 import {
     buildLoginPayload,
     getApiErrorMessage,
+    isRefusal,
     getLoginUrl,
     getResetTokenUrl,
     getRedirectAfterLogin,
@@ -257,6 +258,41 @@ describe('getApiErrorMessage', () => {
     it('falls back to a generic message when both are empty', () => {
         expect(getApiErrorMessage(error('', ''))).toBe('general error');
     });
+
+    it("names the text for the login limit, not the API's English message", () => {
+        expect(
+            getApiErrorMessage({
+                message: 'Request failed',
+                response: { status: 429, data: { message: 'Too many attempts. Try later.' } },
+            } as AxiosError<ApiErrorResponse>)
+        ).toBe('login.error.tooManyAttempts');
+    });
+
+    it('survives an answer with no body', () => {
+        expect(
+            getApiErrorMessage({
+                message: 'Request failed with status code 400',
+                response: { status: 400, data: undefined },
+            } as unknown as AxiosError<ApiErrorResponse>)
+        ).toBe('Request failed with status code 400');
+    });
+});
+
+describe('isRefusal', () => {
+    const status = (code?: number) =>
+        ({ response: code === undefined ? undefined : { status: code } }) as AxiosError;
+
+    it.each([400, 403, 429])('is true for an answer of the API: HTTP %i', (code) => {
+        expect(isRefusal(status(code))).toBe(true);
+    });
+
+    it.each([500, 502, 503])('is false for a server error: HTTP %i', (code) => {
+        expect(isRefusal(status(code))).toBe(false);
+    });
+
+    it('is false when nothing answered', () => {
+        expect(isRefusal(status())).toBe(false);
+    });
 });
 
 describe('isSessionEndResponse', () => {
@@ -303,4 +339,22 @@ describe('getRedirectAfterLogin', () => {
             expect(getRedirectAfterLogin(lastUrl)).toBe('/home/');
         }
     );
+
+    // lastUrl is whatever path the browser was last at, and a link can make that "//host/path"
+    // (a double slash opens fine on the app's server). The router refuses to navigate to another
+    // origin by throwing, which left the person logged in on the login page.
+    it.each([
+        '//example.com/phish/',
+        '///example.com/',
+        '/\\example.com/phish/',
+        'https://example.com/phish/',
+        'javascript:alert(1)',
+        'customers/2/',
+    ])('goes home instead of to %s, which is not a page of the app', (lastUrl) => {
+        expect(getRedirectAfterLogin(lastUrl)).toBe('/home/');
+    });
+
+    it('keeps the query and anchor of a page of the app', () => {
+        expect(getRedirectAfterLogin('/invoices/2/?x=1#top')).toBe('/invoices/2/?x=1#top');
+    });
 });

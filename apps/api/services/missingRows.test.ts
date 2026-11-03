@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
+import { createFakeDb } from "../helper/testing/fakeDb";
 
 // A row that is not there (or a query that failed) is an answer of success: false, not a
 // TypeError that ends in an error 500
+const fake = createFakeDb();
 const queryMock = vi.fn();
 const deleteImageFile = vi.fn();
 
-vi.mock("../db", () => ({ getPool: () => ({}) }));
+vi.mock("../db", () => ({ getPool: () => fake.pool }));
 vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 vi.mock("../helper/query", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../helper/query")>()),
@@ -32,6 +34,7 @@ const ann = {
 };
 
 beforeEach(() => {
+    fake.reset();
     queryMock.mockReset();
     deleteImageFile.mockReset();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -66,6 +69,8 @@ describe("PUT /user/:id for a user that does not exist", () => {
                   ? { success: true, data: [{ count: 0 }] }
                   : { success: true, data: [] }
         );
+        // another admin exists, so making user 2 a regular user is allowed
+        fake.respondWith((sql) => (/FOR UPDATE/.test(sql) ? [{ id: 1 }] : {}));
 
         expect(await user.putSingle(request({ params: { id: "2" }, body: ann }))).toEqual({
             success: true,
@@ -91,11 +96,13 @@ describe("DELETE /user/:id for a user that does not exist", () => {
                 ? { success: true, data: [{ avatar: "" }] }
                 : { success: true, data: [] }
         );
+        fake.respondWith((sql) => (/FOR UPDATE/.test(sql) ? [{ id: 1 }, { id: 2 }] : {}));
 
         expect(await user.deleteSingle(request({ params: { id: "2" } }))).toEqual({
             success: true
         });
-        expect(queryMock).toHaveBeenCalledTimes(2);
+        expect(queryMock).toHaveBeenCalledOnce();
+        expect(fake.statements(/DELETE\s+FROM users/).map(({ params }) => params)).toEqual([[2]]);
     });
 });
 
