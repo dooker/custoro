@@ -300,6 +300,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   the settings that were changed (the counter only when it is edited, the logo only when a new file
   is picked), sends nothing when nothing changed, and shows the error when the API refuses an
   autosave. A refused change is sent again with the next one
+- A new product saved with its unit left at the default failed in Estonian: the form sent the
+  Estonian label of the unit ("tk") instead of its value ("pc"), and the API answered `invalidInput`,
+  so the product could only be saved after picking a unit by hand. The form now sends the value in
+  every language
 
 ### Changed
 
