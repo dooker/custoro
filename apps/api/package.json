@@ -49,7 +49,7 @@
         "@types/node": "^24.19.2",
         "@types/nodemailer": "^8.0.2",
         "@types/react": "^19.2.14",
-        "db-migrate": "^0.11.14",
+        "db-migrate": "^1.8.1",
         "db-migrate-mysql": "^3.2.1",
         "eslint": "^10.14.0",
         "eslint-config-prettier": "^10.1.8",
