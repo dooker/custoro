@@ -177,7 +177,11 @@ export interface ResetThrottleIF {
 //  - per account, across addresses: a larger budget, so a request spread over many addresses
 //    cannot fill the owner's inbox;
 //  - per address, across accounts.
-// Every reset request counts, sent or not, so the limit cannot tell whether an account exists
+// Every request counts against its address, refused or not, so an address that keeps asking is
+// stopped. Only a request that is let through counts against the account (and the account and
+// address): a refused one sends no email, and counting it would let one address use up the
+// account's budget and block the owner everywhere. Known and unknown accounts count the same way,
+// so the limit cannot tell whether an account exists.
 export const createResetThrottle = (
     perAccount: RateLimitRuleIF,
     perAccountAddress: RateLimitRuleIF,
@@ -197,11 +201,14 @@ export const createResetThrottle = (
                 accountAddresses.retryAfterSeconds(pair) > 0 ||
                 addresses.retryAfterSeconds(address) > 0;
 
-            accounts.hit(account);
-            accountAddresses.hit(pair);
             addresses.hit(address);
 
-            return !blocked;
+            if (blocked) return false;
+
+            accounts.hit(account);
+            accountAddresses.hit(pair);
+
+            return true;
         }
     };
 };

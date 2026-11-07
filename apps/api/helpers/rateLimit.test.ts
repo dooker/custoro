@@ -251,6 +251,32 @@ describe("createResetThrottle", () => {
         expect(throttle.allow("198.51.100.4", "id:7")).toBe(true);
     });
 
+    // Copilot review of PR 24: refused requests were counted against the account too, so ten from
+    // one address used up the account's budget and blocked the owner everywhere
+    it("does not let one address use up the account's budget with refused requests", () => {
+        const throttle = createResetThrottle(
+            { max: 10, windowMs: hour },
+            { max: 3, windowMs: hour },
+            { max: 10, windowMs: hour }
+        );
+        const answers = Array.from({ length: 10 }, () => throttle.allow("203.0.113.9", "id:7"));
+
+        expect(answers.filter(Boolean)).toHaveLength(3);
+        expect(throttle.allow("198.51.100.4", "id:7")).toBe(true);
+    });
+
+    it("still stops an address that keeps asking, for any account", () => {
+        const throttle = createResetThrottle(
+            { max: 10, windowMs: hour },
+            { max: 3, windowMs: hour },
+            { max: 10, windowMs: hour }
+        );
+
+        for (let i = 0; i < 10; i++) throttle.allow("203.0.113.9", "id:7");
+
+        expect(throttle.allow("203.0.113.9", "id:8")).toBe(false);
+    });
+
     it("limits an account across addresses, so many addresses cannot fill its inbox", () => {
         const throttle = createResetThrottle(
             { max: 4, windowMs: hour },
