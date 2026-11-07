@@ -63,10 +63,11 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
     // after "Mark as paid", before the invoice is read again) and on an open invoice, the customer
     // as it is now is read, for the picker, the name and the VAT number.
     const copy = paidCopy(isLocked, initialInvoice);
-    const { item: customer, isLoading } = usePickedItem<CustomerIF>(
-        RESOURCE.CUSTOMER,
-        copy ? null : customerId
-    );
+    const {
+        item: customer,
+        isLoading,
+        isPending: isCustomerPending,
+    } = usePickedItem<CustomerIF>(RESOURCE.CUSTOMER, copy ? null : customerId);
     const receiver = invoiceReceiver(copy, customer);
     const noVat = isForeignVatNumber(receiver.vatNumber);
 
@@ -170,7 +171,8 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
                 onChange={({ name, value }) => updateDraft({ [name]: value } as Partial<InvoiceIF>)}
                 customer={customer}
                 receiverName={receiver.name}
-                noVat={noVat}
+                // While a newly chosen customer loads, its VAT number is not known yet
+                noVat={!isCustomerPending && noVat}
             />
 
             <table className={`${styles.invoiceItems} general-table`}>
@@ -182,7 +184,8 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
                     }
                 />
 
-                {items && <Total draft={initialInvoice} noVat={noVat} />}
+                {/* The totals wait for a newly chosen customer: VAT depends on its VAT number */}
+                {items && !isCustomerPending && <Total draft={initialInvoice} noVat={noVat} />}
             </table>
 
             <Actions markAsPaid={markAsPaid} draft={initialInvoice} />
