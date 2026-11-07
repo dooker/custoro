@@ -6,7 +6,7 @@ import { useNotification } from '../store/notification';
 import { PATHS, sessionEndedEvent } from '../variables';
 
 // The API no longer accepts the login token (Axios.tsx sends the event): log out, go to the login
-// page and say why. The same when another tab of the app logs out. It has to live inside the router, because logging out alone does not leave
+// page and say why. When another tab logs out or in, this one reloads. It has to live inside the router, because logging out alone does not leave
 // the page the user is on, as in Navigation's own logout.
 export const useSessionEnd = () => {
     const { logout } = useAuth();
@@ -24,16 +24,12 @@ export const useSessionEnd = () => {
             notification.updateShow(true);
         };
 
-        // Another tab logged out: this one is logged out too and leaves its page. Another tab
-        // logged in, maybe as someone else: what this tab shows belongs to the session before,
-        // so it starts again with the new one.
+        // Another tab logged out, or in (maybe as someone else): what this tab shows belongs to
+        // the session before, so it starts again with whatever is stored now; without a token
+        // that is the login page. It never removes the stored token itself: the other tab may
+        // have logged in again before this event arrived, and that login would be lost.
         const onStorage = (event: StorageEvent) => {
-            const change = sessionChangeInOtherTab(event, tokenName);
-
-            if (change === 'loggedOut') {
-                logout();
-                navigate(PATHS.LOGIN, { replace: true });
-            } else if (change === 'loggedIn') {
+            if (sessionChangeInOtherTab(event, tokenName)) {
                 window.location.reload();
             }
         };

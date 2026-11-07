@@ -65,35 +65,34 @@ describe('useSessionEnd', () => {
         expect(logout).not.toHaveBeenCalled();
     });
 
-    it('logs out and goes to the login page when another tab logs out', () => {
-        renderAt('/customers/1/');
-
-        act(() => {
-            window.dispatchEvent(
-                new StorageEvent('storage', { key: 'loginToken', oldValue: 'a', newValue: null })
-            );
-        });
-
-        expect(logout).toHaveBeenCalledTimes(1);
-        expect(screen.getByTestId('path')).toHaveTextContent(PATHS.LOGIN);
-        // not an expired session: nothing to say
-        expect(useNotification.getState().show).toBe(false);
-    });
-
-    it('starts again when another tab logs in', () => {
+    // Copilot review of PR 24: a logout in another tab used to call logout() here, which removes the
+    // shared token. When the other tab had logged in again before this one handled the event, that
+    // removed the new login. This tab now reloads and reads whatever is stored.
+    it('reloads, and leaves the stored token alone, when another tab logs out or in', () => {
         const reload = vi.fn();
 
         vi.stubGlobal('location', { ...window.location, reload });
+        localStorage.setItem('loginToken', 'new-login');
         renderAt('/customers/1/');
 
-        act(() => {
-            window.dispatchEvent(
-                new StorageEvent('storage', { key: 'loginToken', oldValue: 'a', newValue: 'b' })
-            );
-        });
+        for (const [oldValue, newValue] of [
+            ['a', null],
+            [null, 'new-login'],
+        ]) {
+            act(() => {
+                window.dispatchEvent(
+                    new StorageEvent('storage', { key: 'loginToken', oldValue, newValue })
+                );
+            });
+        }
 
-        expect(reload).toHaveBeenCalledTimes(1);
+        expect(reload).toHaveBeenCalledTimes(2);
         expect(logout).not.toHaveBeenCalled();
+        expect(localStorage.getItem('loginToken')).toBe('new-login');
+        // not an expired session: nothing to say
+        expect(useNotification.getState().show).toBe(false);
+
+        localStorage.removeItem('loginToken');
         vi.unstubAllGlobals();
     });
 
