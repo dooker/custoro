@@ -58,3 +58,15 @@ export const debounceLatest = <A, R>(load: (arg: A) => Promise<R>, delayMs: numb
             }, delayMs);
         });
 };
+
+/**
+ * What a picker searches with: the first page (nothing typed) at once and on its own, typing
+ * debounced. Sharing one debounce let typing within the delay answer the first-page request too,
+ * so clearing the box showed the typed matches instead of the first page.
+ */
+export const searchLoader = <R>(load: (keyword: string) => Promise<R>, delayMs: number) => {
+    const typed = debounceLatest(load, delayMs);
+
+    return (keyword: string): Promise<R> =>
+        keyword.trim() === '' ? load('') : typed(keyword.trim());
+};

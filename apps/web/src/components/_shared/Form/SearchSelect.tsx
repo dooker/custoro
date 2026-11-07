@@ -4,9 +4,9 @@ import type { SingleValue } from 'react-select';
 import type { SelectOptionIF } from '../../../types';
 import { getSearch } from '../../../utils/Getters/getSearch';
 import {
-    debounceLatest,
     pickerDelayMs,
     pickerLimit,
+    searchLoader,
     toPickerOption,
     type PickerOptionIF,
     type PickerResource,
@@ -38,7 +38,7 @@ const SearchSelect = <
     const [chosen, setChosen] = useState<SelectOptionIF | null>(null);
     const loadOptions = useMemo(
         () =>
-            debounceLatest(async (keyword: string) => {
+            searchLoader(async (keyword: string) => {
                 const { resource: items = [] } = await getSearch<T>({
                     resource,
                     keyword,
