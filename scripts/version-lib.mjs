@@ -8,7 +8,13 @@
 // candidate of 5.0.0, the build that is tested before 5.0.0 goes live. A pre-release keeps the
 // changelog entries under Unreleased; the release of 5.0.0 itself dates them.
 
-const semver = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
+// One identifier of a pre-release: a number without leading zeros, or letters, digits and "-" with
+// at least one letter or "-" (semver.org: "rc", "1", "beta-2", "0a"; not "01")
+const identifier = '(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)';
+const preIdentifier = new RegExp(`^${identifier}$`);
+const semver = new RegExp(
+    `^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-(${identifier}(?:\\.${identifier})*))?$`
+);
 
 // The label of a new pre-release: rc.1, rc.2, ... ("release candidate")
 export const defaultPreid = 'rc';
@@ -80,14 +86,19 @@ export const nextVersion = (current, bump, preid = defaultPreid) => {
 
     if (!parsed) throw new Error(`The current version "${current}" is not x.y.z or x.y.z-<pre>`);
 
-    // Checked first, so a wrong label stops before any file is written. Letters, digits and "-",
-    // the characters a semantic version allows (5.0.0-rc.1, 5.0.0-beta-2.1)
-    if (!/^[0-9A-Za-z-]+$/.test(preid)) {
-        throw new Error(`The pre-release label "${preid}" may only have letters, digits and -`);
+    // Checked first, so a wrong label stops before any file is written: letters, digits and "-",
+    // and a number only without leading zeros (5.0.0-rc.1, 5.0.0-beta-2.1, not 5.0.0-01.1)
+    if (!preIdentifier.test(preid)) {
+        throw new Error(
+            `The pre-release label "${preid}" may only have letters, digits and -, ` +
+                'and a number in it no leading zero'
+        );
     }
 
     // Whatever the bump, the sequence never goes back: 5.0.0-beta.1 does not follow 5.0.0-rc.1
     const next = candidate(parsed, current, bump, preid);
+
+    if (!parseVersion(next)) throw new Error(`"${next}" is not a version`);
 
     if (compareVersions(next, current) <= 0) {
         throw new Error(`${next} is not above the current version ${current}`);

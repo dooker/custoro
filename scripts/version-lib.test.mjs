@@ -184,3 +184,25 @@ test('nextVersion never goes back, also when the pre-release label changes', () 
     assert.equal(nextVersion('5.0.0-beta.3', 'prerelease', 'rc'), '5.0.0-rc.1');
     assert.equal(nextVersion('5.0.0-beta.3', 'prerelease', 'beta'), '5.0.0-beta.4');
 });
+
+// Copilot review of PR 24, rounds 2 and 3: semantic versioning forbids leading zeros in numbers
+// (05.0.0, 5.0.0-rc.01), but they passed the checks and could be written to every package file
+test('parseVersion refuses leading zeros in numbers, not in labels', () => {
+    for (const text of ['05.0.0', '5.00.0', '5.0.01', '5.0.0-rc.01', '5.0.0-01', '5.0.0-00']) {
+        assert.equal(parseVersion(text), null, text);
+    }
+    for (const text of ['0.0.0', '10.0.0', '5.0.0-rc.0', '5.0.0-0', '5.0.0-0a', '5.0.0-rc.10', '5.0.0--x']) {
+        assert.notEqual(parseVersion(text), null, text);
+    }
+});
+
+test('nextVersion refuses a numeric label with a leading zero, and such an exact version', () => {
+    assert.throws(() => nextVersion('4.0.0', 'premajor', '01'), /label/);
+    assert.equal(nextVersion('4.0.0', 'premajor', '1'), '5.0.0-1.1');
+    assert.throws(() => nextVersion('4.0.0', '05.0.0'), /not major/);
+    assert.throws(() => nextVersion('4.0.0', '5.0.0-rc.01'), /not major/);
+});
+
+test('commonVersion refuses package files with a leading zero', () => {
+    assert.throws(() => commonVersion({ 'package.json': pkg('5.0.0-rc.01') }), /not x\.y\.z/);
+});
