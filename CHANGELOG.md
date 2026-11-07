@@ -7,6 +7,21 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Added
 
+- Every image knows which build it is. `scripts/docker-build.sh` (`npm run docker:build`, also used
+  by `npm run docker:prod`) builds the production images with the git commit and the build time:
+  `GET /api/` answers `{version, build, builtAt}`, the sidebar shows "v 4.0.0 · 38bdbcb" (the build
+  time on hover), the images carry them as labels, and error reports are grouped in Sentry by the
+  release `custoro@<version>+<commit>`, in both apps. A checkout with uncommitted changes builds
+  `<commit>-dirty`; a plain `docker compose build` still works and says "unknown". **Build with
+  `scripts/docker-build.sh`** to see the build on a server
+- Releases: one version for the root, the API and the web app, checked by a new `version` CI job
+  (the root `package.json` said 0.0.0). `npm run version:suggest` proposes major, minor or patch
+  from the entries under Unreleased and says which lines decided; `npm run release:prepare --
+  <bump>` sets the version in all six package files and dates the changelog section. When that
+  release PR is merged, the new Release workflow tags the commit `v<version>`, publishes the GitHub
+  release with the changelog section and pushes the images to
+  `ghcr.io/<owner>/custoro-api:<version>` and `custoro-web:<version>`. See "Version and build" in
+  the README and the `custoro-release` skill
 - Backup and restore for the production Docker stack: `npm run docker:backup` and
   `npm run docker:restore -- backups/<folder>` (`apps/api/scripts/backup.sh` and `restore.sh`). A
   backup is a dated folder with a `mysqldump --single-transaction` of the database, taken inside the

@@ -78,6 +78,25 @@ jobs:
             - name: Build
               run: npm run build
 
+    # One version in every package file (scripts/version.mjs), and the tests of the version rules
+    version:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: .nvmrc
+
+            - name: Same version everywhere
+              run: node scripts/version.mjs check
+
+            - name: Version script tests
+              run: node --test "scripts/*.test.mjs"
+
     # Builds the production images, starts them as a server would and checks that they answer:
     # nginx serves the app and proxies /api, the API reaches its database, migrations run
     docker:

@@ -1,0 +1,117 @@
+name: Release
+
+# Publishes a release when a release PR (npm run release:prepare) is merged: the push to main that
+# changes the version tags that commit v<version>, pushes the API and web images to the GitHub
+# container registry as ghcr.io/<owner>/custoro-api:<version> and custoro-web:<version>, and
+# creates the GitHub release with the version's CHANGELOG entries. Every other push to main stops at
+# the first step. Run it by hand (workflow_dispatch) to release the current version when the push
+# that changed it did not get that far; a version that already has a tag is never released again.
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    packages: write
+
+# One release at a time, and never one cut short by the next push
+concurrency:
+    group: release
+    cancel-in-progress: false
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+              with:
+                  # The tags, and the commit before this push
+                  fetch-depth: 0
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: .nvmrc
+
+            - name: Is there a version to release?
+              id: version
+              env:
+                  BEFORE: ${{ github.event.before }}
+                  EVENT: ${{ github.event_name }}
+              run: |
+                  set -euo pipefail
+                  # Every package file has the same x.y.z, or this fails
+                  version=$(node scripts/version.mjs check)
+                  echo "version=$version" >> "$GITHUB_OUTPUT"
+
+                  if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+                      echo "v$version is released already"
+                      echo "release=false" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+
+                  # On a push, only when this push changed the version: the merged release PR.
+                  # (4.0.0 has no tag, and merging anything else must not release it again.)
+                  if [ "$EVENT" = "push" ]; then
+                      previous=$(git show "$BEFORE:apps/api/package.json" 2>/dev/null |
+                          sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' | head -n 1 || true)
+                      if [ "$previous" = "$version" ]; then
+                          echo "The version is still $version: nothing to release"
+                          echo "release=false" >> "$GITHUB_OUTPUT"
+                          exit 0
+                      fi
+                  fi
+
+                  echo "Releasing $version"
+                  echo "release=true" >> "$GITHUB_OUTPUT"
+
+            - name: Release notes from the changelog
+              if: steps.version.outputs.release == 'true'
+              env:
+                  VERSION: ${{ steps.version.outputs.version }}
+              run: node scripts/version.mjs notes "$VERSION" > "$RUNNER_TEMP/notes.md"
+
+            - name: Build the images
+              if: steps.version.outputs.release == 'true'
+              env:
+                  VERSION: ${{ steps.version.outputs.version }}
+                  # Required by the compose file, not used at build time
+                  DB_ROOT_PASSWORD: release
+                  DB_USERNAME: release
+                  DB_PASSWORD: release
+                  APP_ORIGIN: http://localhost
+                  JWT_SECRET: release-only-not-a-secret-0123456789abcdef
+                  TRUST_PROXY: 1
+              run: |
+                  set -euo pipefail
+                  owner=$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+                  export API_IMAGE="ghcr.io/$owner/custoro-api:$VERSION"
+                  export WEB_IMAGE="ghcr.io/$owner/custoro-web:$VERSION"
+                  echo "API_IMAGE=$API_IMAGE" >> "$GITHUB_ENV"
+                  echo "WEB_IMAGE=$WEB_IMAGE" >> "$GITHUB_ENV"
+                  # Names the commit and the build time in the images (GET /api/, the sidebar)
+                  scripts/docker-build.sh api web
+
+            - name: Push the images
+              if: steps.version.outputs.release == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+                  docker push "$API_IMAGE"
+                  docker push "$WEB_IMAGE"
+
+            # Last, so a failed build or push leaves no tag and the run can simply be repeated
+            - name: Tag the commit and publish the release
+              if: steps.version.outputs.release == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  VERSION: ${{ steps.version.outputs.version }}
+              run: |
+                  gh release create "v$VERSION" --target "$GITHUB_SHA" \
+                      --title "Custoro $VERSION" --notes-file "$RUNNER_TEMP/notes.md"

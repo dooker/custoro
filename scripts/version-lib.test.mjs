@@ -1,0 +1,110 @@
+// node --test "scripts/*.test.mjs"   (npm run test:scripts; CI runs it in the version job)
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+    commonVersion,
+    nextVersion,
+    parseVersion,
+    releaseChangelog,
+    releaseNotes,
+    suggestBump,
+    withVersion,
+} from './version-lib.mjs';
+
+const pkg = (version) => `{\n    "name": "custoro",\n    "version": "${version}",\n    "private": true\n}\n`;
+const lock = (version, dependency = '1.0.0') =>
+    `{\n    "name": "custoro",\n    "version": "${version}",\n    "lockfileVersion": 3,\n    "packages": {\n        "": {\n            "name": "custoro",\n            "version": "${version}"\n        },\n        "node_modules/x": {\n            "version": "${dependency}"\n        }\n    }\n}\n`;
+
+const changelog = (unreleased) =>
+    `# Changelog\n\nIntro.\n\n## Unreleased\n${unreleased}\n## 4.0.0 - 2026-10-02\n\n### Changed\n\n- The first release\n\n## Pre-monorepo history\n\nOld.\n`;
+
+test('parseVersion takes x.y.z only', () => {
+    assert.deepEqual(parseVersion('4.0.12'), [4, 0, 12]);
+    for (const text of ['4.0', 'v4.0.0', '4.0.0-beta', '', undefined]) {
+        assert.equal(parseVersion(text), null, String(text));
+    }
+});
+
+test('nextVersion bumps one part and resets the ones after it', () => {
+    assert.equal(nextVersion('4.2.3', 'major'), '5.0.0');
+    assert.equal(nextVersion('4.2.3', 'minor'), '4.3.0');
+    assert.equal(nextVersion('4.2.3', 'patch'), '4.2.4');
+    assert.equal(nextVersion('4.2.3', '4.10.0'), '4.10.0');
+});
+
+test('nextVersion refuses a version that is not above the current one, or nonsense', () => {
+    for (const bump of ['4.2.3', '4.2.2', '3.9.9', 'huge', '5.0']) {
+        assert.throws(() => nextVersion('4.2.3', bump), undefined, bump);
+    }
+});
+
+test('commonVersion finds the one version of every package file', () => {
+    const files = { 'package.json': pkg('4.0.0'), 'apps/api/package-lock.json': lock('4.0.0', '9.9.9') };
+
+    assert.equal(commonVersion(files), '4.0.0');
+});
+
+test('commonVersion lists every file when they differ', () => {
+    const files = { 'package.json': pkg('0.0.0'), 'apps/api/package-lock.json': lock('4.0.0') };
+
+    assert.throws(() => commonVersion(files), /package\.json version: 0\.0\.0[\s\S]*packages\[""\]\.version: 4\.0\.0/);
+});
+
+test('withVersion changes only the version lines, also when a dependency has the same version', () => {
+    assert.equal(withVersion('package.json', pkg('4.0.0'), '5.0.0'), pkg('5.0.0'));
+    assert.equal(
+        withVersion('apps/web/package-lock.json', lock('4.0.0', '4.0.0'), '5.0.0'),
+        lock('5.0.0', '4.0.0')
+    );
+});
+
+test('suggestBump: major when an install must change its configuration', () => {
+    const { bump, reasons } = suggestBump(
+        changelog('\n### Security\n\n- **Existing production setups must add `TRUST_PROXY` to `.env`**\n\n### Fixed\n\n- A fix\n')
+    );
+
+    assert.equal(bump, 'major');
+    assert.match(reasons[0], /TRUST_PROXY/);
+    assert.equal(suggestBump(changelog('\n### Changed\n\n- **Breaking:** the API moved\n')).bump, 'major');
+});
+
+test('suggestBump: minor for anything added or changed, or a migration', () => {
+    assert.equal(suggestBump(changelog('\n### Added\n\n- A new page\n')).bump, 'minor');
+    assert.equal(suggestBump(changelog('\n### Changed\n\n- The list shows 20 rows\n')).bump, 'minor');
+    assert.equal(
+        suggestBump(changelog('\n### Fixed\n\n- Paid invoices. **Existing databases must run the new migration**\n')).bump,
+        'minor'
+    );
+});
+
+test('suggestBump: a patch for fixes only, nothing for an empty section', () => {
+    assert.equal(suggestBump(changelog('\n### Fixed\n\n- A fix\n\n### Security\n\n- Another\n')).bump, 'patch');
+    assert.equal(suggestBump(changelog('\n')).bump, 'none');
+    assert.equal(suggestBump(changelog('\n### Added\n\n')).bump, 'none');
+});
+
+test('suggestBump does not read past Unreleased', () => {
+    // "### Changed" of 4.0.0 below must not make an Unreleased with only a fix minor
+    assert.equal(suggestBump(changelog('\n### Fixed\n\n- A fix\n')).bump, 'patch');
+});
+
+test('releaseChangelog dates the section and opens a new empty Unreleased', () => {
+    const released = releaseChangelog(changelog('\n### Fixed\n\n- A fix\n'), '4.0.1', '2026-11-07');
+
+    assert.match(released, /## Unreleased\n\n## 4\.0\.1 - 2026-11-07\n\n### Fixed\n\n- A fix\n\n## 4\.0\.0 - 2026-10-02/);
+    assert.equal(suggestBump(released).bump, 'none');
+});
+
+test('releaseChangelog refuses an empty Unreleased, a version released before or a bad date', () => {
+    assert.throws(() => releaseChangelog(changelog('\n'), '4.0.1', '2026-11-07'), /nothing to release/);
+    assert.throws(() => releaseChangelog(changelog('\n- x\n'), '4.0.0', '2026-11-07'), /already has a section/);
+    assert.throws(() => releaseChangelog(changelog('\n- x\n'), '4.0.1', '07.11.2026'), /not a date/);
+});
+
+test('releaseNotes gives the entries of one release, not the ones after it', () => {
+    const released = releaseChangelog(changelog('\n### Fixed\n\n- A fix\n'), '4.0.1', '2026-11-07');
+
+    assert.equal(releaseNotes(released, '4.0.1'), '### Fixed\n\n- A fix\n');
+    assert.equal(releaseNotes(released, '4.0.0'), '### Changed\n\n- The first release\n');
+    assert.throws(() => releaseNotes(released, '9.9.9'), /no section/);
+});

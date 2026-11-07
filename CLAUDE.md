@@ -25,7 +25,7 @@ Request flow: **route -> service -> helper**. A route holds no SQL and no busine
 - Production runs **MySQL 8.4** (`docker-compose.prod.yml`), but the hosted database is **MariaDB 11.4**. SQL and migrations must work on both.
 - Schema changes are a migration in `apps/api/migrations/` plus the same end state in `apps/api/db/01-schema.sql`. Money is `DECIMAL`, every table `utf8mb4_unicode_ci`.
 - Prettier: API double quotes and no trailing commas, web single quotes and ES5 commas, both 4 spaces and 100 columns. CI runs it with `--check`.
-- A user-visible or deploy-relevant change gets a `CHANGELOG.md` entry under `## Unreleased`.
+- A user-visible or deploy-relevant change gets a `CHANGELOG.md` entry under `## Unreleased`. One version for everything; only `npm run release:prepare` changes it (see `custoro-release`).
 
 ## Node 22 on the host, Node 24 required
 
@@ -39,6 +39,9 @@ npm run docker:down       # stop, keep the database
 npm run lint              # both apps; the API's script runs eslint --fix
 npm run type-check        # both apps
 npm test                  # both apps' unit tests, once
+npm run docker:build      # production images, named with their version and git commit
+npm run version:check     # the one version of root, API and web (CI job "version")
+npm run version:suggest   # next version from CHANGELOG Unreleased; releases: custoro-release
 ```
 
 What CI runs (`.github/workflows/ci.yml`), per app:
@@ -68,5 +71,6 @@ cd apps/web && npx playwright test --project=api --workers=1
 | `custoro-pr`              | commits, CHANGELOG entry, PR description, CI, Copilot review comments                     |
 | `custoro-perf-check`      | time queries on the 50k-invoice data, before/after table for a PR                         |
 | `custoro-deploy`          | prepare a production deploy runbook (user-invoked only, never runs on the server)         |
+| `custoro-release`         | choose the next version, prepare the release PR; the workflow tags and publishes it       |
 
 Never commit `.claude/settings.local.json` or `.claude/worktrees`.

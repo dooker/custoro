@@ -1,6 +1,6 @@
 {
     "name": "custoro",
-    "version": "0.0.0",
+    "version": "4.0.0",
     "private": true,
     "description": "Self-hostable invoicing and worksheet app (API + web)",
     "author": "Ingmar Ross <dooker@dooker.eu>",
@@ -24,7 +24,12 @@
         "lint": "npm run lint --prefix apps/api && npm run lint --prefix apps/web",
         "type-check": "npm run type-check --prefix apps/api && npm run type-check --prefix apps/web",
         "test": "npm test --prefix apps/api -- --run && npm test --prefix apps/web -- --run",
-        "check-all": "npm run lint && npm run type-check && npm run build"
+        "check-all": "npm run lint && npm run type-check && npm run build",
+        "version:check": "node scripts/version.mjs check",
+        "version:suggest": "node scripts/version.mjs suggest",
+        "release:prepare": "node scripts/version.mjs prepare",
+        "release:notes": "node scripts/version.mjs notes",
+        "test:scripts": "node --test \"scripts/*.test.mjs\""
     },
     "devDependencies": {
         "concurrently": "^10.0.6"
