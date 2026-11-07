@@ -14,7 +14,8 @@ import Users from '../Icons/Users';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { endpoint, PATHS, RESOURCE } from '../../../variables';
 import { Axios } from '../../../Axios';
-import { getLogoutUrl } from '../../../utils/auth';
+import { getLogoutUrl, revokeSession } from '../../../utils/auth';
+import { useNotification } from '../../../store/notification';
 import { versionLabel } from '../../../utils/buildInfo';
 import styles from './Navigation.module.sass';
 
@@ -34,13 +35,24 @@ const Navigation = () => {
     const navigate = useNavigate();
     const { name, avatar } = user || {};
 
-    // The API ends the session on every device first (the token is still needed for that); when
-    // it cannot be reached in time, the browser forgets the token anyway
+    // The API ends the session on every device first (the token is still needed for that). The
+    // browser forgets the token either way; when the API refused or did not answer in time, the
+    // login page says that the other sessions may still be valid.
     const handleLogout = async () => {
-        await Axios.post(getLogoutUrl(endpoint), {}, { timeout: 5000 }).catch(() => undefined);
-        logout();
+        const revoked = await revokeSession(() =>
+            Axios.post(getLogoutUrl(endpoint), {}, { timeout: 5000 })
+        );
 
+        logout();
         navigate('/login', { replace: true });
+
+        if (!revoked) {
+            const notification = useNotification.getState();
+
+            notification.updateMessage('logoutFailed');
+            notification.updateError(true);
+            notification.updateShow(true);
+        }
     };
 
     return (

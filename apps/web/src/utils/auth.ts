@@ -94,6 +94,23 @@ export const getLoginUrl = (apiEndpoint: string, type: AuthType): string | null 
 // Ends the session in the API too (on every device), not only in this browser
 export const getLogoutUrl = (apiEndpoint: string): string => `${apiEndpoint}${PATHS.LOGIN}logout`;
 
+/**
+ * Asks the API to end the account's sessions and says whether that is confirmed. A token the API
+ * no longer takes has nothing left to end. A refusal (HTTP 200 with success false, "logoutFailed")
+ * or no answer leaves the other sessions possibly valid: the caller still logs out here, and says so.
+ */
+export const revokeSession = async (post: () => Promise<{ data: unknown }>): Promise<boolean> => {
+    try {
+        const { data } = await post();
+
+        return (
+            (data as { success?: unknown } | null)?.success === true || isSessionEndResponse(data)
+        );
+    } catch {
+        return false;
+    }
+};
+
 export type OtherTabSessionChange = 'loggedOut' | 'loggedIn' | null;
 
 /**

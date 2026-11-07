@@ -11,6 +11,7 @@ import {
     getRedirectAfterLogin,
     sessionChangeInOtherTab,
     isSessionEndResponse,
+    revokeSession,
     validateLoginForm,
     type LoginFormValuesIF,
 } from './auth';
@@ -397,5 +398,33 @@ describe('sessionChangeInOtherTab', () => {
         expect(
             sessionChangeInOtherTab({ key: tokenKey, oldValue: 'a', newValue: 'a' }, tokenKey)
         ).toBeNull();
+    });
+});
+
+// Copilot review of PR 24, rounds 2 and 3: the Log out button ignored a refusal ({ success: false,
+// message: 'logoutFailed' } with HTTP 200) and a failed request, so nobody learned that the other
+// sessions might still be valid
+describe('revokeSession', () => {
+    const answer = (data: unknown) => () => Promise.resolve({ data });
+
+    it('is confirmed when the API ended the sessions', async () => {
+        expect(await revokeSession(answer({ success: true }))).toBe(true);
+    });
+
+    it('is confirmed when the token was no longer valid anyway', async () => {
+        expect(await revokeSession(answer({ success: false, message: 'invalid.token' }))).toBe(
+            true
+        );
+        expect(await revokeSession(answer({ success: false, message: 'session.expired' }))).toBe(
+            true
+        );
+    });
+
+    it('is not confirmed when the API refused or did not answer', async () => {
+        expect(await revokeSession(answer({ success: false, message: 'logoutFailed' }))).toBe(
+            false
+        );
+        expect(await revokeSession(answer('<html>gateway</html>'))).toBe(false);
+        expect(await revokeSession(() => Promise.reject(new Error('timeout')))).toBe(false);
     });
 });
