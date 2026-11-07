@@ -6,8 +6,10 @@ import {
     getApiErrorMessage,
     isRefusal,
     getLoginUrl,
+    getLogoutUrl,
     getResetTokenUrl,
     getRedirectAfterLogin,
+    sessionChangeInOtherTab,
     isSessionEndResponse,
     validateLoginForm,
     type LoginFormValuesIF,
@@ -356,5 +358,44 @@ describe('getRedirectAfterLogin', () => {
 
     it('keeps the query and anchor of a page of the app', () => {
         expect(getRedirectAfterLogin('/invoices/2/?x=1#top')).toBe('/invoices/2/?x=1#top');
+    });
+});
+
+describe('getLogoutUrl', () => {
+    it('is the logout of the login API', () => {
+        expect(getLogoutUrl('https://api.example.test')).toBe(
+            'https://api.example.test/login/logout'
+        );
+    });
+});
+
+describe('sessionChangeInOtherTab', () => {
+    const tokenKey = 'loginToken';
+
+    it('is a logout when another tab removed the token or cleared the storage', () => {
+        expect(
+            sessionChangeInOtherTab({ key: tokenKey, oldValue: 'a', newValue: null }, tokenKey)
+        ).toBe('loggedOut');
+        expect(
+            sessionChangeInOtherTab({ key: null, oldValue: null, newValue: null }, tokenKey)
+        ).toBe('loggedOut');
+    });
+
+    it('is a login when another tab stored a new token', () => {
+        expect(
+            sessionChangeInOtherTab({ key: tokenKey, oldValue: null, newValue: 'b' }, tokenKey)
+        ).toBe('loggedIn');
+        expect(
+            sessionChangeInOtherTab({ key: tokenKey, oldValue: 'a', newValue: 'b' }, tokenKey)
+        ).toBe('loggedIn');
+    });
+
+    it('is nothing for other keys or an unchanged token', () => {
+        expect(
+            sessionChangeInOtherTab({ key: 'language', oldValue: 'en', newValue: 'et' }, tokenKey)
+        ).toBeNull();
+        expect(
+            sessionChangeInOtherTab({ key: tokenKey, oldValue: 'a', newValue: 'a' }, tokenKey)
+        ).toBeNull();
     });
 });

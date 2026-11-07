@@ -91,6 +91,27 @@ export const getLoginUrl = (apiEndpoint: string, type: AuthType): string | null 
     return urls[type] ?? null;
 };
 
+// Ends the session in the API too (on every device), not only in this browser
+export const getLogoutUrl = (apiEndpoint: string): string => `${apiEndpoint}${PATHS.LOGIN}logout`;
+
+export type OtherTabSessionChange = 'loggedOut' | 'loggedIn' | null;
+
+/**
+ * What a change to the stored login token means for this tab. The browser sends a storage event
+ * to the other tabs of the app, never to the tab that made the change: a logout there must end
+ * this tab's session too, and a login there (maybe as someone else) replaces it.
+ */
+export const sessionChangeInOtherTab = (
+    event: Pick<StorageEvent, 'key' | 'oldValue' | 'newValue'>,
+    tokenKey: string
+): OtherTabSessionChange => {
+    // A null key: the other tab cleared the whole storage, the token with it
+    if (event.key === null) return 'loggedOut';
+    if (event.key !== tokenKey || event.newValue === event.oldValue) return null;
+
+    return event.newValue === null ? 'loggedOut' : 'loggedIn';
+};
+
 // Checking a reset link (POST) and saving the new password (PUT) share this URL
 export const getResetTokenUrl = (apiEndpoint: string): string =>
     `${apiEndpoint}${PATHS.LOGIN}token`;

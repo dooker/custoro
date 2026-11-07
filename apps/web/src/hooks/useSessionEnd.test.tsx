@@ -8,6 +8,7 @@ import { useSessionEnd } from './useSessionEnd';
 const logout = vi.fn();
 
 vi.mock('../contexts/Auth', () => ({
+    tokenName: 'loginToken',
     useAuth: () => ({ logout }),
 }));
 
@@ -62,5 +63,50 @@ describe('useSessionEnd', () => {
         window.dispatchEvent(new Event(sessionEndedEvent));
 
         expect(logout).not.toHaveBeenCalled();
+    });
+
+    it('logs out and goes to the login page when another tab logs out', () => {
+        renderAt('/customers/1/');
+
+        act(() => {
+            window.dispatchEvent(
+                new StorageEvent('storage', { key: 'loginToken', oldValue: 'a', newValue: null })
+            );
+        });
+
+        expect(logout).toHaveBeenCalledTimes(1);
+        expect(screen.getByTestId('path')).toHaveTextContent(PATHS.LOGIN);
+        // not an expired session: nothing to say
+        expect(useNotification.getState().show).toBe(false);
+    });
+
+    it('starts again when another tab logs in', () => {
+        const reload = vi.fn();
+
+        vi.stubGlobal('location', { ...window.location, reload });
+        renderAt('/customers/1/');
+
+        act(() => {
+            window.dispatchEvent(
+                new StorageEvent('storage', { key: 'loginToken', oldValue: 'a', newValue: 'b' })
+            );
+        });
+
+        expect(reload).toHaveBeenCalledTimes(1);
+        expect(logout).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
+    });
+
+    it('ignores other stored settings', () => {
+        renderAt('/customers/1/');
+
+        act(() => {
+            window.dispatchEvent(
+                new StorageEvent('storage', { key: 'language', oldValue: 'en', newValue: 'et' })
+            );
+        });
+
+        expect(logout).not.toHaveBeenCalled();
+        expect(screen.getByTestId('path')).toHaveTextContent('/customers/1/');
     });
 });

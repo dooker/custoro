@@ -13,6 +13,8 @@ import Settings from '../Icons/Settings';
 import Users from '../Icons/Users';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { endpoint, PATHS, RESOURCE } from '../../../variables';
+import { Axios } from '../../../Axios';
+import { getLogoutUrl } from '../../../utils/auth';
 import styles from './Navigation.module.sass';
 
 const menuItems = [
@@ -31,7 +33,10 @@ const Navigation = () => {
     const navigate = useNavigate();
     const { name, avatar } = user || {};
 
-    const handleLogout = () => {
+    // The API ends the session on every device first (the token is still needed for that); when
+    // it cannot be reached in time, the browser forgets the token anyway
+    const handleLogout = async () => {
+        await Axios.post(getLogoutUrl(endpoint), {}, { timeout: 5000 }).catch(() => undefined);
         logout();
 
         navigate('/login', { replace: true });
@@ -71,7 +76,7 @@ const Navigation = () => {
                         <Button
                             text={t('button.logout')}
                             additionalClassName="large secondary"
-                            onClick={() => handleLogout()}
+                            onClick={() => void handleLogout()}
                         />
                     </div>
 
