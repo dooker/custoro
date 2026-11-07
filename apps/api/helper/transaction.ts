@@ -13,12 +13,20 @@ export class TransactionRefusal extends Error {
     }
 }
 
+// InnoDB ends one of two transactions that wait for each other's rows (a deadlock) and expects the
+// application to run it again: marking an invoice as paid locks the invoice, then its worksheets,
+// while deleting a worksheet locks the worksheet, then its invoice. The work only talks to the
+// database through its connection, so it can start again from scratch in a new transaction.
+const retriedCodes = new Set(["ER_LOCK_DEADLOCK"]);
+export const maxTransactionAttempts = 3;
+
 export type TransactionResult<T> =
     { ok: true; value: T } | { ok: false; message: string; code?: string };
 
 /**
  * Runs `work` on one connection inside one transaction: everything it does is committed together,
- * or - when it throws - rolled back, so a request never leaves half of its changes behind.
+ * or - when it throws - rolled back, so a request never leaves half of its changes behind. A
+ * deadlock runs it again, up to maxTransactionAttempts times in all.
  *
  * A thrown TransactionRefusal comes back as `{ ok: false, message }` with its key. Any other error
  * is logged and sent to Sentry and comes back as `fallbackMessage`, with the MySQL error code when
@@ -61,17 +69,29 @@ export const withTransaction = async <T>(
     }
 
     try {
-        await connection.beginTransaction();
+        for (let attempt = 1; ; attempt++) {
+            try {
+                await connection.beginTransaction();
 
-        const value = await work(connection);
+                const value = await work(connection);
 
-        await connection.commit();
+                await connection.commit();
 
-        return { ok: true, value };
-    } catch (error) {
-        await connection.rollback().catch(() => undefined);
+                return { ok: true, value };
+            } catch (error) {
+                await connection.rollback().catch(() => undefined);
 
-        return failed(error);
+                const code = (error as { code?: string } | null)?.code;
+
+                if (
+                    error instanceof TransactionRefusal ||
+                    !retriedCodes.has(code ?? "") ||
+                    attempt >= maxTransactionAttempts
+                ) {
+                    return failed(error);
+                }
+            }
+        }
     } finally {
         connection.release();
     }
