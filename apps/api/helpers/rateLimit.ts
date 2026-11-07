@@ -171,22 +171,34 @@ export interface ResetThrottleIF {
     allow: (ip: string, account: string) => boolean;
 }
 
+// Reset emails are limited three ways, like failed logins:
+//  - per account and address: one place asks a few times, and a stranger who uses that up does
+//    not block the owner, who asks from another address;
+//  - per account, across addresses: a larger budget, so a request spread over many addresses
+//    cannot fill the owner's inbox;
+//  - per address, across accounts.
 // Every reset request counts, sent or not, so the limit cannot tell whether an account exists
 export const createResetThrottle = (
     perAccount: RateLimitRuleIF,
+    perAccountAddress: RateLimitRuleIF,
     perAddress: RateLimitRuleIF,
     now?: () => number
 ): ResetThrottleIF => {
     const accounts = createRateLimiter(perAccount, now);
+    const accountAddresses = createRateLimiter(perAccountAddress, now);
     const addresses = createRateLimiter(perAddress, now);
 
     return {
         allow: (ip, account) => {
             const address = addressKey(ip);
+            const pair = `${account}|${address}`;
             const blocked =
-                accounts.retryAfterSeconds(account) > 0 || addresses.retryAfterSeconds(address) > 0;
+                accounts.retryAfterSeconds(account) > 0 ||
+                accountAddresses.retryAfterSeconds(pair) > 0 ||
+                addresses.retryAfterSeconds(address) > 0;
 
             accounts.hit(account);
+            accountAddresses.hit(pair);
             addresses.hit(address);
 
             return !blocked;
@@ -208,7 +220,8 @@ export const getLoginThrottle = () =>
 
 export const getResetThrottle = () =>
     (resetThrottle ??= createResetThrottle(
-        { max: envNumber("RESET_MAX_REQUESTS_PER_ACCOUNT", 3), windowMs: minutes(60) },
+        { max: envNumber("RESET_MAX_REQUESTS_PER_ACCOUNT", 10), windowMs: minutes(60) },
+        { max: envNumber("RESET_MAX_REQUESTS_PER_ACCOUNT_ADDRESS", 3), windowMs: minutes(60) },
         { max: envNumber("RESET_MAX_REQUESTS_PER_IP", 10), windowMs: minutes(60) }
     ));
 
