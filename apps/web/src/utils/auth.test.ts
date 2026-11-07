@@ -411,12 +411,15 @@ describe('revokeSession', () => {
         expect(await revokeSession(answer({ success: true }))).toBe(true);
     });
 
-    it('is confirmed when the token was no longer valid anyway', async () => {
+    // Copilot review of PR 24, round 4: an expired or refused token on this device stops the
+    // request before the logout runs, so nothing is ended, and tokens from later logins on other
+    // devices stay valid. That must not count as a confirmed logout.
+    it('is not confirmed when the API no longer took this token: nothing was ended', async () => {
         expect(await revokeSession(answer({ success: false, message: 'invalid.token' }))).toBe(
-            true
+            false
         );
         expect(await revokeSession(answer({ success: false, message: 'session.expired' }))).toBe(
-            true
+            false
         );
     });
 

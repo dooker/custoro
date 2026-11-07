@@ -95,17 +95,17 @@ export const getLoginUrl = (apiEndpoint: string, type: AuthType): string | null 
 export const getLogoutUrl = (apiEndpoint: string): string => `${apiEndpoint}${PATHS.LOGIN}logout`;
 
 /**
- * Asks the API to end the account's sessions and says whether that is confirmed. A token the API
- * no longer takes has nothing left to end. A refusal (HTTP 200 with success false, "logoutFailed")
- * or no answer leaves the other sessions possibly valid: the caller still logs out here, and says so.
+ * Asks the API to end the account's sessions and says whether that is confirmed: only an answer
+ * with success true is. A token the API no longer takes (expired, or ended elsewhere) stops the
+ * request before the logout runs, so nothing is ended and tokens from later logins on other
+ * devices stay valid; a refusal ("logoutFailed") or no answer leaves them valid as well. The
+ * caller logs out here either way, and says when it is not confirmed.
  */
 export const revokeSession = async (post: () => Promise<{ data: unknown }>): Promise<boolean> => {
     try {
         const { data } = await post();
 
-        return (
-            (data as { success?: unknown } | null)?.success === true || isSessionEndResponse(data)
-        );
+        return (data as { success?: unknown } | null)?.success === true;
     } catch {
         return false;
     }

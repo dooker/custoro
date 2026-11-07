@@ -36,8 +36,9 @@ const Navigation = () => {
     const { name, avatar } = user || {};
 
     // The API ends the session on every device first (the token is still needed for that). The
-    // browser forgets the token either way; when the API refused or did not answer in time, the
-    // login page says that the other sessions may still be valid.
+    // browser forgets the token either way; unless the API confirmed it (it refused, did not answer
+    // in time, or no longer took this token), the login page says the other sessions may still be
+    // valid.
     const handleLogout = async () => {
         const revoked = await revokeSession(() =>
             Axios.post(getLogoutUrl(endpoint), {}, { timeout: 5000 })
