@@ -68,7 +68,8 @@ cd apps/web && npx playwright test --project=api --workers=1
 | `custoro-security-review` | review the API for security problems and report what was verified by running              |
 | `custoro-api-endpoint`    | add or change an endpoint: route, service, validation, texts, tests                       |
 | `custoro-branch`          | name, create, rename, update and clean up branches (`fix/`, `chore/`, from `origin/main`) |
-| `custoro-pr`              | commits, CHANGELOG entry, PR description, CI, Copilot review comments                     |
+| `custoro-pr`              | commits, CHANGELOG entry, PR description, CI                                              |
+| `custoro-pr-review`       | Copilot and review comments: verify, fix with tests, push, reply, resolve fixed threads   |
 | `custoro-perf-check`      | time queries on the 50k-invoice data, before/after table for a PR                         |
 | `custoro-deploy`          | prepare a production deploy runbook (user-invoked only, never runs on the server)         |
 | `custoro-release`         | choose the next version, prepare the release PR; the workflow tags and publishes it       |
