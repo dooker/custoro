@@ -17,9 +17,9 @@ version number, kept in each app's `package.json`. The web app shows this file o
   content checksums, money totals, files; also a backup taken while the API writes). A backup only
   restores into the same kind of server (MySQL or MariaDB) as the one it came from, because of the
   generated column `invoices.number_sort`; `restore.sh` refuses the other kind before it changes
-  anything. The mail server settings saved on the admin page are in no volume (`/app/.env.email`
-  inside the API container), so they are not in a backup: set `EMAIL_*` in `.env`. Back up before
-  every update and copy the folder off the server; see "Backup and restore" in the README
+  anything. The invoices volume also holds the mail server settings saved on the admin page (see
+  Fixed). Back up before every update and copy the folder off the server; see "Backup and restore"
+  in the README
 - Database schema, config seed and demo data (`apps/api/db`); local Docker starts with demo customers,
   invoices and two demo logins, production gets the schema and seed only
 - Unit tests for the login logic in both apps, run in CI; the Playwright suite now also tests the login
@@ -51,6 +51,23 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Security
 
+- Removing a user's picture or the logo deleted the file whose name was stored in the database,
+  joined into the upload folder without a check, so a stored name such as `../x` could delete a file
+  outside it. Only a file directly in the upload folder is deleted now, the rule invoice PDFs
+  already had
+- API answers carry `Cache-Control: no-store`, so customer, invoice and user data is not kept in the
+  browser's or a proxy's cache and cannot be read back from a shared computer after logout. Uploaded
+  pictures stay cacheable
+- In production only `APP_ORIGIN` may read the API's answers from a browser; before, any
+  `http://localhost` origin could. Development still allows every localhost port
+- Logging out ends the session in the API too (`POST /login/logout`): the token, and the account's
+  tokens on other devices, stop working at once instead of when they expire. Other open tabs of the
+  app log out with it, and a login in another tab reloads them with the new session
+- Reset emails are now limited per account and client address (3 per hour), per account across
+  addresses (10) and per address (10), so a stranger asking from their own address can no longer use
+  up the owner's budget. **`RESET_MAX_REQUESTS_PER_ACCOUNT` now sets the limit across addresses
+  (default 10, it was 3 per account)**; the new `RESET_MAX_REQUESTS_PER_ACCOUNT_ADDRESS` (default 3)
+  sets the one per address
 - The API's production dependencies `multer` and `body-parser` had known vulnerabilities
   (`npm audit --omit=dev`) that let a crafted request keep the server busy (denial of service). They
   are updated within their version ranges, as are `qs`, `nodemailer` and Sentry; the web app's
@@ -199,6 +216,28 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- A paid (locked) invoice could still be changed through the API: lines added, removed or given
+  another quantity, and its number, date and customer changed. The API refuses that now ("This
+  invoice is paid and locked"), checked with the invoice row locked so it cannot be marked as paid
+  halfway through a change. Changing an invoice's details and its worksheets' customer is one
+  transaction, and so is marking it as paid
+- Paid invoices kept no copy of their customer: when a customer moved or changed name or VAT number,
+  every old invoice showed and printed the new details, and its due date followed the customer's
+  current payment period. An invoice now copies its customer's name, registration and VAT number,
+  address, phone, email, department and payment period when it is marked as paid, and shows and
+  prints that copy; the invoice list shows the name it was billed to and finds it by either name.
+  Open invoices follow their customer as before. **Existing databases must run the new migration**,
+  which adds the columns and fills them for the invoices that are already paid, from the customers
+  as they are now (50 000 invoices: 2 s on MySQL 8.4, 1 s on MariaDB 11.4). It stops on nothing
+- A paid invoice of a customer with a foreign VAT number showed 24% VAT in the app while its PDF had
+  none; the app now takes the VAT number from the invoice's copy of the customer
+- The mail server settings saved on the admin page were read back with dotenv, which cut a password
+  at ` #`; they lived in `/app/.env.email`, in no volume, so a new API container lost them; and
+  after any restart the empty `EMAIL_*` variables the production compose file sets won over them.
+  They are kept as JSON in the invoices volume now (`/app/storage/mail-settings.json`, readable only
+  by the API), so they are in every backup, keep any password as typed and win over `EMAIL_*`; a
+  setting the page has not saved still comes from `EMAIL_*`. An existing `.env.email` is read until
+  the settings are saved once, then removed. A failed save now says so instead of reporting success
 - The web app ends the session when the API refuses the login token (it expired, or the password or
   email was changed elsewhere): it logs the user out, goes to the login page and says the session
   expired. The API answers such a request with HTTP 200 and `success: false`, which the app ignored,
@@ -345,6 +384,14 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Changed
 
+- The customer and product pickers (an invoice's customer, a new invoice line, a worksheet's
+  customer and product) search as you type and show the first 20 matches, instead of loading every
+  customer and product when the page opens. A list asked for without `page` and `limit` now answers
+  with one page of 20 rows; it answered with up to 1000
+- CI has three more checks: the schema drift check on MySQL 8.4 and MariaDB 11.4, the Playwright
+  `api` suite against the dev stack, and the `docker` job now starts the production stack, runs the
+  migrations and checks through nginx that the app, the API, a login, `no-store` and the CORS rule
+  answer as they should
 - API runs on Express 5, which handles errors from async routes itself; `express-async-errors` is gone.
   Also dotenv 18, i18next 26 and TypeScript 6
 - Web app on react-router 8, MUI 9, react-day-picker 10 (date-fns is no longer a direct dependency),
