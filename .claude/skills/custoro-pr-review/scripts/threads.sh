@@ -8,7 +8,8 @@
 #
 # The thread id (PRRT_...) is what resolve takes; the first comment's id is what a reply goes to:
 #   gh api -X POST repos/<repo>/pulls/<pr>/comments/<comment id>/replies -f body="Fixed in <sha>: ..."
-# REPO picks the repository (default dooker/custoro). Needs gh, logged in.
+# REPO picks the repository (default dooker/custoro). Every thread is read, page by page
+# (THREADS_PER_PAGE, default 100), before the open ones are picked. Needs gh, logged in.
 
 set -euo pipefail
 
@@ -25,11 +26,15 @@ list() {
     local pr=${1:?pull request number}
     local only_open=${2:-}
 
-    gh api graphql -F owner="$owner" -F name="$name" -F pr="$pr" -f query='
-        query($owner: String!, $name: String!, $pr: Int!) {
+    # --paginate follows pageInfo with $endCursor, so a PR with more threads than one page still
+    # shows every open one (the filter below runs on each page)
+    gh api graphql --paginate -F owner="$owner" -F name="$name" -F pr="$pr" \
+        -F perPage="${THREADS_PER_PAGE:-100}" -f query='
+        query($owner: String!, $name: String!, $pr: Int!, $perPage: Int!, $endCursor: String) {
           repository(owner: $owner, name: $name) {
             pullRequest(number: $pr) {
-              reviewThreads(first: 100) {
+              reviewThreads(first: $perPage, after: $endCursor) {
+                pageInfo { hasNextPage endCursor }
                 nodes {
                   id isResolved isOutdated path line originalLine
                   comments(first: 50) { nodes { databaseId author { login } body } }
