@@ -1,12 +1,12 @@
 import { useImperativeHandle, useState } from 'react';
 import { isForeignVatNumber } from '../../utils/foreignVatNumber';
-import type { DataResponseIF, EntityOnChangeIF, InvoiceIF, MutateIF, ProductIF } from '../../types';
+import type { EntityOnChangeIF, InvoiceIF, MutateIF, ProductIF } from '../../types';
 import { useNavigate, useParams } from 'react-router';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { useDebounce } from '../../hooks/useDebounce';
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { handleError } from '../../shared/helpers';
-import { getMultiple } from '../../utils/Getters/getMultiple';
+import { usePickedItem } from '../../hooks/usePickedItem';
 import Loader from '../_shared/Loader/Loader';
 import Details from './Details';
 import Items from './Items';
@@ -58,21 +58,13 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
     const notification = useNotificationHandler();
     const confirmation = useConfirmationHandler();
 
-    // fetch customers
-    const { data: customers, isLoading } = useQuery<
-        DataResponseIF<CustomerIF>,
-        Error,
-        CustomerIF[]
-    >({
-        queryKey: [RESOURCE.CUSTOMERS],
-        queryFn: () => getMultiple<CustomerIF>({ path: PATHS.CUSTOMERS }),
-        placeholderData: keepPreviousData,
-        select: (data) => data?.resource || [],
-        enabled: !isLocked,
-    });
-    const currentCustomerVatNumber = customers?.find(
-        (customer) => Number(customer.id) === Number(customerId)
-    )?.vatNumber;
+    // The invoice's customer, for the picker and its VAT number. A paid invoice has its own copy of
+    // the customer as billed, and needs nothing from the customer as it is now.
+    const { item: customer, isLoading } = usePickedItem<CustomerIF>(
+        RESOURCE.CUSTOMER,
+        isLocked ? null : customerId
+    );
+    const currentCustomerVatNumber = isLocked ? draft.customerVatNumber : customer?.vatNumber;
     const noVat = isForeignVatNumber(currentCustomerVatNumber);
 
     const invalidator = async () => {
@@ -173,7 +165,7 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
             <Details
                 draft={draft}
                 onChange={({ name, value }) => updateDraft({ [name]: value } as Partial<InvoiceIF>)}
-                customers={customers}
+                customer={customer}
                 noVat={noVat}
             />
 

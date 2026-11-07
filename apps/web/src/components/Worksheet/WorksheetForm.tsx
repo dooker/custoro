@@ -1,12 +1,6 @@
 import { type FormEvent, useImperativeHandle, useState } from 'react';
 import { endpoint, PATHS, RESOURCE } from '../../variables';
-import type {
-    ProductIF,
-    SelectOptionIF,
-    EntityOnChangeIF,
-    WorksheetIF,
-    MutateIF,
-} from '../../types';
+import type { ProductIF, EntityOnChangeIF, WorksheetIF, MutateIF } from '../../types';
 import Field from '../_shared/Form/Field';
 import { useDebounce } from '../../hooks/useDebounce';
 import { debounceTimer } from '../../variables';
@@ -17,13 +11,12 @@ import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
-import type { CustomerIF } from '../../types/customer';
+import { usePickedItem } from '../../hooks/usePickedItem';
+import { toPickerOption } from '../../utils/pickers';
 import type { FormRefIF } from '../../types/form';
 
 interface WorksheetFormIF extends FormRefIF {
     initialWorksheet: WorksheetIF | null;
-    customers: CustomerIF[];
-    products: ProductIF[];
     isNew: boolean;
     customerId?: string;
 }
@@ -33,13 +26,7 @@ export interface WorksheetErrorsIF {
     product: string | null;
 }
 
-export const WorksheetForm = ({
-    initialWorksheet,
-    customers,
-    products,
-    isNew,
-    ref,
-}: WorksheetFormIF) => {
+export const WorksheetForm = ({ initialWorksheet, isNew, ref }: WorksheetFormIF) => {
     const navigate = useNavigate();
     const { t } = useSafeTranslation();
     const queryClient = useQueryClient();
@@ -59,17 +46,15 @@ export const WorksheetForm = ({
         return initialWorksheet;
     });
 
-    const customersOptions: SelectOptionIF[] = customers.map((item) => ({
-        label: item.name || '',
-        value: String(item.id),
-    }));
-    const selectedCustomer = customersOptions.find((c) => Number(c.value) === Number(customerId));
-
-    const productsOptions: SelectOptionIF[] = products.map((item) => ({
-        label: `${item.code} - ${item.name}`,
-        value: String(item.id),
-    }));
-    const selectedProduct = productsOptions.find((opt) => Number(opt.value) === draft.product_id);
+    // The pickers search as the user types; what they show first is the worksheet's own product
+    const { item: product } = usePickedItem<ProductIF>(
+        RESOURCE.PRODUCT,
+        initialWorksheet?.product_id
+    );
+    const selectedProduct =
+        product && Number(product.id) === Number(initialWorksheet?.product_id)
+            ? toPickerOption('products', product)
+            : null;
     const url = `${page}/${Number(customerId) ? `${customerId}/` : ''}`;
 
     const validate = ({ data, show }: { data: WorksheetIF; show?: boolean }) => {
@@ -180,7 +165,7 @@ export const WorksheetForm = ({
                         parent={RESOURCE.WORKSHEETS}
                         name="customer"
                         onChange={onChange}
-                        select={{ options: customersOptions, initial: selectedCustomer }}
+                        select={{ search: 'customers', initial: null }}
                         placeholder={t('customers.form.placeholder')}
                         error={errors.customer}
                     />
@@ -191,7 +176,7 @@ export const WorksheetForm = ({
                     parent={RESOURCE.WORKSHEETS}
                     name="product_id"
                     onChange={onChange}
-                    select={{ options: productsOptions, initial: selectedProduct }}
+                    select={{ search: 'products', initial: selectedProduct }}
                     placeholder={t('products.form.placeholder')}
                     error={errors.product}
                 />

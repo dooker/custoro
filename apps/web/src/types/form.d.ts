@@ -7,8 +7,10 @@ export interface ToggleIF {
 }
 
 export interface SelectIF {
-    options: SelectOptionIF[];
-    initial: SelectOptionIF;
+    options?: SelectOptionIF[];
+    initial?: SelectOptionIF | null;
+    // Search these in the API as the user types instead of choosing from `options`
+    search?: 'customers' | 'products';
 }
 
 // TODO partly duplicates, should merge

@@ -17,26 +17,16 @@ const positiveInteger = (value: unknown) => {
     return /^\d{1,9}$/.test(text) && Number(text) > 0 ? Number(text) : undefined;
 };
 
-// NaN is what Number(undefined) gives, so a caller that converted a missing value counts as missing
-const isGiven = (value: unknown) =>
-    value !== undefined && value !== null && value !== "" && !Number.isNaN(value);
-
 /**
  * The page and page size a list request asks for, as numbers that are safe to put in SQL.
  * page and limit are positive whole numbers, anything else counts as missing (page 1, the
- * default size), and the size never goes over config.maxItemsPerPage. A request with neither
- * gets the first config.maxListRows rows, which is what the web app's pickers rely on.
+ * default size), and the size never goes over config.maxItemsPerPage. A request with neither gets
+ * the first page: no list answers with a whole table (the web app's pickers search instead).
  */
-export const getPaging = (rawPage: unknown, rawLimit: unknown) => {
-    if (!isGiven(rawPage) && !isGiven(rawLimit)) {
-        return { page: 1, limit: config.maxListRows };
-    }
-
-    return {
-        page: positiveInteger(rawPage) ?? 1,
-        limit: Math.min(positiveInteger(rawLimit) ?? config.itemsPerPage, config.maxItemsPerPage)
-    };
-};
+export const getPaging = (rawPage: unknown, rawLimit: unknown) => ({
+    page: positiveInteger(rawPage) ?? 1,
+    limit: Math.min(positiveInteger(rawLimit) ?? config.itemsPerPage, config.maxItemsPerPage)
+});
 
 // Where a statement wants its paging LIMIT instead of at the end: a getter that pages inside a
 // derived table (it picks the rows of the page first and joins the rest after) puts this comment
