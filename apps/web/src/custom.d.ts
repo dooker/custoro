@@ -17,5 +17,7 @@ declare module '*.pdf' {
 
 declare module 'crypto-js';
 
-// Injected by vite.config.ts from package.json
+// Injected by vite.config.ts: the version from package.json, the commit and time of the build
 declare const __APP_VERSION__: string;
+declare const __APP_BUILD__: string;
+declare const __APP_BUILT_AT__: string;

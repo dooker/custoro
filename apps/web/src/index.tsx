@@ -6,11 +6,14 @@ import Loader from './components/_shared/Loader/Loader';
 import { QueryClient, QueryClientConfig, QueryClientProvider } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
 import { scrubSentryPayload } from './utils/sentryScrub';
+import { releaseName } from './utils/buildInfo';
 
 // Error tracking is enabled only when VITE_SENTRY_DSN is set at build time
 if (import.meta.env.VITE_SENTRY_DSN) {
     Sentry.init({
         dsn: import.meta.env.VITE_SENTRY_DSN,
+        // Errors are grouped by the build they happened in, named like the API's
+        release: releaseName(__APP_VERSION__, __APP_BUILD__),
         integrations: [
             Sentry.browserTracingIntegration(),
             Sentry.replayIntegration({ beforeAddRecordingEvent: scrubSentryPayload }),

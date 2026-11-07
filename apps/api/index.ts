@@ -4,6 +4,11 @@ const env = process.env.NODE_ENV || development;
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import { scrubSentryEvent, tracesSampleRate } from "./helpers/sentryScrub";
+import { getBuildInfo } from "./helpers/buildInfo";
+import pkg from "./package.json";
+
+// The version, and the commit the image was built from (scripts/docker-build.sh)
+const buildInfo = getBuildInfo(pkg.version);
 
 // Error tracking is enabled only when SENTRY_DSN is set in the environment
 if (process.env.SENTRY_DSN) {
@@ -13,6 +18,8 @@ if (process.env.SENTRY_DSN) {
     Sentry.init({
         dsn: process.env.SENTRY_DSN,
         environment: env,
+        // Errors are grouped by the build they happened in
+        release: buildInfo.release,
         integrations: [nodeProfilingIntegration()],
         tracesSampleRate: sampleRate,
         profileSessionSampleRate: sampleRate,
@@ -32,7 +39,6 @@ import path from "path";
 import fs from "fs";
 import login from "./routes/login";
 import setupCustoroRoutes from "./config/importer";
-import pkg from "./package.json";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
 import { getAppOrigin, isAllowedOrigin } from "./helpers/appOrigin";
@@ -43,7 +49,6 @@ import { closePools } from "./db";
 import { uploadDir, pdfDir } from "./config/paths";
 import type { Request, Response, NextFunction } from "express";
 
-const { version } = pkg;
 const rootPath = process.cwd();
 const envFile = env === "production" ? ".env.production" : ".env.development";
 
@@ -67,7 +72,7 @@ if (proxyWarning) {
 
 console.log(`System: Running in ${env} mode`);
 console.log(`Root Path: ${rootPath}`);
-console.log(`${version} @ ${env}`);
+console.log(`${buildInfo.release} @ ${env}`);
 
 const app = express();
 const servicePort = process.env.SERVICE_PORT || 3999;
@@ -116,7 +121,9 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (req, res) => {
     res.json({
         message: "Custoro API",
-        version: version,
+        version: buildInfo.version,
+        build: buildInfo.build,
+        builtAt: buildInfo.builtAt,
         environment: env
     });
 });

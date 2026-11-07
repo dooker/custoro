@@ -96,8 +96,9 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v7
 
+            # The build script names the version and commit in the images (checked below)
             - name: Build production images
-              run: docker compose -f docker-compose.prod.yml --profile migrate build
+              run: scripts/docker-build.sh
 
             - name: Start the production stack
               run: docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 180
@@ -110,6 +111,9 @@ jobs:
                   set -euo pipefail
                   curl -fsS http://localhost/ | grep -q '<div id="root">'
                   curl -fsS http://localhost/api/ | grep -q '"message":"Custoro API"'
+                  # The API names the commit it was built from
+                  build=$(git rev-parse --short HEAD)
+                  curl -fsS http://localhost/api/ | grep -q "\"build\":\"$build\""
                   # A login is answered from the database, and no API answer may be cached
                   headers=$(mktemp)
                   curl -fsS -D "$headers" -o login.json -H 'Content-Type: application/json' \

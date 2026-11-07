@@ -15,6 +15,7 @@ import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { endpoint, PATHS, RESOURCE } from '../../../variables';
 import { Axios } from '../../../Axios';
 import { getLogoutUrl } from '../../../utils/auth';
+import { versionLabel } from '../../../utils/buildInfo';
 import styles from './Navigation.module.sass';
 
 const menuItems = [
@@ -83,7 +84,9 @@ const Navigation = () => {
                     <div className={styles.version}>
                         <LanguageSelector></LanguageSelector>
 
-                        <span>v {__APP_VERSION__}</span>
+                        <span title={__APP_BUILT_AT__}>
+                            {versionLabel(__APP_VERSION__, __APP_BUILD__)}
+                        </span>
 
                         <Link to={PATHS.CHANGELOG}>{t('changelog')}</Link>
                     </div>
