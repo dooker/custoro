@@ -21,6 +21,7 @@ vi.mock("./_helpers", async (importOriginal) => ({
 }));
 
 const { putAll } = await import("./settings");
+const { maxTransactionAttempts } = await import("../helper/transaction");
 
 const request = (body: object, file?: object) =>
     ({ database: "shop", params: {}, query: {}, body, file }) as unknown as Request;
@@ -161,7 +162,8 @@ describe("PUT /settings with lastInvoiceId", () => {
             message: "put.settings.short"
         });
         expect(fake.connection.commit).not.toHaveBeenCalled();
-        expect(fake.connection.rollback).toHaveBeenCalledOnce();
+        // The failure is a deadlock, which is tried three times, each attempt rolled back
+        expect(fake.connection.rollback).toHaveBeenCalledTimes(maxTransactionAttempts);
     });
 
     it("still refuses a counter that is not a number first, before anything is read", async () => {

@@ -171,25 +171,44 @@ export interface ResetThrottleIF {
     allow: (ip: string, account: string) => boolean;
 }
 
-// Every reset request counts, sent or not, so the limit cannot tell whether an account exists
+// Reset emails are limited three ways, like failed logins:
+//  - per account and address: one place asks a few times, and a stranger who uses that up does
+//    not block the owner, who asks from another address;
+//  - per account, across addresses: a larger budget, so a request spread over many addresses
+//    cannot fill the owner's inbox;
+//  - per address, across accounts.
+// Every request counts against its address, refused or not, so an address that keeps asking is
+// stopped. Only a request that is let through counts against the account (and the account and
+// address): a refused one sends no email, and counting it would let one address use up the
+// account's budget and block the owner everywhere. Known and unknown accounts count the same way,
+// so the limit cannot tell whether an account exists.
 export const createResetThrottle = (
     perAccount: RateLimitRuleIF,
+    perAccountAddress: RateLimitRuleIF,
     perAddress: RateLimitRuleIF,
     now?: () => number
 ): ResetThrottleIF => {
     const accounts = createRateLimiter(perAccount, now);
+    const accountAddresses = createRateLimiter(perAccountAddress, now);
     const addresses = createRateLimiter(perAddress, now);
 
     return {
         allow: (ip, account) => {
             const address = addressKey(ip);
+            const pair = `${account}|${address}`;
             const blocked =
-                accounts.retryAfterSeconds(account) > 0 || addresses.retryAfterSeconds(address) > 0;
+                accounts.retryAfterSeconds(account) > 0 ||
+                accountAddresses.retryAfterSeconds(pair) > 0 ||
+                addresses.retryAfterSeconds(address) > 0;
 
-            accounts.hit(account);
             addresses.hit(address);
 
-            return !blocked;
+            if (blocked) return false;
+
+            accounts.hit(account);
+            accountAddresses.hit(pair);
+
+            return true;
         }
     };
 };
@@ -208,7 +227,8 @@ export const getLoginThrottle = () =>
 
 export const getResetThrottle = () =>
     (resetThrottle ??= createResetThrottle(
-        { max: envNumber("RESET_MAX_REQUESTS_PER_ACCOUNT", 3), windowMs: minutes(60) },
+        { max: envNumber("RESET_MAX_REQUESTS_PER_ACCOUNT", 10), windowMs: minutes(60) },
+        { max: envNumber("RESET_MAX_REQUESTS_PER_ACCOUNT_ADDRESS", 3), windowMs: minutes(60) },
         { max: envNumber("RESET_MAX_REQUESTS_PER_IP", 10), windowMs: minutes(60) }
     ));
 

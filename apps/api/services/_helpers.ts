@@ -1,5 +1,4 @@
-import { getEmailEnvContent, normalizeDate } from "../helper";
-import path from "node:path";
+import { getMailSettings, normalizeDate } from "../helper";
 import fs from "node:fs";
 import nodemailer, { type TransportOptions } from "nodemailer";
 import { query, queryErrorMessage } from "../helper/query";
@@ -18,6 +17,8 @@ import type {
 import type { QueryResult } from "../types/query";
 import { allowedEmailKeys } from "../variables";
 import { mailTransportOptions } from "../helpers/mailTransport";
+import { resolveInside } from "../helpers/pdfFiles";
+import { uploadDir } from "../config/paths";
 import type { UserIF } from "../types/user";
 
 export const adjustProduct = (resource: ProductIF) => {
@@ -53,6 +54,7 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
     const id = idId || pageId;
 
     // Get invoice details. number_sort only exists for ordering the invoice list, so it is left out.
+    // The customer_ columns are the customer as billed, copied when the invoice was marked as paid.
     const { success: invoiceSuccess, data: invoiceData } = await query<InvoiceIF>({
         database,
         sql: `SELECT id,
@@ -68,7 +70,15 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
                      sent_date,
                      hash,
                      filename,
-                     payment_period
+                     payment_period,
+                     customer_name,
+                     customer_reg_number,
+                     customer_vat_number,
+                     customer_address,
+                     customer_phone,
+                     customer_email,
+                     customer_department,
+                     customer_payment_period
               FROM invoices
               WHERE id = ?;`,
         params: [id],
@@ -133,12 +143,22 @@ export const sanitizeFilename = (filename: string) => {
     return sanitized;
 };
 
+// The name comes from the database (users.avatar, the logo setting), so it is only trusted to name
+// a file directly inside the upload folder, like PDFs in theirs: "../x" or "a/b" deletes nothing
 export const deleteImageFile = (filename: string) => {
     if (!filename) {
         return;
     }
 
-    const filePath = path.join(process.cwd(), "uploads", filename);
+    const filePath = resolveInside(uploadDir, filename);
+
+    if (!filePath) {
+        console.error(
+            `Not deleting an image outside the upload folder: ${JSON.stringify(filename)}`
+        );
+
+        return;
+    }
 
     fs.unlink(filePath, (error) => {
         if (error) {
@@ -312,7 +332,7 @@ export const replaceVariables = ({ content, replacements }: ReplaceVariablesIF) 
 };
 
 export const email = async ({ email, config, attachments, replace }: EmailIF) => {
-    const emailConfig = getEmailEnvContent();
+    const emailConfig = getMailSettings();
 
     if (!emailConfig.password || !email || !config) {
         console.error("Missing some info to send email");

@@ -1,5 +1,11 @@
-import dotenv from "dotenv";
-import path from "path";
+import fs from "node:fs";
+import { legacyEmailEnvFile, mailSettingsFile } from "./config/paths";
+import {
+    parseLegacyEmailEnv,
+    parseMailSettings,
+    resolveMailSettings,
+    type MailValues
+} from "./helpers/mailSettings";
 
 export const tagsToReplace: Record<"&" | "<" | ">", string> = {
     "&": "&amp;",
@@ -41,17 +47,29 @@ export const formatDateTime = (date: string | Date) => {
     });
 };
 
-export const getEmailEnvContent = () => {
-    const envPath = path.join(process.cwd(), ".env.email");
-    dotenv.config({ path: envPath, quiet: true });
+const readFileIfExists = (file: string) => {
+    try {
+        return fs.readFileSync(file, "utf8");
+    } catch (error) {
+        if ((error as { code?: string }).code === "ENOENT") return null;
 
-    return {
-        host: process.env.EMAIL_HOST,
-        port: process.env.EMAIL_PORT,
-        username: process.env.EMAIL_USER,
-        password: process.env.EMAIL_PASS
-    };
+        throw error;
+    }
 };
+
+/** The mail settings saved on the admin page, from their file or, until it exists, .env.email. */
+export const readSavedMailSettings = (): MailValues => {
+    const saved = readFileIfExists(mailSettingsFile);
+
+    if (saved !== null) return parseMailSettings(saved);
+
+    const legacy = readFileIfExists(legacyEmailEnvFile);
+
+    return legacy === null ? {} : parseLegacyEmailEnv(legacy);
+};
+
+/** What mail is sent with: each saved setting, else the EMAIL_ variable of the environment. */
+export const getMailSettings = () => resolveMailSettings(readSavedMailSettings(), process.env);
 
 export const normalizeDate = (isoString: string | Date) => {
     const date = new Date(isoString);

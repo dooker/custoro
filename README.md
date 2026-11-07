@@ -68,7 +68,7 @@ Log in with the demo accounts in [apps/api/db/demo/demo-logins.md](apps/api/db/d
 
 ```bash
 cp .env.production.example .env   # fill in secrets - never commit .env
-npm run docker:prod               # or: docker compose -f docker-compose.prod.yml up -d --build
+npm run docker:prod               # or: scripts/docker-build.sh && docker compose -f docker-compose.prod.yml up -d
 ```
 
 A new database has no users. Create the first admin once the stack is up (it asks for the password; add `--name "Full Name"` to set the name shown in the app):
@@ -84,7 +84,7 @@ Only the web container is exposed (`WEB_PORT`, default 80). It serves the built 
 To update, build the new images, stop the API, take a backup and apply the migrations (the old API cannot run on a new schema, and nothing may be written after the backup). Run `migrate` only when the changelog says the release has migrations; it is harmless otherwise:
 
 ```bash
-git pull && docker compose -f docker-compose.prod.yml build
+git pull && scripts/docker-build.sh          # or check out a release: git checkout v5.0.0 (or v5.0.0-rc.1)
 docker compose -f docker-compose.prod.yml stop api
 apps/api/scripts/backup.sh                    # see "Backup and restore" below; works while the API is stopped
 docker compose -f docker-compose.prod.yml run --rm --build migrate
@@ -94,6 +94,18 @@ docker compose -f docker-compose.prod.yml up -d
 `--build` makes `migrate` use the migrations of this checkout: it sits behind a profile, so the `build` above does not rebuild it. It connects to the bundled `db` service without TLS (it is on the Docker network). For another database see [apps/api/db/README.md](apps/api/db/README.md).
 
 Set `TRUST_PROXY` in `.env`, or the stack will not start: `1` if people reach the web container directly, `2` if a TLS proxy such as Caddy is in front of it. It tells the API how many proxies to believe when it reads a visitor's address for the login limits; a wrong value lets a client forge its address (too high) or makes all visitors share the proxy's (too low). See `.env.production.example`.
+
+### Version and build
+
+The app has one version for the API and the web app (`package.json`, `CHANGELOG.md`), and every image knows the git commit it was built from: `scripts/docker-build.sh` passes it in (a plain `docker compose build` works too, its images say "unknown"). To see what a server runs:
+
+```bash
+curl -s https://<your app>/api/       # {"version":"5.0.0","build":"38bdbcb","builtAt":"2026-11-07T06:40:00.000Z",...}
+```
+
+The web app shows the same in its sidebar ("v 5.0.0 · 38bdbcb", the build time on hover), and error reports carry `custoro@5.0.0+38bdbcb` as their release. A build from a checkout with uncommitted changes ends in `-dirty`.
+
+Releases are tagged `v<version>` and published on the repository's Releases page with their changelog entries; a release candidate that is tested before it goes live, such as `5.0.0-rc.1`, is published as a pre-release, together with prebuilt images (`ghcr.io/<owner>/custoro-api:<version>` and `custoro-web:<version>`; set `API_IMAGE` and `WEB_IMAGE` in `.env` to use them). How a release is made: `.claude/skills/custoro-release/SKILL.md`.
 
 ### Backup and restore
 
@@ -115,7 +127,7 @@ It writes `backups/custoro-<UTC date and time>/` (`--dir` picks another place; g
 
 The dump runs inside the `db` container with the password from that container's own environment, so the password is never printed and never on a command line. The script stops, and keeps nothing, when the dump is empty, cut off, or has no rows, and a folder without `.partial` in its name is a finished backup. A backup holds password hashes and customer data: keep it private (the folder is created for your user only) and **copy it off this machine**, because a backup on the same disk is lost with it. It needs the `db` service running; run it from cron or a systemd timer for a schedule (it exits with an error when anything fails). To pick the stack: `--project <name>`, `--env-file <file>`.
 
-What a backup does not hold: `.env` (secrets: keep a copy somewhere safe) and the mail server settings saved on the admin settings page. The API writes those to `/app/.env.email` inside its container, which is in no volume, so set `EMAIL_*` in `.env`.
+What a backup does not hold: `.env` (secrets: keep a copy somewhere safe). The mail server settings saved on the admin settings page are in the invoices volume (`/app/storage/mail-settings.json`, readable only by the API), so `invoices.tar.gz` holds them, mail server password included: one more reason to keep the backup private. A setting the page has not saved is taken from `EMAIL_*` in `.env`.
 
 To restore:
 

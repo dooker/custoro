@@ -115,3 +115,56 @@ describe("withTransaction", () => {
         expect(fake.connection.release).toHaveBeenCalledOnce();
     });
 });
+
+// Copilot review of PR 24, round 3: marking an invoice as paid locks the invoice, then its
+// worksheets; deleting a worksheet locks the worksheet, then its invoice. At the same time, InnoDB
+// ends one of them with a deadlock, which MySQL expects the application to run again.
+describe("withTransaction after a deadlock", () => {
+    const deadlock = () =>
+        Object.assign(new Error("Deadlock found when trying to get lock"), {
+            code: "ER_LOCK_DEADLOCK",
+            sqlMessage: "Deadlock found when trying to get lock; try restarting transaction"
+        });
+
+    it("runs the work again in a new transaction, and reports nothing", async () => {
+        const work = vi.fn().mockRejectedValueOnce(deadlock()).mockResolvedValueOnce("done");
+
+        expect(await run(work)).toEqual({ ok: true, value: "done" });
+        expect(work).toHaveBeenCalledTimes(2);
+        expect(fake.connection.beginTransaction).toHaveBeenCalledTimes(2);
+        expect(fake.connection.rollback).toHaveBeenCalledOnce();
+        expect(fake.connection.commit).toHaveBeenCalledOnce();
+        expect(fake.connection.release).toHaveBeenCalledOnce();
+        expect(Sentry.captureException).not.toHaveBeenCalled();
+    });
+
+    it("gives up after three attempts with the fallback key", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        const work = vi.fn().mockRejectedValue(deadlock());
+
+        expect(await run(work)).toEqual({
+            ok: false,
+            message: "fallback.key",
+            code: "ER_LOCK_DEADLOCK"
+        });
+        expect(work).toHaveBeenCalledTimes(3);
+        expect(fake.connection.rollback).toHaveBeenCalledTimes(3);
+        expect(fake.connection.commit).not.toHaveBeenCalled();
+    });
+
+    it("does not run the work again after any other failure or a refusal", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+        const failing = vi
+            .fn()
+            .mockRejectedValue(Object.assign(new Error("x"), { code: "ER_DUP_ENTRY" }));
+        const refusing = vi.fn().mockRejectedValue(new TransactionRefusal("invoice.locked"));
+
+        await run(failing);
+        await run(refusing);
+
+        expect(failing).toHaveBeenCalledOnce();
+        expect(refusing).toHaveBeenCalledOnce();
+    });
+});

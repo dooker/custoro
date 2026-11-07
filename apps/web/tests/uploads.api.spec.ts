@@ -81,6 +81,8 @@ test.describe('image uploads', () => {
         expect(response.headers()['x-content-type-options']).toBe('nosniff');
         expect(response.headers()['content-security-policy']).toContain('sandbox');
         expect(response.headers()['content-security-policy']).toContain("default-src 'none'");
+        // Public images may be cached; everything else the API answers may not (caching.api.spec.ts)
+        expect(response.headers()['cache-control']).not.toContain('no-store');
     });
 
     test('removing the picture deletes the file', async ({ request }) => {

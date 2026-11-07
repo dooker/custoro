@@ -1,7 +1,6 @@
 import fs from "node:fs";
-import * as dotenv from "dotenv";
 import { query } from "../helper/query";
-import { getEmailEnvContent } from "../helper";
+import { getMailSettings, readSavedMailSettings } from "../helper";
 import type { ConfigLogoIF, SettingsIF } from "../types/settings";
 import type { QueryResult } from "../types/query";
 import type { FrontRequestIF, UploadFileIF } from "../types/express";
@@ -10,7 +9,8 @@ import { deleteImageFile } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
 import { getHighestNumber } from "../helper/invoiceNumber";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
-import { emailEnvKeys, formatEmailEnv } from "../helpers/emailEnv";
+import { formatMailSettings } from "../helpers/mailSettings";
+import { legacyEmailEnvFile, mailSettingsFile } from "../config/paths";
 import {
     isBelowUsedNumber,
     lastInvoiceIdTooLowMessage,
@@ -22,17 +22,6 @@ import {
 import type { Request } from "express";
 
 const emailEnvFields: string[] = [...mailFields];
-
-// Only the mail settings are taken from the file into the environment, whatever else it holds
-const reloadEnv = (url: string) => {
-    const envConfig = dotenv.parse(fs.readFileSync(url));
-
-    for (const key of Object.values(emailEnvKeys)) {
-        if (key in envConfig) {
-            process.env[key] = envConfig[key];
-        }
-    }
-};
 
 const getLogoFilename = async (database: string) => {
     const { success, data } = await query<ConfigLogoIF>({
@@ -95,7 +84,7 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
 
     // Mail server settings are only shown to, and editable by, admins
     if (!fields && isAdmin(request)) {
-        const envConfig = getEmailEnvContent();
+        const envConfig = getMailSettings();
 
         for (const [key, value] of Object.entries(envConfig)) {
             if (key !== "password") {
@@ -132,7 +121,7 @@ export const putAll = async (request: Request) => {
 
     const { short: shortEntries, long: longEntries, mail } = parsed.input;
     const lastInvoiceId = shortEntries.find(([key]) => key === "lastInvoiceId")?.[1];
-    const emailEnvFileValues = getEmailEnvContent();
+    const emailEnvFileValues = readSavedMailSettings();
     const emailEnvFieldValues: Record<MailField, string | undefined> = {
         host: mail.host,
         port: mail.port,
@@ -276,19 +265,28 @@ export const putAll = async (request: Request) => {
     const emailEnvFieldValuesSet = Object.values(emailEnvFieldValues).every((v) => v === undefined);
 
     if (!emailEnvFieldValuesSet) {
-        // write email config to .env file
-        const envData = formatEmailEnv(emailEnvFieldValues, emailEnvFileValues);
-        const envEmailPath = path.resolve(process.cwd(), ".env.email");
+        // Written to a new file that then replaces the old one, so a crash never leaves half a
+        // file, and readable only by the API's user: it holds the mail server password
+        const content = formatMailSettings(emailEnvFieldValues, emailEnvFileValues);
+        const temporaryFile = `${mailSettingsFile}.${process.pid}.tmp`;
 
         try {
-            fs.writeFileSync(envEmailPath, envData);
-            reloadEnv(envEmailPath);
+            fs.mkdirSync(path.dirname(mailSettingsFile), { recursive: true });
+            fs.writeFileSync(temporaryFile, content, { mode: 0o600 });
+            fs.renameSync(temporaryFile, mailSettingsFile);
+            // The settings it held are in the new file now
+            fs.rmSync(legacyEmailEnvFile, { force: true });
         } catch (error) {
-            if (error instanceof Error) {
-                console.error("Failed to write .env.email file:", error.message);
-            } else {
-                console.error("Failed to write .env.email file:", error);
-            }
+            fs.rmSync(temporaryFile, { force: true });
+            console.error(
+                "Failed to save the mail settings:",
+                error instanceof Error ? error.message : error
+            );
+
+            return {
+                success: false,
+                message: "mailSettingsNotSaved"
+            };
         }
     }
 

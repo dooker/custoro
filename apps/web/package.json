@@ -1,7 +1,7 @@
 {
     "name": "custoro",
     "type": "module",
-    "version": "4.0.0",
+    "version": "5.0.0-rc.1",
     "private": true,
     "dependencies": {
         "@emotion/react": "^11.14.0",

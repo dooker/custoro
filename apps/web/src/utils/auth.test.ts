@@ -6,9 +6,12 @@ import {
     getApiErrorMessage,
     isRefusal,
     getLoginUrl,
+    getLogoutUrl,
     getResetTokenUrl,
     getRedirectAfterLogin,
+    sessionChangeInOtherTab,
     isSessionEndResponse,
+    revokeSession,
     validateLoginForm,
     type LoginFormValuesIF,
 } from './auth';
@@ -356,5 +359,75 @@ describe('getRedirectAfterLogin', () => {
 
     it('keeps the query and anchor of a page of the app', () => {
         expect(getRedirectAfterLogin('/invoices/2/?x=1#top')).toBe('/invoices/2/?x=1#top');
+    });
+});
+
+describe('getLogoutUrl', () => {
+    it('is the logout of the login API', () => {
+        expect(getLogoutUrl('https://api.example.test')).toBe(
+            'https://api.example.test/login/logout'
+        );
+    });
+});
+
+describe('sessionChangeInOtherTab', () => {
+    const tokenKey = 'loginToken';
+
+    it('is a logout when another tab removed the token or cleared the storage', () => {
+        expect(
+            sessionChangeInOtherTab({ key: tokenKey, oldValue: 'a', newValue: null }, tokenKey)
+        ).toBe('loggedOut');
+        expect(
+            sessionChangeInOtherTab({ key: null, oldValue: null, newValue: null }, tokenKey)
+        ).toBe('loggedOut');
+    });
+
+    it('is a login when another tab stored a new token', () => {
+        expect(
+            sessionChangeInOtherTab({ key: tokenKey, oldValue: null, newValue: 'b' }, tokenKey)
+        ).toBe('loggedIn');
+        expect(
+            sessionChangeInOtherTab({ key: tokenKey, oldValue: 'a', newValue: 'b' }, tokenKey)
+        ).toBe('loggedIn');
+    });
+
+    it('is nothing for other keys or an unchanged token', () => {
+        expect(
+            sessionChangeInOtherTab({ key: 'language', oldValue: 'en', newValue: 'et' }, tokenKey)
+        ).toBeNull();
+        expect(
+            sessionChangeInOtherTab({ key: tokenKey, oldValue: 'a', newValue: 'a' }, tokenKey)
+        ).toBeNull();
+    });
+});
+
+// Copilot review of PR 24, rounds 2 and 3: the Log out button ignored a refusal ({ success: false,
+// message: 'logoutFailed' } with HTTP 200) and a failed request, so nobody learned that the other
+// sessions might still be valid
+describe('revokeSession', () => {
+    const answer = (data: unknown) => () => Promise.resolve({ data });
+
+    it('is confirmed when the API ended the sessions', async () => {
+        expect(await revokeSession(answer({ success: true }))).toBe(true);
+    });
+
+    // Copilot review of PR 24, round 4: an expired or refused token on this device stops the
+    // request before the logout runs, so nothing is ended, and tokens from later logins on other
+    // devices stay valid. That must not count as a confirmed logout.
+    it('is not confirmed when the API no longer took this token: nothing was ended', async () => {
+        expect(await revokeSession(answer({ success: false, message: 'invalid.token' }))).toBe(
+            false
+        );
+        expect(await revokeSession(answer({ success: false, message: 'session.expired' }))).toBe(
+            false
+        );
+    });
+
+    it('is not confirmed when the API refused or did not answer', async () => {
+        expect(await revokeSession(answer({ success: false, message: 'logoutFailed' }))).toBe(
+            false
+        );
+        expect(await revokeSession(answer('<html>gateway</html>'))).toBe(false);
+        expect(await revokeSession(() => Promise.reject(new Error('timeout')))).toBe(false);
     });
 });

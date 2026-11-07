@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
 import type { FormHandleIF } from '../../types/form';
 import Loader from '../_shared/Loader/Loader';
-import type { DataResponseIF, ProductIF, WorksheetIF } from '../../types';
+import type { WorksheetIF } from '../../types';
 import { useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import '@css/shared/Form.sass';
 import { WorksheetForm } from './WorksheetForm';
-import { getMultiple } from '../../utils/Getters/getMultiple';
+import { usePickedItem } from '../../hooks/usePickedItem';
 import { PATHS, RESOURCE } from '../../variables';
 import { getSingle } from '../../utils/Getters/getSingle';
 import Header from '../_shared/Header/Header';
@@ -32,26 +32,13 @@ const Worksheet = () => {
         enabled: !isNew,
     });
 
-    // TODO - request only if new worksheet
-    // fetch customers
-    const { data: customersData, isLoading: areCustomersLoading } = useQuery<
-        DataResponseIF<CustomerIF>
-    >({
-        queryKey: [RESOURCE.CUSTOMERS],
-        queryFn: () => getMultiple({ path: PATHS.CUSTOMERS }),
-    });
-    const { resource: customers } = customersData || {};
+    // The customer in the path, for the title
+    const { item: customer, isLoading: isCustomerLoading } = usePickedItem<CustomerIF>(
+        RESOURCE.CUSTOMER,
+        customerId
+    );
 
-    // fetch products
-    const { data: productsData, isLoading: areProductsLoading } = useQuery<
-        DataResponseIF<ProductIF>
-    >({
-        queryKey: [RESOURCE.PRODUCTS],
-        queryFn: () => getMultiple({ path: PATHS.PRODUCTS }),
-    });
-    const { resource: products } = productsData || {};
-
-    const isEverythingLoading = isWorksheetLoading || areCustomersLoading || areProductsLoading;
+    const isEverythingLoading = isWorksheetLoading || isCustomerLoading;
 
     // Set up header config
     useEffect(() => {
@@ -63,16 +50,13 @@ const Worksheet = () => {
 
         title += `${t('worksheets.singular')}`;
 
-        if (!isNew || (isNew && customers && customerId)) {
-            const customerName = customers?.find(
-                (item: CustomerIF) => item.id === Number(customerId)
-            )?.name;
+        const customerName =
+            customer && Number(customer.id) === Number(customerId) ? customer.name : '';
 
-            title += ` ${customerName ? ` - ${customerName}` : ''}`;
-        }
+        title += ` ${customerName ? ` - ${customerName}` : ''}`;
 
         updateTitle({ title });
-    }, [t, updateTitle, customers, customerId, isNew]);
+    }, [t, updateTitle, customer, customerId, isNew]);
     useEffect(() => {
         const saveButton = {
             label: 'button.save',
@@ -98,13 +82,7 @@ const Worksheet = () => {
         <>
             <Header />
 
-            <WorksheetForm
-                ref={formRef}
-                initialWorksheet={worksheet ?? null}
-                customers={customers || []}
-                products={products || []}
-                isNew={isNew}
-            />
+            <WorksheetForm ref={formRef} initialWorksheet={worksheet ?? null} isNew={isNew} />
         </>
     );
 };

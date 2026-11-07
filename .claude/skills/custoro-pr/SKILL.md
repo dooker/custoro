@@ -1,6 +1,6 @@
 ---
 name: custoro-pr
-description: Commit and open a pull request for Custoro in the repo's usual format: one commit per theme with the Co-Authored-By trailer, a CHANGELOG entry under Unreleased, the PR description (Summary table, Why with measurements, Decisions to review, Deploy notes, Test plan with checkboxes, Not in this PR), the CI checks, and answers to Copilot review comments. Use when asked to "commit this", "open a PR", "write the PR description", "split this into commits", "add a changelog entry", "why did CI fail", "the docker job failed", or "handle the Copilot review".
+description: Commit and open a pull request for Custoro in the repo's usual format: one commit per theme with the Co-Authored-By trailer, a CHANGELOG entry under Unreleased, the PR description (Summary table, Why with measurements, Decisions to review, Deploy notes, Test plan with checkboxes, Not in this PR), and the CI checks. Use when asked to "commit this", "open a PR", "write the PR description", "split this into commits", "add a changelog entry", "why did CI fail" or "the docker job failed". Review comments (Copilot or people) are custoro-pr-review.
 ---
 
 # Custoro commits and pull requests
@@ -59,12 +59,6 @@ Optional, as in PRs 6 and 7: **Found while doing it** (problems beyond the brief
 
 CI results: `gh pr checks <n> --repo dooker/custoro` once when asked; do not poll.
 
-## Copilot review comments
+## Review comments (Copilot and people)
 
-Copilot reviews each push: an overview comment ("Changes recommended" or "Needs a closer look", with the open issues) and inline comments. PR 7 went through five rounds with 13 findings. Handle them like this, and only when the user asks you to answer the review, since replies are public comments:
-
-1. Read everything: `gh api repos/dooker/custoro/pulls/<n>/comments --paginate` (inline) and `gh api repos/dooker/custoro/pulls/<n>/reviews` (overviews).
-2. Treat each finding as a claim. Reproduce it or read the code first. A right finding gets a **new commit** (no amend, no force-push, so the reply can name the SHA) with a test that fails on the old code. A wrong one gets no change and a reply with the evidence.
-3. Reply in the thread: `gh api -X POST repos/dooker/custoro/pulls/<n>/comments/<comment id>/replies -f body="Fixed in <sha>: <what changed and which test covers it>"`. Findings that came only in an overview (no thread) get one PR comment listing each point and its SHA: `gh pr comment <n> --repo dooker/custoro --body-file <file>`.
-4. Push, wait for the next round, repeat until it says no open issues. What it marks "needs a closer look" (concurrency, MySQL and MariaDB differences) is for a human: say so in the PR.
-5. Add a "Review round (Copilot)" section to the description: findings per round, all fixed or why not.
+Handled by `custoro-pr-review`: read every thread, verify each finding, fix the real ones in one new commit each with a test that fails on the old code, push, reply in the thread with the full SHA, **resolve every fixed thread**, and add the round to the PR description.

@@ -219,26 +219,83 @@ describe("createLoginThrottle", () => {
 });
 
 describe("createResetThrottle", () => {
-    it("allows a few requests per account, then refuses until the window ends", () => {
+    const hour = 60 * minute;
+
+    it("allows a few requests per account and address, then refuses until the window ends", () => {
         const { now, advance } = clock();
         const throttle = createResetThrottle(
-            { max: 2, windowMs: 60 * minute },
-            { max: 10, windowMs: 60 * minute },
+            { max: 10, windowMs: hour },
+            { max: 2, windowMs: hour },
+            { max: 10, windowMs: hour },
             now
         );
 
         expect(throttle.allow("10.0.0.1", "id:7")).toBe(true);
-        expect(throttle.allow("10.0.0.2", "id:7")).toBe(true);
-        expect(throttle.allow("10.0.0.3", "id:7")).toBe(false);
+        expect(throttle.allow("10.0.0.1", "id:7")).toBe(true);
+        expect(throttle.allow("10.0.0.1", "id:7")).toBe(false);
 
-        advance(60 * minute);
+        advance(hour);
+        expect(throttle.allow("10.0.0.1", "id:7")).toBe(true);
+    });
+
+    it("still lets the owner ask from another address when a stranger used up theirs", () => {
+        const throttle = createResetThrottle(
+            { max: 10, windowMs: hour },
+            { max: 3, windowMs: hour },
+            { max: 10, windowMs: hour }
+        );
+
+        for (let i = 0; i < 5; i++) throttle.allow("203.0.113.9", "id:7");
+
+        expect(throttle.allow("203.0.113.9", "id:7")).toBe(false);
+        expect(throttle.allow("198.51.100.4", "id:7")).toBe(true);
+    });
+
+    // Copilot review of PR 24: refused requests were counted against the account too, so ten from
+    // one address used up the account's budget and blocked the owner everywhere
+    it("does not let one address use up the account's budget with refused requests", () => {
+        const throttle = createResetThrottle(
+            { max: 10, windowMs: hour },
+            { max: 3, windowMs: hour },
+            { max: 10, windowMs: hour }
+        );
+        const answers = Array.from({ length: 10 }, () => throttle.allow("203.0.113.9", "id:7"));
+
+        expect(answers.filter(Boolean)).toHaveLength(3);
+        expect(throttle.allow("198.51.100.4", "id:7")).toBe(true);
+    });
+
+    it("still stops an address that keeps asking, for any account", () => {
+        const throttle = createResetThrottle(
+            { max: 10, windowMs: hour },
+            { max: 3, windowMs: hour },
+            { max: 10, windowMs: hour }
+        );
+
+        for (let i = 0; i < 10; i++) throttle.allow("203.0.113.9", "id:7");
+
+        expect(throttle.allow("203.0.113.9", "id:8")).toBe(false);
+    });
+
+    it("limits an account across addresses, so many addresses cannot fill its inbox", () => {
+        const throttle = createResetThrottle(
+            { max: 4, windowMs: hour },
+            { max: 3, windowMs: hour },
+            { max: 10, windowMs: hour }
+        );
+
+        expect(throttle.allow("10.0.0.1", "id:7")).toBe(true);
+        expect(throttle.allow("10.0.0.2", "id:7")).toBe(true);
         expect(throttle.allow("10.0.0.3", "id:7")).toBe(true);
+        expect(throttle.allow("10.0.0.4", "id:7")).toBe(true);
+        expect(throttle.allow("10.0.0.5", "id:7")).toBe(false);
     });
 
     it("limits one address across accounts, known or not", () => {
         const throttle = createResetThrottle(
-            { max: 5, windowMs: 60 * minute },
-            { max: 2, windowMs: 60 * minute }
+            { max: 5, windowMs: hour },
+            { max: 5, windowMs: hour },
+            { max: 2, windowMs: hour }
         );
 
         expect(throttle.allow("10.0.0.1", "id:7")).toBe(true);
@@ -249,12 +306,13 @@ describe("createResetThrottle", () => {
 
     it("counts a client's IPv6 /64 as one address", () => {
         const throttle = createResetThrottle(
-            { max: 5, windowMs: 60 * minute },
-            { max: 2, windowMs: 60 * minute }
+            { max: 5, windowMs: hour },
+            { max: 2, windowMs: hour },
+            { max: 10, windowMs: hour }
         );
 
         expect(throttle.allow("2001:db8:1:2::1", "id:1")).toBe(true);
-        expect(throttle.allow("2001:db8:1:2::2", "id:2")).toBe(true);
-        expect(throttle.allow("2001:db8:1:2::3", "id:3")).toBe(false);
+        expect(throttle.allow("2001:db8:1:2::2", "id:1")).toBe(true);
+        expect(throttle.allow("2001:db8:1:2::3", "id:1")).toBe(false);
     });
 });

@@ -15,7 +15,27 @@ import {
 } from "../helpers/resourceInput";
 import type { ProductIF } from "../types/product";
 import type { Request } from "express";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
+
+// A paid invoice is locked: its lines, quantities, number, date and customer stay as they were
+// billed. Every change to an invoice starts here, inside its transaction, and the row lock keeps
+// it from being marked as paid while the change is being saved. An invoice that does not exist is
+// left to the statements that follow, which refuse it with their own message.
+export const lockedInvoiceMessage = "invoice.locked";
+
+const refuseLockedInvoice = async (connection: PoolConnection, invoiceId: unknown) => {
+    const [rows] = await connection.query<RowDataPacket[]>(
+        `SELECT locked
+         FROM invoices
+         WHERE id = ?
+             FOR UPDATE;`,
+        [invoiceId]
+    );
+
+    if (Array.isArray(rows) && rows.some((row) => Number(row.locked) === 1)) {
+        throw new TransactionRefusal(lockedInvoiceMessage);
+    }
+};
 
 export const getLast = async (request: Request) => {
     const { database } = request;
@@ -53,23 +73,10 @@ export const getSingle = async (request: Request) => {
         };
     }
 
-    // A paid invoice shows its customer's name as it is now; one without a customer has none
-    if (invoice.locked === 1 && invoice.customerId != null) {
-        const { success, data, message } = await getSingleCustomer(request, invoice.customerId);
-
-        if (!success || !data) {
-            return {
-                success,
-                message
-            };
-        }
-
-        const customer = data[0];
-
-        if (customer) {
-            invoice.customerName = customer.name;
-        }
-    }
+    // A paid invoice shows its customer as billed (the copy taken when it was marked as paid); an
+    // open one follows its customer, whose name the web app takes from its list of customers
+    invoice.customerName =
+        Number(invoice.locked) === 1 ? (invoice.customerName ?? undefined) : undefined;
 
     return {
         success: true,
@@ -268,6 +275,7 @@ export const putSingle = async (request: Request) => {
         "Add item to invoice",
         "post.item.invoice",
         async (connection) => {
+            await refuseLockedInvoice(connection, invoiceId);
             await addInvoiceLines(connection, invoiceId, built.lines);
             await connection.query(
                 `UPDATE invoices
@@ -371,46 +379,44 @@ export const putSingleData = async (request: Request) => {
         paymentPeriod = customer[0].paymentPeriod ?? null;
     }
 
-    const { success: updateInvoiceSuccess } = await query({
+    // The details and the worksheets that follow the customer are saved together
+    const saved = await withTransaction(
         database,
-        sql: `UPDATE invoices
-              SET invoice_date    = ?,
-                  customer_id    = ?,
-                  number         = ?,
-                  payment_type   = ?,
-                  invoice_type   = ?,
-                  change_date     = NOW(),
-                  payment_period = COALESCE(?, payment_period)
-              WHERE id = ?;`,
-        params: [invoiceDate, customerId, number, paymentType, invoiceType, paymentPeriod, id],
-        logger: "Update invoice data"
-    });
+        "Update invoice data",
+        "put.invoice",
+        async (connection) => {
+            await refuseLockedInvoice(connection, id);
+            await connection.query(
+                `UPDATE invoices
+                 SET invoice_date   = ?,
+                     customer_id    = ?,
+                     number         = ?,
+                     payment_type   = ?,
+                     invoice_type   = ?,
+                     change_date    = NOW(),
+                     payment_period = COALESCE(?, payment_period)
+                 WHERE id = ?;`,
+                [invoiceDate, customerId, number, paymentType, invoiceType, paymentPeriod, id]
+            );
 
-    if (!updateInvoiceSuccess) {
+            // Worksheets on the invoice follow its customer
+            if (customerId) {
+                await connection.query(
+                    `UPDATE worksheets
+                     SET customer_id = ?
+                     WHERE invoice = ?
+                       AND customer_id <> ?;`,
+                    [customerId, id, customerId]
+                );
+            }
+        }
+    );
+
+    if (!saved.ok) {
         return {
             success: false,
-            message: "put.invoice"
+            message: saved.message
         };
-    }
-
-    // Worksheets on the invoice follow its customer
-    if (customerId) {
-        const { success: updateWorksheetsSuccess } = await query({
-            database,
-            sql: `UPDATE worksheets
-                  SET customer_id = ?
-                  WHERE invoice = ?
-                    AND customer_id <> ?;`,
-            params: [customerId, id, customerId],
-            logger: "Update worksheet customer"
-        });
-
-        if (!updateWorksheetsSuccess) {
-            return {
-                success: false,
-                message: "put.worksheets"
-            };
-        }
     }
 
     return {
@@ -454,6 +460,8 @@ export const putSingleItem = async (request: Request) => {
         "Update invoice item quantity",
         "put.invoice.items",
         async (connection) => {
+            await refuseLockedInvoice(connection, invoiceId);
+
             const [updated] = await connection.query<ResultSetHeader>(
                 `UPDATE invoice_items
                  SET quantity = ?
@@ -501,6 +509,8 @@ export const deleteSingleItem = async (request: Request) => {
         "Delete invoice item",
         "delete.invoice.item",
         async (connection) => {
+            await refuseLockedInvoice(connection, invoiceId);
+
             const [rows] = await connection.query<RowDataPacket[]>(
                 `SELECT worksheet_id
                  FROM invoice_items
@@ -552,6 +562,21 @@ export const deleteSingleItem = async (request: Request) => {
     };
 };
 
+// The copy of the customer a paid invoice keeps: the columns of invoices and where they come from
+const customerCopy = [
+    ["customer_name", "name"],
+    ["customer_reg_number", "reg_number"],
+    ["customer_vat_number", "vat_number"],
+    ["customer_address", "address"],
+    ["customer_phone", "phone"],
+    ["customer_email", "email"],
+    ["customer_department", "department"],
+    ["customer_payment_period", "payment_period"]
+] as const;
+
+// Locks the invoice and its worksheets, and copies its customer's details into it, so a later
+// change to the customer does not change what this invoice says. Marking a paid invoice as paid
+// again changes nothing: it keeps the copy it was billed with.
 export const markAsPaid = async (request: Request) => {
     const {
         params: { id },
@@ -565,35 +590,48 @@ export const markAsPaid = async (request: Request) => {
         };
     }
 
-    const { success: invoiceSuccess } = await query({
+    const locked = await withTransaction(
         database,
-        sql: `UPDATE invoices
-              SET locked = '1'
-              WHERE id = ?;`,
-        params: [String(id)],
-        logger: "Lock invoice"
-    });
+        "Lock invoice",
+        "put.invoice.lock",
+        async (connection) => {
+            const [rows] = await connection.query<RowDataPacket[]>(
+                `SELECT locked
+                 FROM invoices
+                 WHERE id = ?
+                     FOR UPDATE;`,
+                [String(id)]
+            );
 
-    if (!invoiceSuccess) {
+            if (!rows.length) {
+                throw new TransactionRefusal("put.invoice.lock");
+            }
+
+            if (Number(rows[0].locked) === 1) {
+                return;
+            }
+
+            await connection.query(
+                `UPDATE invoices
+                     LEFT JOIN customers ON customers.id = invoices.customer_id
+                 SET invoices.locked = 1,
+                     ${customerCopy.map(([column, source]) => `invoices.${column} = customers.${source}`).join(",\n                     ")}
+                 WHERE invoices.id = ?;`,
+                [String(id)]
+            );
+            await connection.query(
+                `UPDATE worksheets
+                 SET locked = '1'
+                 WHERE invoice = ?;`,
+                [String(id)]
+            );
+        }
+    );
+
+    if (!locked.ok) {
         return {
             success: false,
-            message: "put.invoice.lock"
-        };
-    }
-
-    const { success: worksheetSuccess } = await query({
-        database,
-        sql: `UPDATE worksheets
-              SET locked = '1'
-              WHERE invoice = ?;`,
-        params: [String(id)],
-        logger: "Lock worksheets"
-    });
-
-    if (!worksheetSuccess) {
-        return {
-            success: false,
-            message: "put.worksheet.lock"
+            message: locked.message
         };
     }
 

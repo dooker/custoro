@@ -72,14 +72,21 @@ describe("reading an invoice", () => {
         expect(customerQueries()).toHaveLength(0);
     });
 
-    it("gives a paid invoice the name its customer has now", async () => {
-        databaseHas(invoiceRow(5, 1));
+    it("gives a paid invoice the name it was billed to, not the name its customer has now", async () => {
+        databaseHas({ ...invoiceRow(5, 1), customer_name: "Acme (as billed)" });
 
         const result = await invoice.getSingle(request({ page: "7" }));
 
-        expect(result.data?.[0].customerName).toBe("Acme");
-        expect(customerQueries()).toHaveLength(1);
-        expect(customerQueries()[0].params).toEqual([5]);
+        expect(result.data?.[0].customerName).toBe("Acme (as billed)");
+        expect(customerQueries()).toHaveLength(0);
+    });
+
+    it("gives an open invoice no name of its own: it follows its customer", async () => {
+        databaseHas({ ...invoiceRow(5, 0), customer_name: null });
+
+        const result = await invoice.getSingle(request({ page: "7" }));
+
+        expect(result.data?.[0].customerName).toBeUndefined();
     });
 });
 

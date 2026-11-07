@@ -41,7 +41,7 @@ apps/api/scripts/backup.sh                     # npm run docker:backup; --dir, -
 
 It writes `backups/custoro-<UTC time>/`: `db.sql.gz` (`mysqldump --single-transaction` inside the db container, the password read there from the container's environment, never printed or on a command line), `uploads.tar.gz` and `invoices.tar.gz` (read through the `api` service, which works while the API is stopped), `SHA256SUMS` and `manifest.txt`. It refuses to go on when the dump is empty, cut off (no `Dump completed` last line) or has no rows, and keeps nothing then; a folder without `.partial` is complete. Put the folder somewhere off the server and put its name in the runbook. The folder is private (password hashes, customer data): never paste its content anywhere.
 
-Not in it, so put them in the runbook: `.env` (secrets, the owner keeps a copy) and the mail server settings of the admin page (`/app/.env.email` inside the API container, in no volume, lost when the container is recreated: they must be in `.env` as `EMAIL_*`).
+Not in it, so put it in the runbook: `.env` (secrets, the owner keeps a copy). The mail server settings of the admin page are in the invoices volume (`/app/storage/mail-settings.json`), so `invoices.tar.gz` holds them, password included. A server that still has `/app/.env.email` from before keeps using it until the admin saves the mail settings once, which moves them into the volume: say so in the runbook, since that file is lost when the container is recreated.
 
 **The hosted database** is outside the stack, and `backup.sh` cannot reach it. The owner takes the dump by hand, `mysqldump --single-transaction <database> > backup-<date>.sql` (`mariadb-dump` on MariaDB; the hosting plan may refuse `--routines` and `--events`, the app has neither), checks that it is not empty and ends with `-- Dump completed`, and restores it once into the scratch container of step 2: `mariadb:11.4`, not MySQL (a dump only loads into the same kind of server). This was not run against the hosted database here.
 
@@ -54,6 +54,8 @@ With migrations (the old API cannot run on the new schema, the new API needs the
 1. Backup (stop the API first). 2. Build or pull the new images. 3. Migrate. 4. Start the new API and web. 5. Verify.
 
 Without migrations: build, `docker compose -f docker-compose.prod.yml up -d`, verify.
+
+**Building** names the version and commit in the images: `scripts/docker-build.sh` (from a checkout of the release tag, `git checkout v<version>`), or pull the published `ghcr.io/<owner>/custoro-api:<version>` and `custoro-web:<version>` with `API_IMAGE` and `WEB_IMAGE` in `.env`. Verify with `curl -s <app>/api/`: `version` and `build` must be the ones the runbook names; "unknown" means a plain `docker compose build`.
 
 **Migrating.** With the stack's own `db` service (stop the API first, back up first): `docker compose -f docker-compose.prod.yml run --rm --build migrate` (`--build` matters: a plain `build` skips the service, which sits behind a profile, so an old image would run old migrations). It is built from the build stage of the API image and connects to `db` without TLS (`DB_SSL` defaults to `off` there). The production API image has no `db-migrate` (a dev dependency), so for a database outside the stack (the hosted MariaDB) run it from a checkout with `npm ci` (Node 24, or inside the `api` container) or from the dev image:
 
