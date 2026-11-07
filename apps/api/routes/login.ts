@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { logout, postSingle as postSingleLogin } from "../services/login";
 import { authenticate } from "../helpers/authenticate";
+import { authorize } from "../helpers/authorize";
 import {
     forgot as forgotUser,
     getToken as getUserToken,
@@ -23,7 +24,7 @@ router.post("/", async (req, res) => {
 });
 
 // End the caller's sessions on every device (the web app's Log out button)
-router.post("/logout", authenticate, async (req, res) => {
+router.post("/logout", authenticate, authorize(["admin", "user"]), async (req, res) => {
     res.json(await logout(req));
 });
 

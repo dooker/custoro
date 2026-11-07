@@ -40,6 +40,11 @@ jobs:
             - name: Unit tests
               run: npx vitest run
 
+            # Every route is public on purpose, or has authenticate and authorize in front of it,
+            # and no upload runs before them (the security-review skill's route table)
+            - name: Route audit
+              run: node ../../.claude/skills/custoro-security-review/scripts/route-table.mjs
+
             - name: Build
               run: npm run build
 
