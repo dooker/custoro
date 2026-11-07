@@ -225,6 +225,7 @@
         "emailFormat": "E-posti aadress on vales vormingus",
         "tooManyAttempts": "Liiga palju katseid. Proovi hiljem uuesti.",
         "settingsInvalid": "Mõni seadistus pole kehtiv, midagi ei salvestatud",
+        "mailSettingsNotSaved": "Teised seaded salvestati, kuid meiliserveri seadeid ei õnnestunud salvestada",
         "filenamePrefix": "Arve failinime algus tohib sisaldada ainult tähti, numbreid, _ ja - (kuni 32 märki)",
         "product.exists": "Sellise koodiga toode on juba olemas",
         "product.inUse": "Toodet ei saa kustutada, sest sellega on seotud töölehti",

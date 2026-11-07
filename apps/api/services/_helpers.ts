@@ -1,4 +1,4 @@
-import { getEmailEnvContent, normalizeDate } from "../helper";
+import { getMailSettings, normalizeDate } from "../helper";
 import fs from "node:fs";
 import nodemailer, { type TransportOptions } from "nodemailer";
 import { query, queryErrorMessage } from "../helper/query";
@@ -323,7 +323,7 @@ export const replaceVariables = ({ content, replacements }: ReplaceVariablesIF) 
 };
 
 export const email = async ({ email, config, attachments, replace }: EmailIF) => {
-    const emailConfig = getEmailEnvContent();
+    const emailConfig = getMailSettings();
 
     if (!emailConfig.password || !email || !config) {
         console.error("Missing some info to send email");

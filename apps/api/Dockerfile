@@ -38,8 +38,8 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY --from=build /app/dist ./dist
 COPY locales ./locales
-# uploads/ (public files) and storage/ (invoice PDFs) are volumes; the app also writes
-# .env.email into its working dir
+# uploads/ (public files) and storage/ (invoice PDFs, the mail settings saved on the admin page)
+# are volumes
 RUN mkdir -p uploads storage/pdf && chown -R node:node /app
 USER node
 EXPOSE 3999

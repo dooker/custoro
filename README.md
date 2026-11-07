@@ -115,7 +115,7 @@ It writes `backups/custoro-<UTC date and time>/` (`--dir` picks another place; g
 
 The dump runs inside the `db` container with the password from that container's own environment, so the password is never printed and never on a command line. The script stops, and keeps nothing, when the dump is empty, cut off, or has no rows, and a folder without `.partial` in its name is a finished backup. A backup holds password hashes and customer data: keep it private (the folder is created for your user only) and **copy it off this machine**, because a backup on the same disk is lost with it. It needs the `db` service running; run it from cron or a systemd timer for a schedule (it exits with an error when anything fails). To pick the stack: `--project <name>`, `--env-file <file>`.
 
-What a backup does not hold: `.env` (secrets: keep a copy somewhere safe) and the mail server settings saved on the admin settings page. The API writes those to `/app/.env.email` inside its container, which is in no volume, so set `EMAIL_*` in `.env`.
+What a backup does not hold: `.env` (secrets: keep a copy somewhere safe). The mail server settings saved on the admin settings page are in the invoices volume (`/app/storage/mail-settings.json`, readable only by the API), so `invoices.tar.gz` holds them, mail server password included: one more reason to keep the backup private. A setting the page has not saved is taken from `EMAIL_*` in `.env`.
 
 To restore:
 
