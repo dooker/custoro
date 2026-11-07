@@ -176,3 +176,11 @@ test('nextVersion refuses a pre-release label that cannot be part of a version',
 test('releaseChangelog refuses a version it cannot read', () => {
     assert.throws(() => releaseChangelog(changelog('\n- x\n'), '5.0.0-rc_1.1', '2026-11-07'), /not a version/);
 });
+
+// Copilot review of PR 24: "prerelease --preid beta" from 5.0.0-rc.1 made 5.0.0-beta.1, which comes
+// before rc.1, so the release sequence went backwards
+test('nextVersion never goes back, also when the pre-release label changes', () => {
+    assert.throws(() => nextVersion('5.0.0-rc.1', 'prerelease', 'beta'), /not above/);
+    assert.equal(nextVersion('5.0.0-beta.3', 'prerelease', 'rc'), '5.0.0-rc.1');
+    assert.equal(nextVersion('5.0.0-beta.3', 'prerelease', 'beta'), '5.0.0-beta.4');
+});

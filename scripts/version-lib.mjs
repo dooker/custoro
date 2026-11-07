@@ -86,6 +86,18 @@ export const nextVersion = (current, bump, preid = defaultPreid) => {
         throw new Error(`The pre-release label "${preid}" may only have letters, digits and -`);
     }
 
+    // Whatever the bump, the sequence never goes back: 5.0.0-beta.1 does not follow 5.0.0-rc.1
+    const next = candidate(parsed, current, bump, preid);
+
+    if (compareVersions(next, current) <= 0) {
+        throw new Error(`${next} is not above the current version ${current}`);
+    }
+
+    return next;
+};
+
+// The version a bump gives, before the check that it is above the current one
+const candidate = (parsed, current, bump, preid) => {
     const { major, minor, patch, pre } = parsed;
     const core = `${major}.${minor}.${patch}`;
     const releases = {
@@ -123,10 +135,6 @@ export const nextVersion = (current, bump, preid = defaultPreid) => {
             `"${bump}" is not major, minor, patch, premajor, preminor, prepatch, prerelease, ` +
                 'release or a version like 5.0.0 or 5.0.0-rc.1'
         );
-    }
-
-    if (compareVersions(bump, current) <= 0) {
-        throw new Error(`${bump} is not above the current version ${current}`);
     }
 
     return bump;
