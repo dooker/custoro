@@ -80,6 +80,12 @@ export const nextVersion = (current, bump, preid = defaultPreid) => {
 
     if (!parsed) throw new Error(`The current version "${current}" is not x.y.z or x.y.z-<pre>`);
 
+    // Checked first, so a wrong label stops before any file is written. Letters, digits and "-",
+    // the characters a semantic version allows (5.0.0-rc.1, 5.0.0-beta-2.1)
+    if (!/^[0-9A-Za-z-]+$/.test(preid)) {
+        throw new Error(`The pre-release label "${preid}" may only have letters, digits and -`);
+    }
+
     const { major, minor, patch, pre } = parsed;
     const core = `${major}.${minor}.${patch}`;
     const releases = {
@@ -253,6 +259,8 @@ export const suggestBump = (changelog) => {
  * pre-release leaves it as it is: its entries stay under Unreleased until the release goes live.
  */
 export const releaseChangelog = (changelog, version, date) => {
+    if (!parseVersion(version)) throw new Error(`"${version}" is not a version`);
+
     if (isPrerelease(version)) {
         if (!/^- /m.test(unreleasedBody(changelog))) {
             throw new Error('Unreleased has no entries: nothing to release');

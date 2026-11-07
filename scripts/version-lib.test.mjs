@@ -163,3 +163,16 @@ test('withVersion writes a pre-release and the release after it', () => {
     assert.equal(pre, lock('5.0.0-rc.1'));
     assert.equal(withVersion('package-lock.json', pre, '5.0.0'), lock('5.0.0'));
 });
+
+// Copilot review of PR 24: "--preid rc_1" made 5.0.0-rc_1.1, which is no version, and it was still
+// written to every package file while the changelog entries were moved as for a release
+test('nextVersion refuses a pre-release label that cannot be part of a version', () => {
+    for (const preid of ['rc_1', 'rc 1', '', 'rc..1', 'é']) {
+        assert.throws(() => nextVersion('4.0.0', 'premajor', preid), /label/, JSON.stringify(preid));
+    }
+    assert.equal(nextVersion('4.0.0', 'premajor', 'beta-2'), '5.0.0-beta-2.1');
+});
+
+test('releaseChangelog refuses a version it cannot read', () => {
+    assert.throws(() => releaseChangelog(changelog('\n- x\n'), '5.0.0-rc_1.1', '2026-11-07'), /not a version/);
+});
