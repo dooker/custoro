@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     commonVersion,
+    compareVersions,
     nextVersion,
     parseVersion,
     releaseChangelog,
@@ -18,10 +19,19 @@ const lock = (version, dependency = '1.0.0') =>
 const changelog = (unreleased) =>
     `# Changelog\n\nIntro.\n\n## Unreleased\n${unreleased}\n## 4.0.0 - 2026-10-02\n\n### Changed\n\n- The first release\n\n## Pre-monorepo history\n\nOld.\n`;
 
-test('parseVersion takes x.y.z only', () => {
-    assert.deepEqual(parseVersion('4.0.12'), [4, 0, 12]);
-    for (const text of ['4.0', 'v4.0.0', '4.0.0-beta', '', undefined]) {
+test('parseVersion takes x.y.z and its pre-releases', () => {
+    assert.deepEqual(parseVersion('4.0.12'), { major: 4, minor: 0, patch: 12, pre: null });
+    assert.deepEqual(parseVersion('5.0.0-rc.1'), { major: 5, minor: 0, patch: 0, pre: 'rc.1' });
+    for (const text of ['4.0', 'v4.0.0', '4.0.0-', '4.0.0+build', '', undefined]) {
         assert.equal(parseVersion(text), null, String(text));
+    }
+});
+
+test('versions are ordered as semantic versions', () => {
+    const ordered = ['4.0.0', '5.0.0-beta.1', '5.0.0-rc.1', '5.0.0-rc.2', '5.0.0-rc.10', '5.0.0', '5.0.1'];
+
+    for (let index = 1; index < ordered.length; index++) {
+        assert.ok(compareVersions(ordered[index - 1], ordered[index]) < 0, ordered[index]);
     }
 });
 
@@ -32,10 +42,27 @@ test('nextVersion bumps one part and resets the ones after it', () => {
     assert.equal(nextVersion('4.2.3', '4.10.0'), '4.10.0');
 });
 
+test('nextVersion starts, counts and ends a pre-release', () => {
+    assert.equal(nextVersion('4.0.0', 'premajor'), '5.0.0-rc.1');
+    assert.equal(nextVersion('4.0.0', 'preminor'), '4.1.0-rc.1');
+    assert.equal(nextVersion('4.0.0', 'prepatch'), '4.0.1-rc.1');
+    assert.equal(nextVersion('4.0.0', 'premajor', 'beta'), '5.0.0-beta.1');
+    assert.equal(nextVersion('5.0.0-rc.1', 'prerelease'), '5.0.0-rc.2');
+    assert.equal(nextVersion('5.0.0-rc.9', 'prerelease'), '5.0.0-rc.10');
+    assert.equal(nextVersion('5.0.0-beta.3', 'prerelease'), '5.0.0-rc.1');
+    // Going live: the release the pre-release leads to
+    assert.equal(nextVersion('5.0.0-rc.2', 'release'), '5.0.0');
+    assert.equal(nextVersion('5.0.0-rc.2', 'major'), '5.0.0');
+    assert.equal(nextVersion('5.0.0-rc.2', '5.0.0'), '5.0.0');
+});
+
 test('nextVersion refuses a version that is not above the current one, or nonsense', () => {
-    for (const bump of ['4.2.3', '4.2.2', '3.9.9', 'huge', '5.0']) {
+    for (const bump of ['4.2.3', '4.2.2', '3.9.9', '4.2.3-rc.1', 'huge', '5.0']) {
         assert.throws(() => nextVersion('4.2.3', bump), undefined, bump);
     }
+    assert.throws(() => nextVersion('5.0.0-rc.2', '5.0.0-rc.1'), /not above/);
+    assert.throws(() => nextVersion('4.0.0', 'release'), /not a pre-release/);
+    assert.throws(() => nextVersion('4.0.0', 'prerelease'), /not a pre-release/);
 });
 
 test('commonVersion finds the one version of every package file', () => {
@@ -107,4 +134,32 @@ test('releaseNotes gives the entries of one release, not the ones after it', () 
     assert.equal(releaseNotes(released, '4.0.1'), '### Fixed\n\n- A fix\n');
     assert.equal(releaseNotes(released, '4.0.0'), '### Changed\n\n- The first release\n');
     assert.throws(() => releaseNotes(released, '9.9.9'), /no section/);
+});
+
+test('a pre-release leaves the entries under Unreleased, and its notes are those entries', () => {
+    const log = changelog('\n### Fixed\n\n- A fix\n');
+
+    assert.equal(releaseChangelog(log, '4.0.1-rc.1', '2026-11-07'), log);
+    assert.equal(
+        releaseNotes(log, '4.0.1-rc.1'),
+        'Pre-release of 4.0.1: the build tested before it goes live.\n\n### Fixed\n\n- A fix\n'
+    );
+    assert.throws(() => releaseChangelog(changelog('\n'), '4.0.1-rc.1', '2026-11-07'), /nothing to release/);
+});
+
+test('going live after pre-releases dates the entries as the release', () => {
+    const released = releaseChangelog(changelog('\n### Fixed\n\n- A fix\n'), '4.0.1', '2026-11-08');
+
+    assert.match(released, /## Unreleased\n\n## 4\.0\.1 - 2026-11-08\n\n### Fixed\n\n- A fix\n/);
+});
+
+test('commonVersion takes a pre-release too', () => {
+    assert.equal(commonVersion({ 'package.json': pkg('5.0.0-rc.1'), 'package-lock.json': lock('5.0.0-rc.1') }), '5.0.0-rc.1');
+});
+
+test('withVersion writes a pre-release and the release after it', () => {
+    const pre = withVersion('package-lock.json', lock('4.0.0'), '5.0.0-rc.1');
+
+    assert.equal(pre, lock('5.0.0-rc.1'));
+    assert.equal(withVersion('package-lock.json', pre, '5.0.0'), lock('5.0.0'));
 });

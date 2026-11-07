@@ -1,43 +1,129 @@
 // The rules behind scripts/version.mjs, without the file system, so they can be tested with
-// `node --test "scripts/*.test.mjs"`. Custoro has one version for the whole repository: the root, the API and
-// the web app (their package.json and package-lock.json files) always carry the same number, and
-// CHANGELOG.md has an "## Unreleased" section on top that becomes "## <version> - <date>".
+// `node --test "scripts/*.test.mjs"`. Custoro has one version for the whole repository: the root,
+// the API and the web app (their package.json and package-lock.json files) always carry the same
+// number, and CHANGELOG.md has an "## Unreleased" section on top that becomes
+// "## <version> - <date>" when a release goes live.
+//
+// Versions are semantic versions, x.y.z, or a pre-release of one: 5.0.0-rc.1 is the first release
+// candidate of 5.0.0, the build that is tested before 5.0.0 goes live. A pre-release keeps the
+// changelog entries under Unreleased; the release of 5.0.0 itself dates them.
 
-const semver = /^(\d+)\.(\d+)\.(\d+)$/;
+const semver = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 
-/** [major, minor, patch] of a plain x.y.z version, or null. */
+// The label of a new pre-release: rc.1, rc.2, ... ("release candidate")
+export const defaultPreid = 'rc';
+
+/** {major, minor, patch, pre} of x.y.z or x.y.z-<pre> (pre is null for a release), or null. */
 export const parseVersion = (version) => {
     const match = semver.exec(String(version ?? '').trim());
 
-    return match ? match.slice(1).map(Number) : null;
+    if (!match) return null;
+
+    const [major, minor, patch] = match.slice(1, 4).map(Number);
+
+    return { major, minor, patch, pre: match[4] ?? null };
 };
 
-/** The next version: `bump` is major, minor, patch or an exact x.y.z above the current one. */
-export const nextVersion = (current, bump) => {
-    const parts = parseVersion(current);
+/** The release a version is or leads to: 5.0.0 for 5.0.0-rc.2 and for 5.0.0. */
+export const releaseOf = (version) => {
+    const { major, minor, patch } = parseVersion(version);
 
-    if (!parts) throw new Error(`The current version "${current}" is not x.y.z`);
+    return `${major}.${minor}.${patch}`;
+};
 
-    const [major, minor, patch] = parts;
-    const next = {
-        major: `${major + 1}.0.0`,
-        minor: `${major}.${minor + 1}.0`,
-        patch: `${major}.${minor}.${patch + 1}`,
-    }[bump];
+export const isPrerelease = (version) => parseVersion(version)?.pre != null;
 
-    if (next) return next;
+// Semantic version order: 5.0.0-rc.2 < 5.0.0-rc.10 < 5.0.0 < 5.0.1
+const comparePre = (a, b) => {
+    if (a === b) return 0;
+    if (a === null) return 1;
+    if (b === null) return -1;
 
-    const exact = parseVersion(bump);
+    const left = a.split('.');
+    const right = b.split('.');
 
-    if (!exact) throw new Error(`"${bump}" is not major, minor, patch or a version like 5.0.0`);
+    for (let index = 0; index < Math.max(left.length, right.length); index++) {
+        const [x, y] = [left[index], right[index]];
 
-    const [a, b, c] = exact;
+        if (x === undefined) return -1;
+        if (y === undefined) return 1;
+        if (x === y) continue;
 
-    if ((a - major || b - minor || c - patch) <= 0) {
+        const [nx, ny] = [/^\d+$/.test(x), /^\d+$/.test(y)];
+
+        if (nx && ny) return Number(x) - Number(y);
+        if (nx !== ny) return nx ? -1 : 1;
+
+        return x < y ? -1 : 1;
+    }
+
+    return 0;
+};
+
+export const compareVersions = (a, b) => {
+    const [x, y] = [parseVersion(a), parseVersion(b)];
+
+    return x.major - y.major || x.minor - y.minor || x.patch - y.patch || comparePre(x.pre, y.pre);
+};
+
+/**
+ * The next version. `bump` is
+ * - major, minor or patch: the next release of that kind. From a pre-release of a release of that
+ *   kind (5.0.0-rc.2 and major), it is that release (5.0.0), as npm does
+ * - premajor, preminor or prepatch: the first pre-release of the next such release (5.0.0-rc.1)
+ * - prerelease: the next pre-release of the same release (5.0.0-rc.1 -> 5.0.0-rc.2)
+ * - release: the release a pre-release leads to (5.0.0-rc.2 -> 5.0.0), when it goes live
+ * - an exact version above the current one
+ */
+export const nextVersion = (current, bump, preid = defaultPreid) => {
+    const parsed = parseVersion(current);
+
+    if (!parsed) throw new Error(`The current version "${current}" is not x.y.z or x.y.z-<pre>`);
+
+    const { major, minor, patch, pre } = parsed;
+    const core = `${major}.${minor}.${patch}`;
+    const releases = {
+        major: pre !== null && minor === 0 && patch === 0 ? core : `${major + 1}.0.0`,
+        minor: pre !== null && patch === 0 ? core : `${major}.${minor + 1}.0`,
+        patch: pre !== null ? core : `${major}.${minor}.${patch + 1}`,
+    };
+
+    if (releases[bump]) return releases[bump];
+
+    if (['premajor', 'preminor', 'prepatch'].includes(bump)) {
+        const next = {
+            premajor: `${major + 1}.0.0`,
+            preminor: `${major}.${minor + 1}.0`,
+            prepatch: `${major}.${minor}.${patch + 1}`,
+        }[bump];
+
+        return `${next}-${preid}.1`;
+    }
+
+    if (bump === 'prerelease' || bump === 'release') {
+        if (pre === null) {
+            throw new Error(`${current} is not a pre-release: use premajor, preminor or prepatch to start one`);
+        }
+
+        if (bump === 'release') return core;
+
+        const counted = new RegExp(`^${preid}\\.(\\d+)$`).exec(pre);
+
+        return counted ? `${core}-${preid}.${Number(counted[1]) + 1}` : `${core}-${preid}.1`;
+    }
+
+    if (!parseVersion(bump)) {
+        throw new Error(
+            `"${bump}" is not major, minor, patch, premajor, preminor, prepatch, prerelease, ` +
+                'release or a version like 5.0.0 or 5.0.0-rc.1'
+        );
+    }
+
+    if (compareVersions(bump, current) <= 0) {
         throw new Error(`${bump} is not above the current version ${current}`);
     }
 
-    return exact.join('.');
+    return bump;
 };
 
 /**
@@ -162,8 +248,19 @@ export const suggestBump = (changelog) => {
     return { bump: 'patch', reasons: ['only ### Fixed and ### Security entries'] };
 };
 
-/** The changelog with Unreleased turned into the release, and a new empty Unreleased on top. */
+/**
+ * The changelog with Unreleased turned into the release, and a new empty Unreleased on top. A
+ * pre-release leaves it as it is: its entries stay under Unreleased until the release goes live.
+ */
 export const releaseChangelog = (changelog, version, date) => {
+    if (isPrerelease(version)) {
+        if (!/^- /m.test(unreleasedBody(changelog))) {
+            throw new Error('Unreleased has no entries: nothing to release');
+        }
+
+        return changelog;
+    }
+
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`"${date}" is not a date like 2026-11-07`);
     if (new RegExp(`^## ${version.replace(/\./g, '\\.')}\\b`, 'm').test(changelog)) {
         throw new Error(`CHANGELOG.md already has a section for ${version}`);
@@ -175,8 +272,16 @@ export const releaseChangelog = (changelog, version, date) => {
     return changelog.replace(/^## Unreleased[ \t]*\n/m, `## Unreleased\n\n## ${version} - ${date}\n`);
 };
 
-/** The entries of one release, for its GitHub release page. */
+/** The entries of one release, for its GitHub release page; a pre-release's are under Unreleased. */
 export const releaseNotes = (changelog, version) => {
+    if (isPrerelease(version)) {
+        const body = unreleasedBody(changelog).trim();
+
+        if (!body) throw new Error('Unreleased has no entries for the pre-release notes');
+
+        return `Pre-release of ${releaseOf(version)}: the build tested before it goes live.\n\n${body}\n`;
+    }
+
     const heading = new RegExp(`^## ${version.replace(/\./g, '\\.')} - .*\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, 'm');
     const match = heading.exec(changelog);
 

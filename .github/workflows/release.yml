@@ -3,7 +3,8 @@ name: Release
 # Publishes a release when a release PR (npm run release:prepare) is merged: the push to main that
 # changes the version tags that commit v<version>, pushes the API and web images to the GitHub
 # container registry as ghcr.io/<owner>/custoro-api:<version> and custoro-web:<version>, and
-# creates the GitHub release with the version's CHANGELOG entries. Every other push to main stops at
+# creates the GitHub release with the version's CHANGELOG entries. A pre-release (5.0.0-rc.1) is
+# published the same way, marked as a pre-release, with the entries under Unreleased. Every other push to main stops at
 # the first step. Run it by hand (workflow_dispatch) to release the current version when the push
 # that changed it did not get that far; a version that already has a tag is never released again.
 
@@ -113,5 +114,9 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
                   VERSION: ${{ steps.version.outputs.version }}
               run: |
-                  gh release create "v$VERSION" --target "$GITHUB_SHA" \
+                  set -euo pipefail
+                  # x.y.z-<pre> (5.0.0-rc.1) is a pre-release on GitHub: never shown as the latest
+                  prerelease=()
+                  case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
+                  gh release create "v$VERSION" --target "$GITHUB_SHA" "${prerelease[@]}" \
                       --title "Custoro $VERSION" --notes-file "$RUNNER_TEMP/notes.md"

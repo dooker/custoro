@@ -84,7 +84,7 @@ Only the web container is exposed (`WEB_PORT`, default 80). It serves the built 
 To update, build the new images, stop the API, take a backup and apply the migrations (the old API cannot run on a new schema, and nothing may be written after the backup). Run `migrate` only when the changelog says the release has migrations; it is harmless otherwise:
 
 ```bash
-git pull && scripts/docker-build.sh          # or check out a release: git checkout v5.0.0
+git pull && scripts/docker-build.sh          # or check out a release: git checkout v5.0.0 (or v5.0.0-rc.1)
 docker compose -f docker-compose.prod.yml stop api
 apps/api/scripts/backup.sh                    # see "Backup and restore" below; works while the API is stopped
 docker compose -f docker-compose.prod.yml run --rm --build migrate
@@ -105,7 +105,7 @@ curl -s https://<your app>/api/       # {"version":"5.0.0","build":"38bdbcb","bu
 
 The web app shows the same in its sidebar ("v 5.0.0 · 38bdbcb", the build time on hover), and error reports carry `custoro@5.0.0+38bdbcb` as their release. A build from a checkout with uncommitted changes ends in `-dirty`.
 
-Releases are tagged `v<version>` and published on the repository's Releases page with their changelog entries, together with prebuilt images (`ghcr.io/<owner>/custoro-api:<version>` and `custoro-web:<version>`; set `API_IMAGE` and `WEB_IMAGE` in `.env` to use them). How a release is made: `.claude/skills/custoro-release/SKILL.md`.
+Releases are tagged `v<version>` and published on the repository's Releases page with their changelog entries; a release candidate that is tested before it goes live, such as `5.0.0-rc.1`, is published as a pre-release, together with prebuilt images (`ghcr.io/<owner>/custoro-api:<version>` and `custoro-web:<version>`; set `API_IMAGE` and `WEB_IMAGE` in `.env` to use them). How a release is made: `.claude/skills/custoro-release/SKILL.md`.
 
 ### Backup and restore
 
