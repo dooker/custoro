@@ -25,3 +25,14 @@ test('nothing is checked out, built, pushed or tagged before the guard', () => {
         assert.equal(before.includes(action), false, action);
     }
 });
+
+// Copilot review of PR 24, round 3: with the default queue, a later push to main cancelled a run
+// that was still waiting, so a merged release PR could be replaced by an ordinary push (which
+// releases nothing) and never be published. queue: max keeps every waiting run.
+test('the Release workflow keeps every waiting run and never cancels a running one', () => {
+    const concurrency = workflow.slice(workflow.indexOf('concurrency:'), workflow.indexOf('jobs:'));
+
+    assert.match(concurrency, /group: release\b/);
+    assert.match(concurrency, /cancel-in-progress: false/);
+    assert.match(concurrency, /queue: max/);
+});

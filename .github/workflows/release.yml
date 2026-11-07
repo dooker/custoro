@@ -18,10 +18,14 @@ permissions:
     contents: write
     packages: write
 
-# One release at a time, and never one cut short by the next push
+# One release at a time, never one cut short by the next push, and none dropped while it waits:
+# by default a newer waiting run cancels an older waiting one, so an ordinary push right after a
+# merged release PR could replace its run and nothing would be published. queue: max keeps every
+# waiting run (up to 100) in order (scripts/release-workflow.test.mjs).
 concurrency:
     group: release
     cancel-in-progress: false
+    queue: max
 
 jobs:
     release:
