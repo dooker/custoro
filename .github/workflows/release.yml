@@ -4,9 +4,10 @@ name: Release
 # changes the version tags that commit v<version>, pushes the API and web images to the GitHub
 # container registry as ghcr.io/<owner>/custoro-api:<version> and custoro-web:<version>, and
 # creates the GitHub release with the version's CHANGELOG entries. A pre-release (5.0.0-rc.1) is
-# published the same way, marked as a pre-release, with the entries under Unreleased. Every other push to main stops at
-# the first step. Run it by hand (workflow_dispatch) to release the current version when the push
-# that changed it did not get that far; a version that already has a tag is never released again.
+# published the same way, marked as a pre-release, with the entries under Unreleased. Every other
+# push to main stops at the first check. Run it by hand (workflow_dispatch) on main to release the
+# current version when the push that changed it did not get that far; a version that already has a
+# tag is never released again, and a run on any other branch stops before it does anything.
 
 on:
     push:
@@ -27,6 +28,17 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
+            # A push starts this on main only, but a manual run can be started on any branch, and
+            # it would tag and publish that branch's commit: an unmerged release PR would take the
+            # version's tag before it reaches main (scripts/release-workflow.test.mjs)
+            - name: Only from main
+              if: github.ref != 'refs/heads/main'
+              env:
+                  REF: ${{ github.ref }}
+              run: |
+                  echo "::error::Releases are published from main only; this run is on $REF"
+                  exit 1
+
             - name: Checkout code
               uses: actions/checkout@v7
               with:
