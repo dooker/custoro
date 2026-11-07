@@ -54,6 +54,7 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
     const id = idId || pageId;
 
     // Get invoice details. number_sort only exists for ordering the invoice list, so it is left out.
+    // The customer_ columns are the customer as billed, copied when the invoice was marked as paid.
     const { success: invoiceSuccess, data: invoiceData } = await query<InvoiceIF>({
         database,
         sql: `SELECT id,
@@ -69,7 +70,15 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
                      sent_date,
                      hash,
                      filename,
-                     payment_period
+                     payment_period,
+                     customer_name,
+                     customer_reg_number,
+                     customer_vat_number,
+                     customer_address,
+                     customer_phone,
+                     customer_email,
+                     customer_department,
+                     customer_payment_period
               FROM invoices
               WHERE id = ?;`,
         params: [id],

@@ -177,7 +177,7 @@ describe("keywordWhere", () => {
         );
         expect(search("x", "users").sql).toContain("users.username LIKE ? OR users.name LIKE ?");
         expect(search("x", "invoices").sql).toContain(
-            "customers.name LIKE ? OR invoices.number LIKE ?"
+            "customers.name LIKE ? OR invoices.customer_name LIKE ? OR invoices.number LIKE ?"
         );
         expect(search("x", "worksheets", { customer: true }).sql).toContain("products.name LIKE ?");
     });
@@ -282,7 +282,7 @@ describe("getInvoices", () => {
             expect(statement).toContain("invoices.customer_id = ? AND (customers.name LIKE ?");
         }
 
-        expect(params).toEqual([7, "%ann%", "%ann%", "%2%", "%2%"]);
+        expect(params).toEqual([7, "%ann%", "%ann%", "%ann%", "%2%", "%2%", "%2%"]);
     });
 
     it("counts only the customer's invoices when asked for one customer", () => {

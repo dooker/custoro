@@ -111,8 +111,11 @@ export const keywordWhere = ({ keyword, table, customer, prefix = "WHERE" }: Key
                 groups.push(`(products.name LIKE ?)`);
                 params.push(pattern);
             } else {
-                groups.push(`(customers.name LIKE ? OR invoices.number LIKE ?)`);
-                params.push(pattern, pattern);
+                // A paid invoice is also found by the name it was billed to
+                groups.push(
+                    `(customers.name LIKE ? OR invoices.customer_name LIKE ? OR invoices.number LIKE ?)`
+                );
+                params.push(pattern, pattern, pattern);
             }
         } else if (table === "worksheets") {
             if (customer) {
@@ -405,7 +408,7 @@ export const getInvoices = ({ keyword = null, customerId }: GetterIF) => {
         // before the rows are cut to a page
         return {
             sql: `
-        SELECT customers.name,
+        SELECT IF(invoices.locked = 1, invoices.customer_name, customers.name) AS name,
                invoices.number,
                invoices.id,
                invoices.locked,
@@ -426,7 +429,7 @@ export const getInvoices = ({ keyword = null, customerId }: GetterIF) => {
     // limitMarker).
     return {
         sql: `
-        SELECT customers.name,
+        SELECT IF(invoices.locked = 1, invoices.customer_name, customers.name) AS name,
                invoices.number,
                invoices.id,
                invoices.locked,
