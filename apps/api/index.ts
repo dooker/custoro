@@ -35,7 +35,7 @@ import setupCustoroRoutes from "./config/importer";
 import pkg from "./package.json";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
-import { getAppOrigin } from "./helpers/appOrigin";
+import { getAppOrigin, isAllowedOrigin } from "./helpers/appOrigin";
 import { errorHandler } from "./helpers/errorResponse";
 import { jwtSecretProblem, trustProxyWarning } from "./helpers/startupChecks";
 import { createShutdown, shutdownSignals } from "./helpers/shutdown";
@@ -92,14 +92,7 @@ app.disable("x-powered-by");
 app.use(
     cors({
         origin: (origin, callback) => {
-            const localhostRegex = /^http:\/\/localhost(:\d+)?$/;
-
-            // No Origin header: not a browser, or a same-origin GET. Anything else must be the
-            // app itself. Another origin just gets no CORS headers, so the browser blocks it;
-            // the request is not an error.
-            const allowed = !origin || localhostRegex.test(origin) || origin === getAppOrigin();
-
-            callback(null, allowed);
+            callback(null, isAllowedOrigin(origin, getAppOrigin(), env === "production"));
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -139,10 +132,6 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
     next();
 });
 
-app.use("/login", login);
-
-setupCustoroRoutes(app);
-
 fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(pdfDir, { recursive: true });
 // Only the public upload folder is served statically. Invoice PDFs live in pdfDir, outside
@@ -160,6 +149,18 @@ app.use(
         }
     })
 );
+
+// Everything else the API answers is the user's data (customers, invoices, PDFs, settings) or a
+// login. no-store keeps it out of the browser's and any proxy's cache, so it cannot be read back
+// from a shared computer after logout. The public images above stay cacheable.
+app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.set("Cache-Control", "no-store");
+    next();
+});
+
+app.use("/login", login);
+
+setupCustoroRoutes(app);
 
 // --- Sentry Error Handler ---
 // Must be registered after all controllers/routes, but before custom error middleware
