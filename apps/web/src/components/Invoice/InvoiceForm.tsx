@@ -7,6 +7,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { handleError } from '../../shared/helpers';
 import { usePickedItem } from '../../hooks/usePickedItem';
+import { invoiceReceiver, paidCopy } from '../../utils/billedCustomer';
 import Loader from '../_shared/Loader/Loader';
 import Details from './Details';
 import Items from './Items';
@@ -58,14 +59,16 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
     const notification = useNotificationHandler();
     const confirmation = useConfirmationHandler();
 
-    // The invoice's customer, for the picker and its VAT number. A paid invoice has its own copy of
-    // the customer as billed, and needs nothing from the customer as it is now.
+    // A paid invoice shows the server's copy of its customer as billed. Until it has one (just
+    // after "Mark as paid", before the invoice is read again) and on an open invoice, the customer
+    // as it is now is read, for the picker, the name and the VAT number.
+    const copy = paidCopy(isLocked, initialInvoice);
     const { item: customer, isLoading } = usePickedItem<CustomerIF>(
         RESOURCE.CUSTOMER,
-        isLocked ? null : customerId
+        copy ? null : customerId
     );
-    const currentCustomerVatNumber = isLocked ? draft.customerVatNumber : customer?.vatNumber;
-    const noVat = isForeignVatNumber(currentCustomerVatNumber);
+    const receiver = invoiceReceiver(copy, customer);
+    const noVat = isForeignVatNumber(receiver.vatNumber);
 
     const invalidator = async () => {
         await queryClient.invalidateQueries({ queryKey: [type, String(draft.id)] });
@@ -166,6 +169,7 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
                 draft={draft}
                 onChange={({ name, value }) => updateDraft({ [name]: value } as Partial<InvoiceIF>)}
                 customer={customer}
+                receiverName={receiver.name}
                 noVat={noVat}
             />
 

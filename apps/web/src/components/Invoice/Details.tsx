@@ -17,20 +17,21 @@ interface DetailsIF {
     onChange: (params: EntityOnChangeIF) => void;
     // The invoice's customer as it is now (an open invoice's), for the picker
     customer?: CustomerIF | null;
+    // Who a paid invoice is billed to: its copy of the customer (utils/billedCustomer.ts)
+    receiverName?: string | null;
     noVat: boolean;
 }
 
 const paymentTypes = ['transfer', 'cash'];
 const invoiceTypes = ['invoice', 'offer'];
 
-const Details = ({ draft, onChange, customer, noVat }: DetailsIF) => {
+const Details = ({ draft, onChange, customer, receiverName, noVat }: DetailsIF) => {
     const { t } = useSafeTranslation();
     const { user } = useAuth();
     const { offer } = user || {};
     const {
         locked,
         customerId,
-        customerName,
         invoiceDate: rawInvoiceDate,
         createDate,
         changeDate,
@@ -82,7 +83,7 @@ const Details = ({ draft, onChange, customer, noVat }: DetailsIF) => {
                 {isLocked ? (
                     <>
                         <span className="label">{t('invoices.form.invoice-receiver')}</span>
-                        {`: ${customerName || 'Unknown Customer'}`}
+                        {`: ${receiverName || 'Unknown Customer'}`}
                     </>
                 ) : (
                     <Suspense fallback={<div className="select-loader" />}>
