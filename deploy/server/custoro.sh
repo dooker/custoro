@@ -264,6 +264,10 @@ deploy() {
     rm -rf "$release"
     mv "$bundle" "$release"
     local api="$release/api"
+    # The bundle's nginx site and snippets name /opt/custoro; another CUSTORO_HOME gets its own
+    if [ "$home" != /opt/custoro ]; then
+        sed -i "s|/opt/custoro/current/|$home/current/|g" "$release"/deploy/nginx/*.conf
+    fi
     ln -sfn "$home/shared/.env.production" "$api/.env.production"
     ln -sfn "$home/shared/uploads" "$api/uploads"
     ln -sfn "$home/shared/storage" "$api/storage"
