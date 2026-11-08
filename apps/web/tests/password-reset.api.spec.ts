@@ -202,4 +202,26 @@ test.describe('password links', () => {
             expect((await login(request, email, 'quote pass 2')).success, email).toBe(true);
         }
     });
+
+    test('a link stops working when an admin changes only an accent of the email', async ({
+        request,
+    }) => {
+        // users.username compares without accents: ana@ and ána@ are "the same" to the database,
+        // but not the same mailbox
+        const id = tag();
+        const plain = `ana-${id}@example.test`;
+        const accented = `ána-${id}@example.test`;
+        const user = { name: 'Reset test', discount: '0', offer: '0', role: 'user' };
+        const { result, token } = await nextPasswordLink(request, plain, () =>
+            json(post(request, '/user', { ...user, username: plain }, adminToken))
+        );
+        const changed = await json(
+            put(request, `/user/${result.insertId}`, { ...user, username: accented }, adminToken)
+        );
+
+        expect(changed.success).toBe(true);
+        expect(
+            await json(put(request, '/login/token', { token, password: 'accent pass 1' }))
+        ).toEqual({ success: false, message: 'noToken' });
+    });
 });
