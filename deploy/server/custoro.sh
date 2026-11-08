@@ -145,7 +145,10 @@ fetch_bundle() {
         fail "the download does not match its checksum"
 }
 
-# A dump of the database; a dump that is empty or cut off is not kept
+# A dump of the database; a dump that is empty or cut off is not kept. Its path goes into
+# $backup_file: called as $(backup), it would run in a subshell, whose options file (with the
+# database password) the EXIT trap of this shell would never see and so never remove
+backup_file=""
 backup() {
     local api=$1 dump file
     dump=$(client mariadb-dump mysqldump)
@@ -161,7 +164,7 @@ backup() {
         { rm -f "$file.partial"; fail "the database dump is incomplete; nothing was changed"; }
     mv "$file.partial" "$file"
     chmod 600 "$file"
-    echo "$file"
+    backup_file=$file
 }
 
 # Whether the database has the app's tables yet (an existing install, or a new empty database)
@@ -283,7 +286,8 @@ deploy() {
         load_schema "$api" "$release"
     elif [ "$skip_backup" = false ]; then
         say "Backing up the database"
-        dump=$(backup "$api")
+        backup "$api"
+        dump=$backup_file
         echo "$dump"
     fi
 
@@ -371,6 +375,7 @@ case "$command" in
         need_root backup
         [ -L "$home/current" ] || fail "install Custoro first"
         backup "$home/current/api"
+        echo "$backup_file"
         ;;
     create-admin) create_admin "$@" ;;
     *)
