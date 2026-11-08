@@ -30,6 +30,10 @@ ARG APP_BUILD=
 ARG APP_BUILT_AT=
 ENV APP_BUILD=$APP_BUILD \
     APP_BUILT_AT=$APP_BUILT_AT
+# Error tracking in the browser (src/index.tsx), off when empty. The DSN is public by design: it
+# ends up in the JavaScript every visitor loads. Set WEB_SENTRY_DSN in .env (docker-compose.prod.yml)
+ARG VITE_SENTRY_DSN=
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 RUN npm run build
 
 # --- Production: nginx serving the SPA and proxying the API

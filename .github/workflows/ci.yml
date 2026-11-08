@@ -130,6 +130,20 @@ jobs:
             - name: Run the migrations
               run: docker compose -f docker-compose.prod.yml --profile migrate run --rm migrate
 
+            # The release bundle for servers without Docker builds, with the paths of a server
+            - name: Server bundle
+              run: |
+                  set -euo pipefail
+                  scripts/build-bundle.sh "$RUNNER_TEMP/bundle"
+                  bundle=$(ls "$RUNNER_TEMP"/bundle/custoro-*.tar.gz)
+                  files=$(tar -tzf "$bundle")
+                  for wanted in VERSION api/dist/index.js api/scripts/migrate.js api/migrations/ \
+                      api/assets/fonts/Roboto-Regular.ttf db/01-schema.sql web/index.html \
+                      deploy/custoro.sh deploy/custoro-api.service deploy/nginx/custoro-site.conf; do
+                      echo "$files" | grep -q "^custoro-[^/]*/$wanted" ||
+                          { echo "the bundle lacks $wanted" >&2; exit 1; }
+                  done
+
             - name: Smoke test through nginx
               run: |
                   set -euo pipefail
@@ -149,6 +163,25 @@ jobs:
                   if curl -fsS -D - -o /dev/null -H 'Origin: http://localhost:5173' http://localhost/api/ \
                       | grep -qi '^access-control-allow-origin'; then
                       echo "a localhost origin may read API answers in production" >&2
+                      exit 1
+                  fi
+                  # Reset links and public invoice links never reach the web server's log
+                  token=$(printf 'c%.0s' $(seq 1 64))
+                  hash=0123456789abcdef0123456789abcdef
+                  curl -fsS -o /dev/null "http://localhost/restore/$token"
+                  # and the variants the app also answers: case, extra slashes, encoded path
+                  for path in "/RESTORE/$token" "//restore/$token" "/api/pdf/$hash" \
+                      "/api/PDF/$hash" "/api//pdf/$hash" "/api/%70df/$hash"; do
+                      curl -sS -o /dev/null "http://localhost$path"
+                  done
+                  curl -sS -o /dev/null -H "Referer: http://localhost/RESTORE/$token" \
+                      -H 'Content-Type: application/json' -d "{\"token\":\"$token\"}" \
+                      http://localhost/api/login/token
+                  sleep 1
+                  web_log=$(docker compose -f docker-compose.prod.yml logs --no-color web)
+                  echo "$web_log" | grep -q '/restore/\[hidden\]'
+                  if echo "$web_log" | grep -qE "$token|$hash"; then
+                      echo "the web server's log keeps a reset or invoice link" >&2
                       exit 1
                   fi
 
@@ -187,14 +220,15 @@ jobs:
                   cache: npm
                   cache-dependency-path: apps/web/package-lock.json
 
-            - name: Start the dev stack (MySQL with the demo data, the API)
+            - name: Start the dev stack (MySQL with the demo data, the API, the mail catcher)
               run: |
-                  docker compose up -d --build --wait db api
+                  docker compose up -d --build --wait db api mail
                   for attempt in $(seq 1 60); do
-                      curl -fsS http://localhost:3999/ >/dev/null && exit 0
+                      curl -fsS http://localhost:3999/ >/dev/null &&
+                          curl -fsS http://localhost:8025/messages >/dev/null && exit 0
                       sleep 2
                   done
-                  echo "the API did not answer" >&2
+                  echo "the API or the mail catcher did not answer" >&2
                   exit 1
 
             - name: Install dependencies
@@ -212,3 +246,50 @@ jobs:
             - name: API logs
               if: failure()
               run: docker compose logs --no-color api
+
+    # The app in a browser: login, products, VAT on invoices, and the main journey (a customer,
+    # a worksheet billed on an invoice, the PDF, paid, the accountant's export)
+    browser-tests:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+                  cache-dependency-path: apps/web/package-lock.json
+
+            # Before the stack: the web container mounts apps/web with its own node_modules volume,
+            # and Docker would create apps/web/node_modules for it as root (npm ci: EACCES)
+            - name: Install dependencies and Chromium
+              working-directory: apps/web
+              run: |
+                  npm ci
+                  npx playwright install --with-deps chromium
+
+            - name: Start the dev stack (MySQL with the demo data, the API, the web app)
+              run: |
+                  docker compose up -d --build --wait db api web
+                  for attempt in $(seq 1 90); do
+                      curl -fsS http://localhost:3999/ >/dev/null &&
+                          curl -fsS http://localhost:3000/ >/dev/null && exit 0
+                      sleep 2
+                  done
+                  echo "the API or the web app did not answer" >&2
+                  exit 1
+
+            # The demo logins of the dev database (apps/api/db/demo/demo-logins.md), public on purpose
+            - name: Test settings
+              run: cp apps/web/.env.development.example apps/web/.env
+
+            - name: Playwright browser tests
+              working-directory: apps/web
+              run: npx playwright test --project=chromium --workers=1 --reporter=line
+
+            - name: Logs
+              if: failure()
+              run: docker compose logs --no-color api web

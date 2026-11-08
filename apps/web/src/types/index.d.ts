@@ -133,6 +133,8 @@ interface InvoiceIF {
     items: Array<InvoiceProductIF>;
     hash: string;
     vat: number;
+    // When the invoice was last emailed to the customer, null if never
+    sentDate?: string | Date | null;
     // A paid invoice's customer as billed (the copy taken when it was marked as paid)
     customerName?: string | null;
     customerVatNumber?: string | null;

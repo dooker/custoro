@@ -1,7 +1,6 @@
 import React from "react";
 import { Image, Text, View } from "@react-pdf/renderer";
 import { styles } from "./Styles";
-import i18n from "../../i18n";
 import { formatDateTime } from "../../helper";
 import type { InvoiceTemplateProps } from "../../types/pdf";
 
@@ -13,7 +12,7 @@ const addDaysToDate = (dateString: string | Date, days: number) => {
     return date.toISOString();
 };
 
-const Header = ({ customer, settings, invoice }: InvoiceTemplateProps) => {
+const Header = ({ customer, settings, invoice, t }: InvoiceTemplateProps) => {
     const { vatNumber, name, phone, email, regNumber, address, department } = customer;
     const offer = invoice.invoiceType === "offer";
 
@@ -31,13 +30,13 @@ const Header = ({ customer, settings, invoice }: InvoiceTemplateProps) => {
                 addDaysToDate(invoice.invoiceDate, Number(customer.paymentPeriod))
             )
         },
-        { label: "penalty", value: `0.1% ${i18n.t("perDay")}` }
+        { label: "penalty", value: `0.1% ${t("perDay")}` }
     ];
 
     return (
         <View style={styles.header} fixed>
             <View style={styles.headerText}>
-                <Text style={[styles.h3, styles.bold]}>{i18n.t("client")}:</Text>
+                <Text style={[styles.h3, styles.bold]}>{t("client")}:</Text>
                 <Text>
                     {name}
                     {department ? `, ${department}` : ""}
@@ -46,12 +45,12 @@ const Header = ({ customer, settings, invoice }: InvoiceTemplateProps) => {
                 <Text>{email}</Text>
                 {regNumber && (
                     <Text>
-                        {i18n.t("regNumber")}: {regNumber}
+                        {t("regNumber")}: {regNumber}
                     </Text>
                 )}
                 {vatNumber && (
                     <Text>
-                        {i18n.t("vatNumber")}: {vatNumber}
+                        {t("vatNumber")}: {vatNumber}
                     </Text>
                 )}
                 <Text>{address}</Text>
@@ -62,7 +61,7 @@ const Header = ({ customer, settings, invoice }: InvoiceTemplateProps) => {
 
                 {(offer ? headerOfferData : headerInvoiceData).map((item, index) => (
                     <View style={{ flexDirection: "row" }} key={index}>
-                        <Text style={styles.bold}>{i18n.t(item.label)}: </Text>
+                        <Text style={styles.bold}>{t(item.label)}: </Text>
                         <Text>{item.value}</Text>
                     </View>
                 ))}

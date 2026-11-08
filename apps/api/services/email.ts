@@ -24,7 +24,8 @@ export const postSingle = async (request: Request) => {
         logger: "Get user details for email"
     });
 
-    if (!customerSuccess || !customerData) {
+    // An invoice without a customer has nobody to send it to (before: a 500 on customerData[0])
+    if (!customerSuccess || !customerData?.[0]) {
         return {
             success: false,
             message: "get.customer"
@@ -73,7 +74,7 @@ export const postSingle = async (request: Request) => {
         };
     }
 
-    return await email({
+    const sent = await email({
         email: customer.invoiceEmail || customer.email,
         config,
         attachments: [attachments],
@@ -83,4 +84,21 @@ export const postSingle = async (request: Request) => {
             "[INVOICE_LINK]": `${getAppOrigin()}/pdf/${hash}`
         }
     });
+
+    if (!sent.success) {
+        return sent;
+    }
+
+    // When it was last emailed, shown on the invoice. The email is already gone, so a failure
+    // here is logged by query() and not reported as a failed send
+    const recorded = await query({
+        database,
+        sql: `UPDATE invoices
+              SET sent_date = NOW()
+              WHERE id = ?;`,
+        params: [Number(id)],
+        logger: "Record invoice sent date"
+    });
+
+    return { success: true, sentDate: recorded.success ? new Date().toISOString() : null };
 };

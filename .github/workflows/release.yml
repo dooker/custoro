@@ -92,6 +92,13 @@ jobs:
                   VERSION: ${{ steps.version.outputs.version }}
               run: node scripts/version.mjs notes "$VERSION" > "$RUNNER_TEMP/notes.md"
 
+            # One commit and build time for the images and the server bundle
+            - name: Build stamp
+              if: steps.version.outputs.release == 'true'
+              run: |
+                  echo "APP_BUILD=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+                  echo "APP_BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
             - name: Build the images
               if: steps.version.outputs.release == 'true'
               env:
@@ -123,6 +130,12 @@ jobs:
                   docker push "$API_IMAGE"
                   docker push "$WEB_IMAGE"
 
+            # For a server without Docker: the built API and web app, the migrations and
+            # deploy/server/custoro.sh (see deploy/server/README.md)
+            - name: Build the server bundle
+              if: steps.version.outputs.release == 'true'
+              run: scripts/build-bundle.sh "$RUNNER_TEMP/bundle"
+
             # Last, so a failed build or push leaves no tag and the run can simply be repeated
             - name: Tag the commit and publish the release
               if: steps.version.outputs.release == 'true'
@@ -135,4 +148,7 @@ jobs:
                   prerelease=()
                   case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
                   gh release create "v$VERSION" --target "$GITHUB_SHA" "${prerelease[@]}" \
-                      --title "Custoro $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+                      --title "Custoro $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
+                      "$RUNNER_TEMP/bundle/custoro-$VERSION.tar.gz" \
+                      "$RUNNER_TEMP/bundle/custoro-$VERSION.tar.gz.sha256" \
+                      "deploy/server/custoro.sh"

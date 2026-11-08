@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { jwtSecretProblem, trustProxyWarning } from "./startupChecks";
+import {
+    jwtSecretProblem,
+    mailKeyProblem,
+    mailKeyWarning,
+    serviceHost,
+    trustProxyWarning
+} from "./startupChecks";
 
 const good = "0123456789abcdef0123456789abcdef";
 
@@ -40,5 +46,40 @@ describe("trustProxyWarning", () => {
 
     it("leaves development alone, where the tests log in from several made-up addresses", () => {
         expect(trustProxyWarning(undefined, false)).toBeNull();
+    });
+});
+
+describe("mailKeyProblem", () => {
+    it("refuses a key that is set but too short", () => {
+        expect(mailKeyProblem("short")).toMatch(/too short \(5 characters/);
+    });
+
+    it("accepts no key or a long enough one", () => {
+        expect(mailKeyProblem(undefined)).toBeNull();
+        expect(mailKeyProblem("")).toBeNull();
+        expect(mailKeyProblem("a".repeat(32))).toBeNull();
+    });
+});
+
+describe("mailKeyWarning", () => {
+    it("warns in production without a key", () => {
+        expect(mailKeyWarning(undefined, true)).toMatch(/plain text/);
+    });
+
+    it("is quiet with a key, or in development", () => {
+        expect(mailKeyWarning("a".repeat(64), true)).toBeNull();
+        expect(mailKeyWarning(undefined, false)).toBeNull();
+    });
+});
+
+describe("serviceHost", () => {
+    it("listens where SERVICE_HOST says", () => {
+        expect(serviceHost("127.0.0.1")).toBe("127.0.0.1");
+        expect(serviceHost(" ::1 ")).toBe("::1");
+    });
+
+    it("listens on every address when it is unset, as Docker needs", () => {
+        expect(serviceHost(undefined)).toBeUndefined();
+        expect(serviceHost("")).toBeUndefined();
     });
 });

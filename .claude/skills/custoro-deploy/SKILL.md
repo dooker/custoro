@@ -11,7 +11,7 @@ disable-model-invocation: true
 ## 0. Ask only what the repo does not say
 
 - The commit or tag that runs now (`git log <it>..main` is the change set).
-- Docker (`docker-compose.prod.yml`: db, api, nginx web) or the API without Docker (`apps/api/.env.production`, `npm run build`, `npm start`, web built with `VITE_API_ENDPOINT`).
+- Docker (`docker-compose.prod.yml`: db, api, nginx web) or without Docker. Without Docker the server runs `deploy/server/custoro.sh` (guide: `deploy/server/README.md`): `custoro.sh deploy <version>` downloads the release bundle, dumps the database, migrates, switches `/opt/custoro/current` and checks GET / answers the new version, and goes back by itself if not; `rollback`, `status`, `backup`, `create-admin`. The runbook for such a server is those commands; the settings are `/opt/custoro/shared/.env.production`.
 - How the database is reached: host name (TLS verification needs a name, not an IP), `DB_SSL` / `DB_SSL_CA`, or an SSH tunnel with `DB_SSL=off`. The hosted database is MariaDB 11.4; the compose file's own is MySQL 8.4.
 - How many proxies stand in front of the API (`TRUST_PROXY`: 1 nginx directly, 2 with a TLS proxy such as Caddy), and whether images come from a registry (`API_IMAGE`, `WEB_IMAGE`).
 

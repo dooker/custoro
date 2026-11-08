@@ -1,0 +1,34 @@
+# The Custoro API on a server without Docker. custoro.sh writes this to
+# /etc/systemd/system/custoro-api.service with this server's paths filled in.
+[Unit]
+Description=Custoro API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+Group=@USER@
+# The current release; it reads .env.production from here (a link to shared/)
+WorkingDirectory=@HOME@/current/api
+Environment=NODE_ENV=production
+# Only nginx on this machine reaches the API: no way past it to forge X-Forwarded-For
+Environment=SERVICE_HOST=127.0.0.1
+EnvironmentFile=-@HOME@/current/api/build-info.env
+ExecStart=@NODE@ dist/index.js
+Restart=on-failure
+RestartSec=3
+# The API finishes running requests for up to 25 s on SIGTERM (helpers/shutdown.ts)
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# The API writes only to shared/ (uploads, invoice PDFs, mail settings)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=@HOME@/shared
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

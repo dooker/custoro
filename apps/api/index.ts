@@ -43,7 +43,14 @@ import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
 import { getAppOrigin, isAllowedOrigin } from "./helpers/appOrigin";
 import { errorHandler } from "./helpers/errorResponse";
-import { jwtSecretProblem, trustProxyWarning } from "./helpers/startupChecks";
+import {
+    jwtSecretProblem,
+    mailKeyProblem,
+    mailKeyWarning,
+    serviceHost,
+    trustProxyWarning
+} from "./helpers/startupChecks";
+import { encryptSavedMailPassword } from "./services/settings";
 import { createShutdown, shutdownSignals } from "./helpers/shutdown";
 import { closePools } from "./db";
 import { uploadDir, pdfDir } from "./config/paths";
@@ -69,6 +76,22 @@ const proxyWarning = trustProxyWarning(process.env.TRUST_PROXY, env === "product
 if (proxyWarning) {
     console.warn(`Warning: ${proxyWarning}`);
 }
+
+const mailProblem = mailKeyProblem(process.env.MAIL_SETTINGS_KEY);
+
+if (mailProblem) {
+    console.error(`Refusing to start: ${mailProblem}`);
+    process.exit(1);
+}
+
+const mailWarning = mailKeyWarning(process.env.MAIL_SETTINGS_KEY, env === "production");
+
+if (mailWarning) {
+    console.warn(`Warning: ${mailWarning}`);
+}
+
+// A password saved before the key was set is encrypted now
+encryptSavedMailPassword();
 
 console.log(`System: Running in ${env} mode`);
 console.log(`Root Path: ${rootPath}`);
@@ -176,9 +199,13 @@ Sentry.setupExpressErrorHandler(app);
 // Custom Error handler
 app.use(errorHandler);
 
-const server = app.listen(servicePort, () => {
-    console.log(`Server listening on port ${servicePort}`);
-});
+// SERVICE_HOST=127.0.0.1 without Docker: only nginx on the same machine reaches the API
+const host = serviceHost(process.env.SERVICE_HOST);
+const listening = () =>
+    console.log(`Server listening on ${host ?? "every address"}, port ${servicePort}`);
+const server = host
+    ? app.listen(Number(servicePort), host, listening)
+    : app.listen(servicePort, listening);
 
 // A stop from Docker or Ctrl+C lets the running requests finish before the process ends
 const shutdown = createShutdown({

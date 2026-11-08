@@ -39,3 +39,21 @@ export const mailTransportOptions = (server: MailServerIF, requireTlsSetting?: s
         }
     };
 };
+
+/**
+ * The sender of every email: EMAIL_FROM, else the mail server login when it is an address (it
+ * usually is, and most servers only accept it as sender). Without either, nodemailer sends no
+ * From header and an empty envelope sender, which many mail servers refuse or file as spam; the
+ * admin page sets the login but has no sender field.
+ */
+export const mailSender = (envFrom: string | undefined, username: string | undefined) => {
+    const from = envFrom?.trim();
+
+    if (from) {
+        return from;
+    }
+
+    const login = username?.trim();
+
+    return login && /^[^\s@]+@[^\s@]+$/.test(login) ? login : undefined;
+};

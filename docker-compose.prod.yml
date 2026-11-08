@@ -69,6 +69,8 @@ services:
             EMAIL_PASS: ${EMAIL_PASS:-}
             EMAIL_FROM: ${EMAIL_FROM:-}
             EMAIL_REQUIRE_TLS: ${EMAIL_REQUIRE_TLS:-}
+            # Encrypts the mail server password saved on the settings page (see .env.production.example)
+            MAIL_SETTINGS_KEY: ${MAIL_SETTINGS_KEY:-}
             SENTRY_DSN: ${SENTRY_DSN:-}
             SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-}
             # Required: how many proxies sit between the internet and the API, counting nginx. It
@@ -124,6 +126,8 @@ services:
             target: prod
             args:
                 VITE_API_ENDPOINT: /api
+                # Browser error tracking, built into the bundle (empty: off)
+                VITE_SENTRY_DSN: ${WEB_SENTRY_DSN:-}
                 APP_VERSION: ${APP_VERSION:-}
                 APP_BUILD: ${APP_BUILD:-}
                 APP_BUILT_AT: ${APP_BUILT_AT:-}

@@ -15,6 +15,8 @@ apps/api/    Express 5 + TypeScript + MySQL REST API, port 3999
 apps/web/    React + Vite + TypeScript, port 3000; Playwright suites in tests/, texts in public/locales
 docker-compose.yml        dev: MySQL + API + web, ports on 127.0.0.1 only
 docker-compose.prod.yml   production: MySQL + API + nginx
+deploy/server/            production without Docker: custoro.sh, systemd unit, guide (bundle: scripts/build-bundle.sh)
+scripts/mail-catcher.mjs  the dev stack's `mail` service: catches every email (http://localhost:8025/messages)
 ```
 
 Request flow: **route -> service -> helper**. A route holds no SQL and no business rules, a service holds both, helpers are small and generic. The API answers refusals with HTTP 200 and `{ success: false, message: "<key>" }`, where the key is a text under `notification` in `apps/web/public/locales/{en,et,fun}.json`.
@@ -53,10 +55,12 @@ npx prettier --check . && npx eslint . && npm run type-check && npx vitest run &
 npx prettier --check "src/**/*.{ts,tsx,css,md}" && npm run lint && npm run type-check && npx vitest run && npm run build
 ```
 
-Playwright `api` project (no browser; needs the dev stack and `apps/web/.env`, see the dev-stack skill):
+Playwright, both in CI (jobs `api-tests` and `browser-tests`); they need the dev stack (`web` too for
+Chromium) and `apps/web/.env`, see the dev-stack skill. They create data: dev database only.
 
 ```bash
-cd apps/web && npx playwright test --project=api --workers=1
+cd apps/web && npx playwright test --project=api --workers=1        # no browser
+cd apps/web && npx playwright test --project=chromium --workers=1   # incl. journey.spec.ts
 ```
 
 ## Skills (`.claude/skills/`)

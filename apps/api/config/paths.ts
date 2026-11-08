@@ -16,5 +16,11 @@ export const pdfDir = path.join(root, "storage", "pdf");
  */
 export const mailSettingsFile = path.join(root, "storage", "mail-settings.json");
 
+/**
+ * Read-only: the fonts of the invoice PDF, part of the image (assets/fonts/README.md). Never
+ * downloaded at runtime, so a server without a route to the internet still makes PDFs.
+ */
+export const fontDir = path.join(root, "assets", "fonts");
+
 /** Where the mail settings were written before: in no volume. Read until they are saved again. */
 export const legacyEmailEnvFile = path.join(root, ".env.email");

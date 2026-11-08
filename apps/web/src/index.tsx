@@ -22,11 +22,14 @@ if (import.meta.env.VITE_SENTRY_DSN) {
         beforeSend: scrubSentryPayload,
         beforeSendTransaction: scrubSentryPayload,
         beforeBreadcrumb: scrubSentryPayload,
-        tracesSampleRate: 1.0,
-        replaysSessionSampleRate: 0.1,
+        // A tenth of the page loads in production, like the API (SENTRY_TRACES_SAMPLE_RATE)
+        tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+        // Replays (text and inputs masked, Sentry's default) only of sessions that had an error:
+        // customer and invoice data stay off Sentry otherwise
+        replaysSessionSampleRate: 0,
         replaysOnErrorSampleRate: 1.0,
-        // Connect frontend traces to your Node backend URL
-        tracePropagationTargets: ['localhost', /^https:\/\/yourserver\.com\/api/],
+        // Traces follow requests to the API of this origin (/api), the default; the example
+        // host that was here sent trace headers to any localhost
     });
 }
 

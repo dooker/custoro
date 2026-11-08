@@ -5,6 +5,10 @@ import { hashPassword, isValidNewPassword } from "./credentials";
 
 export const resetTokenLifetimeMs = 60 * 60 * 1000;
 
+// The link a new user gets to set their first password (services/user.ts): they may not read
+// their email within the hour a reset link lasts
+export const passwordSetupLifetimeMs = 7 * 24 * 60 * 60 * 1000;
+
 // Tokens are 32 random bytes as hex. Anything else, including an empty string, is rejected
 // before it reaches the database.
 const resetTokenPattern = /^[0-9a-f]{64}$/;
@@ -22,13 +26,16 @@ export interface ResetTokenIF {
     expiresAt: Date;
 }
 
-export const createResetToken = (now: Date = new Date()): ResetTokenIF => {
+export const createResetToken = (
+    now: Date = new Date(),
+    lifetimeMs: number = resetTokenLifetimeMs
+): ResetTokenIF => {
     const token = crypto.randomBytes(32).toString("hex");
 
     return {
         token,
         tokenHash: hashResetToken(token),
-        expiresAt: new Date(now.getTime() + resetTokenLifetimeMs)
+        expiresAt: new Date(now.getTime() + lifetimeMs)
     };
 };
 

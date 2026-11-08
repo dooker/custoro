@@ -9,6 +9,7 @@ import type { UserIF } from "../types/user";
 import { isUsernameTaken } from "../helpers/users";
 import { parseInput } from "../helpers/bodyInput";
 import { userInput } from "../helpers/resourceInput";
+import { sendPasswordSetupLink } from "./profile";
 
 // The login email is unique (users.username_UNIQUE), so two requests that both passed the
 // look-up are told apart by the database: the second one gets ER_DUP_ENTRY
@@ -117,8 +118,6 @@ export const postSingle = async (request: Request) => {
         params.push(avatar);
     }
 
-    // TODO send password recovery email
-
     const created = await postGeneralSingle({
         database,
         sql,
@@ -135,9 +134,16 @@ export const postSingle = async (request: Request) => {
                 message: "user.exists"
             };
         }
+
+        return created;
     }
 
-    return created;
+    // The new user has no password yet: mail them the link to set one, and tell the admin
+    // whether it went out
+    const insertId = "insertId" in created ? Number(created.insertId) : 0;
+    const linkSent = insertId > 0 && (await sendPasswordSetupLink(database, insertId, username));
+
+    return { ...created, message: linkSent ? "user.passwordLinkSent" : "user.passwordLinkFailed" };
 };
 
 export const putSingle = async (request: Request) => {
@@ -188,17 +194,31 @@ export const putSingle = async (request: Request) => {
         };
     }
 
-    // A new username (login email) ends the user's sessions, like a change on their own profile.
-    // token_version is set first: MySQL applies SET assignments left to right, so the
-    // comparison still sees the old username.
+    // A new username (login email) ends the user's sessions, like a change on their own profile,
+    // and cancels a password link that is still open: it went to the old address, which may be
+    // a mistyped one that a stranger reads. These come first: MySQL and MariaDB apply SET
+    // assignments left to right, so the comparisons still see the old username. They compare
+    // byte for byte: the column's collation ignores accents and case, but ana@ and ána@ are
+    // two mailboxes.
     let sql = `UPDATE users
-               SET token_version   = token_version + IF(username <=> ?, 0, 1),
-                   name            = ?,
-                   username        = ?,
-                   discount        = ?,
-                   offer           = ?,
-                   role            = ?`;
-    const params: (string | number | null)[] = [username, name, username, discount, offer, role];
+               SET token_version        = token_version + IF(username COLLATE utf8mb4_bin <=> ?, 0, 1),
+                   forgot_token         = IF(username COLLATE utf8mb4_bin <=> ?, forgot_token, NULL),
+                   forgot_token_expires = IF(username COLLATE utf8mb4_bin <=> ?, forgot_token_expires, NULL),
+                   name                 = ?,
+                   username             = ?,
+                   discount             = ?,
+                   offer                = ?,
+                   role                 = ?`;
+    const params: (string | number | null)[] = [
+        username,
+        username,
+        username,
+        name,
+        username,
+        discount,
+        offer,
+        role
+    ];
 
     if (fileExists && avatar) {
         sql += `, avatar = ?`;

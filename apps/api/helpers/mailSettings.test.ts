@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
     formatMailSettings,
+    hasPlainPassword,
     oneLine,
+    openMailSettings,
     parseLegacyEmailEnv,
     parseMailSettings,
     resolveMailSettings
 } from "./mailSettings";
+import { decryptSecret, isEncrypted } from "./mailSecret";
 
 describe("oneLine", () => {
     it("removes every kind of line break and NUL", () => {
@@ -153,5 +156,75 @@ describe("resolveMailSettings", () => {
             username: "env-user",
             password: "env-pass"
         });
+    });
+});
+
+describe("the mail password at rest", () => {
+    const key = "k".repeat(64);
+    const read = (content: string) => parseMailSettings(content);
+
+    it("stores a new password encrypted when there is a key", () => {
+        const saved = read(
+            formatMailSettings({ host: "smtp.example.test", password: "new secret" }, {}, key)
+        );
+
+        expect(isEncrypted(saved.password)).toBe(true);
+        expect(decryptSecret(saved.password ?? "", key)).toBe("new secret");
+        expect(saved.host).toBe("smtp.example.test");
+    });
+
+    it("keeps an encrypted password as it is when only other fields change", () => {
+        const before = read(formatMailSettings({ password: "kept secret" }, {}, key));
+        const after = read(formatMailSettings({ host: "other.example.test" }, before, key));
+
+        expect(after.password).toBe(before.password);
+    });
+
+    it("keeps an encrypted password it cannot open, rather than losing it", () => {
+        const before = read(formatMailSettings({ password: "kept secret" }, {}, key));
+        const after = read(formatMailSettings({ port: "465" }, before, undefined));
+
+        expect(after.password).toBe(before.password);
+    });
+
+    it("encrypts a plain password from before on the next save", () => {
+        const plain = read(formatMailSettings({ password: "old secret" }, {}));
+
+        expect(hasPlainPassword(plain)).toBe(true);
+
+        const sealed = read(formatMailSettings({}, plain, key));
+
+        expect(hasPlainPassword(sealed)).toBe(false);
+        expect(decryptSecret(sealed.password ?? "", key)).toBe("old secret");
+    });
+
+    it("encrypts a newly typed password even when it looks encrypted", () => {
+        const saved = read(formatMailSettings({ password: "enc:v1:secret123" }, {}, key));
+
+        expect(saved.password).not.toBe("enc:v1:secret123");
+        expect(decryptSecret(saved.password ?? "", key)).toBe("enc:v1:secret123");
+    });
+
+    it("stores it as typed without a key, as before", () => {
+        expect(read(formatMailSettings({ password: "plain" }, {})).password).toBe("plain");
+    });
+
+    it("opens the password for sending, and says why when it cannot", () => {
+        const sealed = read(formatMailSettings({ username: "u", password: "s3cret" }, {}, key));
+        const reports: string[] = [];
+
+        expect(openMailSettings(sealed, key, (m) => reports.push(m))).toEqual({
+            username: "u",
+            password: "s3cret"
+        });
+        expect(
+            openMailSettings(sealed, "x".repeat(64), (m) => reports.push(m)).password
+        ).toBeUndefined();
+        expect(
+            openMailSettings(sealed, undefined, (m) => reports.push(m)).password
+        ).toBeUndefined();
+        expect(reports).toHaveLength(2);
+        expect(reports[0]).toMatch(/another MAIL_SETTINGS_KEY/);
+        expect(reports[1]).toMatch(/MAIL_SETTINGS_KEY is not set/);
     });
 });

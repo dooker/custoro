@@ -18,5 +18,21 @@
     "regNr": "Register code",
     "vatNr": "VAT number",
     "regNumber": "Reg number",
-    "vatNumber": "Vat number"
+    "vatNumber": "Vat number",
+    "export": {
+        "number": "Number",
+        "date": "Date",
+        "due": "Due date",
+        "customer": "Customer",
+        "regNumber": "Reg. number",
+        "vatNumber": "VAT number",
+        "net": "Net",
+        "vatRate": "VAT %",
+        "vat": "VAT",
+        "total": "Total",
+        "paid": "Paid",
+        "sent": "Emailed",
+        "yes": "yes",
+        "no": "no"
+    }
 }

@@ -3,6 +3,7 @@ import { PATHS } from '../../variables';
 import DeleteIcon from '../../assets/images/x.svg?react';
 import { InvoiceIF, WorksheetIF } from '../../types';
 import styles from './WorksheetRow.module.sass';
+import { formatPrice } from '../../utils/invoiceTotals';
 
 interface RowProps {
     item: WorksheetIF;
@@ -36,10 +37,8 @@ const WorksheetRow = ({
             <td onClick={() => !invoice && onView(id)} className="name">
                 <span>{name}</span>
             </td>
-            <td className="items">{Number(price).toFixed(2)}</td>
-            {hasDiscount && !compact && (
-                <td className="items">{Number(discountPrice).toFixed(2)}</td>
-            )}
+            <td className="items">{formatPrice(price)}</td>
+            {hasDiscount && !compact && <td className="items">{formatPrice(discountPrice)}</td>}
             <td className="items">{quantity}</td>
             {!compact && (
                 <td className={`actions ${styles.actions}`}>

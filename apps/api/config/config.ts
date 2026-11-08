@@ -18,7 +18,8 @@ export const config = {
         "pdf",
         "email",
         "user",
-        "users"
+        "users",
+        "export"
     ],
     itemsPerPage: 20,
     maxItemsPerPage: 50,

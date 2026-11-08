@@ -33,3 +33,6 @@ playwright/.auth/
 .vscode/
 .DS_Store
 *.log
+
+# Release bundles (scripts/build-bundle.sh)
+/bundle/

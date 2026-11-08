@@ -9,7 +9,8 @@ import { deleteImageFile } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
 import { getHighestNumber } from "../helper/invoiceNumber";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
-import { formatMailSettings } from "../helpers/mailSettings";
+import { formatMailSettings, hasPlainPassword } from "../helpers/mailSettings";
+import { mailSettingsKey } from "../helpers/mailSecret";
 import { legacyEmailEnvFile, mailSettingsFile } from "../config/paths";
 import {
     isBelowUsedNumber,
@@ -265,24 +266,13 @@ export const putAll = async (request: Request) => {
     const emailEnvFieldValuesSet = Object.values(emailEnvFieldValues).every((v) => v === undefined);
 
     if (!emailEnvFieldValuesSet) {
-        // Written to a new file that then replaces the old one, so a crash never leaves half a
-        // file, and readable only by the API's user: it holds the mail server password
-        const content = formatMailSettings(emailEnvFieldValues, emailEnvFileValues);
-        const temporaryFile = `${mailSettingsFile}.${process.pid}.tmp`;
+        const content = formatMailSettings(
+            emailEnvFieldValues,
+            emailEnvFileValues,
+            mailSettingsKey()
+        );
 
-        try {
-            fs.mkdirSync(path.dirname(mailSettingsFile), { recursive: true });
-            fs.writeFileSync(temporaryFile, content, { mode: 0o600 });
-            fs.renameSync(temporaryFile, mailSettingsFile);
-            // The settings it held are in the new file now
-            fs.rmSync(legacyEmailEnvFile, { force: true });
-        } catch (error) {
-            fs.rmSync(temporaryFile, { force: true });
-            console.error(
-                "Failed to save the mail settings:",
-                error instanceof Error ? error.message : error
-            );
-
+        if (!writeMailSettings(content)) {
             return {
                 success: false,
                 message: "mailSettingsNotSaved"
@@ -294,6 +284,53 @@ export const putAll = async (request: Request) => {
         success: true,
         ...(filename ? { resource: filename } : {})
     };
+};
+
+/**
+ * Writes the mail settings file: to a new file that then replaces the old one, so a crash never
+ * leaves half a file, and readable only by the API's user, since it holds the mail password.
+ * The old .env.email goes, its settings are in the new file now.
+ */
+const writeMailSettings = (content: string) => {
+    const temporaryFile = `${mailSettingsFile}.${process.pid}.tmp`;
+
+    try {
+        fs.mkdirSync(path.dirname(mailSettingsFile), { recursive: true });
+        fs.writeFileSync(temporaryFile, content, { mode: 0o600 });
+        fs.renameSync(temporaryFile, mailSettingsFile);
+        fs.rmSync(legacyEmailEnvFile, { force: true });
+
+        return true;
+    } catch (error) {
+        fs.rmSync(temporaryFile, { force: true });
+        console.error(
+            "Failed to save the mail settings:",
+            error instanceof Error ? error.message : error
+        );
+
+        return false;
+    }
+};
+
+/**
+ * At startup: a password saved in plain text (before MAIL_SETTINGS_KEY was set, or by an older
+ * version) is written again, encrypted. Nothing happens without a key or a plain password.
+ */
+export const encryptSavedMailPassword = () => {
+    const key = mailSettingsKey();
+    const saved = readSavedMailSettings();
+
+    if (!key || !hasPlainPassword(saved)) {
+        return false;
+    }
+
+    const written = writeMailSettings(formatMailSettings({}, saved, key));
+
+    if (written) {
+        console.log("The saved mail server password is now stored encrypted (MAIL_SETTINGS_KEY)");
+    }
+
+    return written;
 };
 
 export const deleteLogo = async (request: Request) => {

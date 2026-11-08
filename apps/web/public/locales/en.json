@@ -104,7 +104,8 @@
         "toPay": "To pay",
         "win": "Win",
         "view": "View",
-        "regenerate": "Regenerate"
+        "regenerate": "Regenerate",
+        "sent": "Emailed"
     },
     "profile": {
         "singular": "Profile",
@@ -219,6 +220,8 @@
         "missingInfo": "Missing some info to send email",
         "user.exists": "User with this email already exists",
         "user.lastAdmin": "This is the last admin. Make another user an admin first",
+        "user.passwordLinkSent": "User added. A link to set the password was emailed (valid for 7 days)",
+        "user.passwordLinkFailed": "User added, but the email with the password link could not be sent. They can use \"Forgot password?\" once mail works",
         "passwordLength": "Password must be 8 to 72 characters long",
         "currentPassword": "Current password is missing or wrong",
         "emailFormat": "Email format is incorrect",
@@ -234,7 +237,8 @@
         "invoice.locked": "This invoice is paid and locked, it cannot be changed",
         "worksheet.invoiced": "This worksheet is already on an invoice",
         "invalidInput": "Some values are not valid (too long, or not the right kind of value), nothing was saved",
-        "lastInvoiceIdTooLow": "The last invoice ID cannot be lower than an invoice number that is already in use, nothing was saved. Reload the page if invoices were added meanwhile"
+        "lastInvoiceIdTooLow": "The last invoice ID cannot be lower than an invoice number that is already in use, nothing was saved. Reload the page if invoices were added meanwhile",
+        "export.rangeTooLong": "The period can be at most a year"
     },
     "settings": {
         "singular": "Settings",
@@ -273,11 +277,18 @@
             "pdfSettings": "Pdf settings",
             "invoiceSettings": "Invoice email settings",
             "forgotSettings": "Forgot email settings",
-            "serverSettings": "Email server settings"
+            "serverSettings": "Email server settings",
+            "exportSettings": "Export for the accountant"
         },
         "help": {
             "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
             "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
+        },
+        "export": {
+            "description": "All invoices of the period as a CSV file (semicolons, decimal comma): number, date, due date, customer, net, VAT and total as the PDFs print them, paid and emailed. Offers are left out.",
+            "from": "From",
+            "to": "To",
+            "download": "Download CSV"
         }
     },
     "users": {

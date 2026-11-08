@@ -16,7 +16,9 @@ vi.mock("../helper/query", async (importOriginal) => ({
 }));
 vi.mock("./_helpers", async (importOriginal) => ({
     ...(await importOriginal<typeof import("./_helpers")>()),
-    deleteImageFile
+    deleteImageFile,
+    // No mail server in a unit test, whatever EMAIL_* the environment has
+    email: vi.fn(async () => ({ success: false, message: "missingInfo" }))
 }));
 
 const user = await import("./user");
@@ -87,9 +89,11 @@ describe("POST /user with an email that another request took first", () => {
     it("creates the user, and keeps the avatar, when the database accepts", async () => {
         databaseAnswers({ success: true, data: [], insertId: 7 });
 
+        // The mail server is mocked away, so the new user's password link could not go out
         expect(await user.postSingle(request({ body: ann, file }))).toEqual({
             success: true,
-            insertId: 7
+            insertId: 7,
+            message: "user.passwordLinkFailed"
         });
         expect(deleteImageFile).not.toHaveBeenCalled();
     });

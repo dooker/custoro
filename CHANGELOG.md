@@ -7,6 +7,42 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Added
 
+- Production without Docker: every release now also has `custoro-<version>.tar.gz` (the built API
+  and web app, the migrations, the schema for an empty database, an nginx site and a systemd unit)
+  and `custoro.sh`. On a Linux server with Node 24 and nginx, `sudo bash custoro.sh deploy <version>`
+  installs it under `/opt/custoro`; the same command updates it: it dumps the database, stops the
+  API, migrates, switches to the new release and checks that it answers with the new version, and
+  goes back to the previous release by itself if it does not. `rollback`, `status`, `backup` and
+  `create-admin` do what they say. The database can stay where it is (a hosted MariaDB), the app's
+  files and settings live in `/opt/custoro/shared`. The API listens on 127.0.0.1 only there (new
+  setting `SERVICE_HOST`; Docker leaves it unset), so nobody reaches it past nginx. Rehearsed on Debian with Node 24 against
+  MariaDB 11.4: a first install on an empty database, an update, a broken update, a rollback and
+  a restore of the dump. Guide: `deploy/server/README.md`; `scripts/build-bundle.sh` builds the
+  bundle from a checkout
+- A user added on the users page gets an email with a link to set their password, valid for 7
+  days. Before, the new account had no password and nothing told the user; they had to find
+  "Forgot password?" on their own. The email is the password email of the settings page (its
+  `[RESTORE_LINK]`), so word that text for both uses. The admin sees whether the email went out;
+  if not (no mail server set up), the user can still use "Forgot password?" later
+- An invoice export for the accountant: Settings, "Export for the accountant" (admins only) gives
+  the invoices of a period, at most a year, as a CSV file (`GET /export/invoices?from=&to=`): one
+  line per invoice with number, date, due date, customer, registry code, VAT number, net, VAT rate,
+  VAT, total, paid and emailed. The amounts are those of the invoice PDFs (the same rounding, no
+  VAT for a foreign VAT number, the customer as billed for a paid invoice); offers are left out.
+  Semicolons and a decimal comma, as a spreadsheet set to Estonian expects; a customer name that
+  starts like a formula (`=`, `+`, `-`, `@`) is written so that the spreadsheet does not run it
+- A browser test of the main journey (`apps/web/tests/journey.spec.ts`): a new customer on the
+  customer form, a worksheet for them, the worksheet billed on a new invoice, the totals on the
+  screen, the PDF and its public link, marking it as paid, and the accountant's export. CI now
+  runs it with the other Chromium tests (login, products, VAT) in a new `browser-tests` job; until
+  now no browser test ran in CI
+- The local Docker stack catches email: a `mail` service (`scripts/mail-catcher.mjs`, plain Node)
+  takes every email the API sends and shows it at http://localhost:8025/messages; nothing leaves
+  the machine. The demo data now has a password email with its link. New API tests
+  (`password-reset.api.spec.ts`) use it to run the password links end to end through the real
+  database and email: a new user's link, a reset that ends the old sessions, a link that works
+  once, and no email for an address without an account. Before, these rules were only tested
+  with stand-ins for the database and the mail server
 - Every image knows which build it is. `scripts/docker-build.sh` (`npm run docker:build`, also used
   by `npm run docker:prod`) builds the production images with the git commit and the build time:
   `GET /api/` answers `{version, build, builtAt}`, the sidebar shows "v 5.0.0-rc.1 · 38bdbcb" (the
@@ -69,6 +105,29 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Security
 
+- The mail server password saved on the admin settings page can be stored encrypted. It was plain
+  text in `storage/mail-settings.json`, so every backup of the storage folder held it. With the
+  new setting `MAIL_SETTINGS_KEY` (`openssl rand -hex 32`, in `.env` or `.env.production`) it is
+  encrypted (AES-256-GCM) and a backup is no use for it without the key; a password saved before
+  is encrypted when the API starts. It still cannot be hashed like a login password, because the
+  mail server needs the password itself, and whoever runs the API has the key: this protects
+  copies of the file, not a server that is taken over. If the key changes or is lost, mail stops
+  ("missingInfo", and the log says why) until the admin saves the password again. Without the
+  key the API warns at start and stores it as before; a key shorter than 32 characters stops the
+  start. **Production setups should add `MAIL_SETTINGS_KEY`** and keep it apart from the backups
+- A password link that was still open kept working after the account's email or password changed.
+  So when an admin corrected a mistyped email of a new user, whoever read the mistyped address
+  could still set the password with the link sent there and log in; and a reset link a user asked
+  for kept working for its hour after they changed their password on the profile page. A change of
+  the email (by an admin or on the profile) and a password change now cancel any open link
+- The web container's access log (`docker compose logs web`) kept every password link
+  (`/restore/<token>`) and public invoice link (`/pdf/<hash>`) in full, in the request and in the
+  Referer of the API calls those pages make. Anyone who could read the server's logs could set a
+  password with a link that was still open, or open any invoice. The log now writes those parts
+  as `[hidden]`, also in the variants the app answers (`/RESTORE/`, `//pdf/`, `/api/%70df/`), and
+  hides any run of 32 or more hex digits wherever it stands. **Rebuild the web image**; logs written before still hold the links, so remove
+  them (`docker compose -f docker-compose.prod.yml rm -sf web`, then `up -d`) if others can read
+  them
 - Removing a user's picture or the logo deleted the file whose name was stored in the database,
   joined into the upload folder without a check, so a stored name such as `../x` could delete a file
   outside it. Only a file directly in the upload folder is deleted now, the rule invoice PDFs
@@ -234,6 +293,40 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- An account whose email was saved on the users page with spaces around it (`" ann@…"`) could
+  never log in or get a reset email: the login looks the address up without them. The users page
+  now stores it without spaces, and a new migration trims the accounts saved before; it stops with
+  a list if a trimmed address belongs to another account. **Existing databases must run the new
+  migration** (`20261108100000-trim-usernames`)
+- A user whose email has an apostrophe or an ampersand (`o'brien@…`, `sales&co@…`) could never
+  log in or get a reset email: the login and the forgot-password form escaped the address
+  before looking it up (`o\'brien@…`), so no account matched. The address is now looked up as
+  typed, only without surrounding spaces
+- Invoice PDFs downloaded their font from Google (`fonts.gstatic.com`) whenever the API started,
+  so a server that cannot reach Google, or a day the address moved, made no invoice PDF at all
+  ("PDF generation failed") and no invoice could be emailed. The two Roboto files are now part of
+  the API image (`apps/api/assets/fonts`, Apache License 2.0) and nothing is downloaded. **Rebuild
+  the API image**
+- Invoice totals did not always add up. The PDF and the invoice screen added the lines as floating
+  point numbers and rounded only what they printed, so two lines of 1.5 h at 33.33 printed 49.99 +
+  49.99 with a net of 99.99, and 45.11 net + 10.83 VAT printed a total of 55.93. Of 99 000 tried
+  two-line invoices, a quarter printed a total a cent off net plus VAT and half printed lines that
+  did not add up to the net. Now each line is rounded to cents (half away from zero), the net is
+  the sum of the printed lines, the VAT is the net times the rate rounded to cents, and the total
+  is net plus VAT, the same rule in the PDF and on the screen (one list of test cases for both).
+  Unit prices are shown with the decimals they have (up to 4) instead of cut to 2. A PDF made
+  again for an existing invoice, paid ones included, can show a total one cent different from
+  the PDF made before
+- Two invoice PDFs made at the same moment in different languages could mix their texts: the API
+  switched the language of the whole server for each PDF. Each PDF now gets its own texts, and a
+  language the app does not have gives English
+- The app did not record when an invoice was emailed, although the database has a column for it.
+  Now a sent invoice keeps the date of its last email and shows "Emailed <date>" next to the send
+  button. Emailing an invoice that has no customer answers "no customer" instead of a server error
+- Emails went out without a sender when `EMAIL_FROM` was not set (the admin settings page has no
+  field for it): no From line and an empty envelope sender, which many mail servers refuse or
+  file as spam. The mail server login is used as sender now when it is an email address; set
+  `EMAIL_FROM` for another one
 - A paid (locked) invoice could still be changed through the API: lines added, removed or given
   another quantity, and its number, date and customer changed. The API refuses that now ("This
   invoice is paid and locked"), checked with the invoice row locked so it cannot be marked as paid
@@ -402,6 +495,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Changed
 
+- Error tracking in the browser can be switched on for the production web image: set
+  `WEB_SENTRY_DSN` in `.env` (the DSN of a browser project in Sentry) and rebuild the web image.
+  Before, the image had no way to take it, so browser errors were never reported. When it is on,
+  a tenth of the page loads are traced in production (all of them were), and screen recordings
+  are only kept of sessions with an error, with text and inputs masked (a tenth of all sessions
+  were recorded). The prebuilt images of a release have it off
 - The customer and product pickers (an invoice's customer, a new invoice line, a worksheet's
   customer and product) search as you type and show the first 20 matches, instead of loading every
   customer and product when the page opens. A list asked for without `page` and `limit` now answers

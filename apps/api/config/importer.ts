@@ -14,6 +14,7 @@ import email from "../routes/email";
 import profile from "../routes/profile";
 import user from "../routes/user";
 import users from "../routes/users";
+import exportRoute from "../routes/export";
 
 export default (app: Express): void => {
     app.use("/customer", customer);
@@ -31,4 +32,5 @@ export default (app: Express): void => {
     app.use("/profile", profile);
     app.use("/user", user);
     app.use("/users", users);
+    app.use("/export", exportRoute);
 };

@@ -104,7 +104,8 @@
         "toPay": "Maksta",
         "win": "Võit",
         "view": "Vaata",
-        "regenerate": "Regenereeri"
+        "regenerate": "Regenereeri",
+        "sent": "Saadetud"
     },
     "worksheets-per-customer": {
         "plural": "Töölehed"
@@ -220,6 +221,8 @@
         "missingInfo": "E-kirja saatmine ebaõnnestus",
         "user.exists": "Sellise e-postiga kasutaja on juba olemas",
         "user.lastAdmin": "See on viimane administraator. Tee esmalt keegi teine administraatoriks",
+        "user.passwordLinkSent": "Kasutaja lisatud. Parooli määramise link saadeti e-postiga (kehtib 7 päeva)",
+        "user.passwordLinkFailed": "Kasutaja lisatud, aga parooli lingiga e-kirja ei õnnestunud saata. Kui e-post töötab, saab ta kasutada linki \"Unustasid parooli?\"",
         "passwordLength": "Parool peab olema 8 kuni 72 märki pikk",
         "currentPassword": "Praegune parool puudub või on vale",
         "emailFormat": "E-posti aadress on vales vormingus",
@@ -235,7 +238,8 @@
         "invoice.locked": "See arve on makstud ja lukustatud, seda ei saa muuta",
         "worksheet.invoiced": "Tööleht on juba arvele lisatud",
         "invalidInput": "Mõni väärtus pole kehtiv (liiga pikk või vale tüüpi), midagi ei salvestatud",
-        "lastInvoiceIdTooLow": "Viimane arve ID ei tohi olla väiksem kui juba kasutusel olev arve number, midagi ei salvestatud. Kui vahepeal lisati arveid, laadi leht uuesti"
+        "lastInvoiceIdTooLow": "Viimane arve ID ei tohi olla väiksem kui juba kasutusel olev arve number, midagi ei salvestatud. Kui vahepeal lisati arveid, laadi leht uuesti",
+        "export.rangeTooLong": "Periood saab olla kõige rohkem aasta"
     },
     "settings": {
         "singular": "Seaded",
@@ -274,11 +278,18 @@
             "pdfSettings": "Pdf seaded",
             "invoiceSettings": "Arve e-kirja seaded",
             "forgotSettings": "Taasta parool e-kirja seaded",
-            "serverSettings": "E-posti serveri seaded"
+            "serverSettings": "E-posti serveri seaded",
+            "exportSettings": "Eksport raamatupidajale"
         },
         "help": {
             "forgotHelp": "Kasuta [RESTORE_LINK] e-kirja sees, et viidata uue parooli loomise lehe lingile - süsteem vahetab selle korrektse URLi vastu",
             "invoiceHelp": "Kasuta [INVOICE_LINK] e-kirja sees, et viidata arve avamisele uues tabis - süsteem vahetab selle korrektse URLi vastu"
+        },
+        "export": {
+            "description": "Perioodi kõik arved CSV-failina (semikoolon, komakoht): number, kuupäev, maksetähtaeg, klient, summa, käibemaks ja kokku nagu PDF-il, makstud ja saadetud. Pakkumised jäävad välja.",
+            "from": "Alates",
+            "to": "Kuni",
+            "download": "Lae alla CSV"
         }
     },
     "users": {

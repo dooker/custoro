@@ -104,7 +104,8 @@
         "toPay": "To pay",
         "win": "Win",
         "view": "View",
-        "regenerate": "Regenerate"
+        "regenerate": "Regenerate",
+        "sent": "Carrier pigeon delivered"
     },
     "worksheets-per-customer": {
         "plural": "Worksheets"
@@ -219,6 +220,8 @@
         "missingInfo": "It seems we are missing some vital info to actually send the email",
         "user.exists": "Well well well, there is already user with this email",
         "user.lastAdmin": "The last admin standing! Crown another one before this one leaves",
+        "user.passwordLinkSent": "Recruit added. A pigeon flies off with their password link (good for 7 days)",
+        "user.passwordLinkFailed": "Recruit added, but the pigeon with the password link never left. They can use \"Wait... password?\" once mail works",
         "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73.",
         "currentPassword": "Nice try. That is not your current password.",
         "emailFormat": "That email looks like it came from another galaxy",
@@ -234,7 +237,8 @@
         "invoice.locked": "This invoice is paid and sealed in amber, no more fiddling with it",
         "worksheet.invoiced": "That worksheet already flew off on an invoice.",
         "invalidInput": "Something in there looked fishy (too long, or the wrong kind of thing), nothing was saved",
-        "lastInvoiceIdTooLow": "That last invoice ID would hand out a number an invoice already wears, nothing was saved. Reload the page if invoices sneaked in meanwhile"
+        "lastInvoiceIdTooLow": "That last invoice ID would hand out a number an invoice already wears, nothing was saved. Reload the page if invoices sneaked in meanwhile",
+        "export.rangeTooLong": "Even the bean counter stops at one year"
     },
     "settings": {
         "singular": "Settings",
@@ -273,11 +277,18 @@
             "pdfSettings": "Pdf settings",
             "invoiceSettings": "Invoice email settings",
             "forgotSettings": "Forgot email settings",
-            "serverSettings": "Email server settings"
+            "serverSettings": "Email server settings",
+            "exportSettings": "Loot for the bean counter"
         },
         "help": {
             "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
             "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
+        },
+        "export": {
+            "description": "Every invoice of the period in one CSV scroll (semicolons, decimal comma): number, date, due date, customer, net, VAT and total as the PDFs print them, paid and emailed. Offers stay home.",
+            "from": "From",
+            "to": "To",
+            "download": "Grab the CSV"
         }
     },
     "users": {

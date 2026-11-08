@@ -27,13 +27,24 @@ UPDATE `config` c JOIN (
   SELECT 'companyBankAccount2', 'IBAN 981239812398123' UNION ALL
   SELECT 'pdfDisclaimer', 'Kuni arve tasumiseni kuuluvad teenused/tooted Quantum Desk Co''le' UNION ALL
   SELECT 'invoiceSubject', 'Hello from Quantum Desk Co.' UNION ALL
-  SELECT 'invoiceText', 'This is a test email sent via Nodemailer and Zone.ee!'
+  SELECT 'invoiceText', 'This is a test email sent via Nodemailer and Zone.ee!' UNION ALL
+  SELECT 'forgotSubject', 'Your Quantum Desk Co. password'
 ) d ON d.name = c.name
 SET c.value = d.value;
 
 UPDATE `config`
 SET `long_value` = '<h3>123 123123&nbsp;</h3><p>here is email attached 123 333 222</p>'
 WHERE `name` = 'invoiceHtml';
+
+-- The password email (reset and new users) needs [RESTORE_LINK]; the tests read it from the mail
+-- catcher of docker-compose.yml
+UPDATE `config`
+SET `long_value` = 'Set your password here: [RESTORE_LINK]'
+WHERE `name` = 'forgotText';
+
+UPDATE `config`
+SET `long_value` = '<p>Set your password here: <a href="[RESTORE_LINK]">[RESTORE_LINK]</a></p>'
+WHERE `name` = 'forgotHtml';
 
 -- customers
 INSERT INTO `customers` (`id`, `name`, `contact`, `reg_number`, `vat_number`, `phone`, `phone2`, `address`, `email`, `invoice_email`, `www`, `payment_period`, `additional_info`, `shipping_info`, `department`) VALUES

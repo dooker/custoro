@@ -4,6 +4,7 @@ import DeleteIcon from '../../assets/images/x.svg?react';
 import { useAuth } from '../../contexts/Auth';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import { useParams } from 'react-router';
+import { formatCents, formatPrice, lineCents } from '../../utils/invoiceTotals';
 
 interface ItemRowIF {
     item: InvoiceProductIF;
@@ -44,14 +45,16 @@ export const ItemRow = ({ item, index, onChange, invoiceIsLocked }: ItemRowIF) =
                 </div>
             </td>
 
-            <td className="items">{Number(price).toFixed(2)}</td>
+            <td className="items">{formatPrice(price)}</td>
 
-            {discount ? <td className="items">{Number(discountPrice).toFixed(2)}</td> : ''}
+            {discount ? <td className="items">{formatPrice(discountPrice)}</td> : ''}
 
-            <td className="items">{Number(price * quantity).toFixed(2)}</td>
+            <td className="items">{formatCents(lineCents({ price, quantity }))}</td>
 
             {discount ? (
-                <td className="items">{Number(discountPrice * quantity).toFixed(2)}</td>
+                <td className="items">
+                    {formatCents(lineCents({ price: discountPrice, quantity }))}
+                </td>
             ) : (
                 ''
             )}

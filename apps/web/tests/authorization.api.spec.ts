@@ -38,6 +38,7 @@ const protectedRoutes: [Method, string][] = [
     ['put', `/pdf/${missingId}`],
     ['get', '/users'],
     ['get', '/user/1'],
+    ['get', '/export/invoices?from=2026-01-01&to=2026-01-31'],
 ];
 
 const adminOnlyRoutes: [Method, string][] = [
@@ -49,6 +50,7 @@ const adminOnlyRoutes: [Method, string][] = [
     ['delete', `/user/avatar/${missingId}`],
     ['put', '/settings'],
     ['delete', '/settings'],
+    ['get', '/export/invoices?from=2026-01-01&to=2026-01-31'],
 ];
 
 test.describe('without a valid token', () => {

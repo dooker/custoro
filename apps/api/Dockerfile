@@ -38,6 +38,8 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY --from=build /app/dist ./dist
 COPY locales ./locales
+# The invoice PDF's fonts (never downloaded at runtime)
+COPY assets ./assets
 # uploads/ (public files) and storage/ (invoice PDFs, the mail settings saved on the admin page)
 # are volumes
 RUN mkdir -p uploads storage/pdf && chown -R node:node /app

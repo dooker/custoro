@@ -369,3 +369,20 @@ describe("invoice input", () => {
         expect(parseInput({ value: [4] }, quantityInput).ok).toBe(false);
     });
 });
+
+describe("userInput email", () => {
+    it("is stored without surrounding spaces, as login looks it up", () => {
+        const parsed = parseInput(
+            {
+                name: "Ann",
+                username: "  ann@example.test\t",
+                discount: "0",
+                offer: "0",
+                role: "user"
+            },
+            userInput
+        );
+
+        expect(parsed.ok && parsed.values.username).toBe("ann@example.test");
+    });
+});
