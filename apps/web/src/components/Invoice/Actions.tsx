@@ -1,10 +1,10 @@
 import Button from '../_shared/Form/Button';
 import { t } from 'i18next';
-import { endpoint } from '../../variables';
+import { endpoint, RESOURCE } from '../../variables';
 import { formatDateTime, handleError } from '../../shared/helpers';
 import { PdfButton } from './PdfButton';
 import type { InvoiceIF } from '../../types';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
@@ -22,8 +22,11 @@ export const Actions = ({ markAsPaid, draft }: ActionsIF) => {
     const isLocked = locked === 1;
     const notification = useNotificationHandler();
     const [pdfDropdownOpen, setPdfDropdownOpen] = useState(false);
-    // When it was last emailed: from the invoice, then from the answer of each send
-    const [sentDate, setSentDate] = useState(draft?.sentDate ?? null);
+    const queryClient = useQueryClient();
+    // When it was last emailed: the invoice's own date, or the one a send here just answered
+    // (the draft is not loaded again while the page is open)
+    const [sentHere, setSentHere] = useState<string | null>(null);
+    const sentDate = sentHere ?? draft?.sentDate ?? null;
 
     const { mutate: sendEmail, isPending } = useMutation<AxiosResponse, Error>({
         mutationFn: () => Axios.post(`${endpoint}/email/`, { id: draft?.id }),
@@ -31,7 +34,12 @@ export const Actions = ({ markAsPaid, draft }: ActionsIF) => {
             const { success, message, sentDate: sentNow } = response.data;
 
             if (success && sentNow) {
-                setSentDate(sentNow);
+                setSentHere(sentNow);
+                // The page reads the invoice from this cache when it is opened again
+                queryClient.setQueryData<InvoiceIF | null>(
+                    [RESOURCE.INVOICE, String(draft?.id)],
+                    (invoice) => (invoice ? { ...invoice, sentDate: sentNow } : invoice)
+                );
             }
 
             await notification({
