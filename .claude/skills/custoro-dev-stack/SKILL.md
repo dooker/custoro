@@ -7,11 +7,12 @@ description: Start, stop, reset and test against the Custoro local dev stack (My
 
 Facts: `docker-compose.yml` runs `db` (mysql:8.4), `api` (Node 24 image, source bind-mounted, hot reload) and `web` (Vite). All ports are published on `127.0.0.1` only (the stack has a known DB password and public demo logins).
 
-| Service | Address                             | Notes                                               |
-| ------- | ----------------------------------- | --------------------------------------------------- |
-| web     | http://localhost:3000               |                                                     |
-| api     | http://localhost:3999               | `GET /` answers `{"message":"Custoro API",...}`     |
-| db      | 127.0.0.1:3306 (`DB_PORT` moves it) | user `root`, password `custoro`, database `custoro` |
+| Service | Address                             | Notes                                                                                                                |
+| ------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| web     | http://localhost:3000               |                                                                                                                      |
+| api     | http://localhost:3999               | `GET /` answers `{"message":"Custoro API",...}`                                                                      |
+| db      | 127.0.0.1:3306 (`DB_PORT` moves it) | user `root`, password `custoro`, database `custoro`                                                                  |
+| mail    | http://localhost:8025/messages      | catches every email the API sends (SMTP 1025, `scripts/mail-catcher.mjs`); `?to=<address>` filters, `DELETE` empties |
 
 ## Start
 

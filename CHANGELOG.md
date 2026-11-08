@@ -24,6 +24,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
   screen, the PDF and its public link, marking it as paid, and the accountant's export. CI now
   runs it with the other Chromium tests (login, products, VAT) in a new `browser-tests` job; until
   now no browser test ran in CI
+- The local Docker stack catches email: a `mail` service (`scripts/mail-catcher.mjs`, plain Node)
+  takes every email the API sends and shows it at http://localhost:8025/messages; nothing leaves
+  the machine. The demo data now has a password email with its link. New API tests
+  (`password-reset.api.spec.ts`) use it to run the password links end to end through the real
+  database and email: a new user's link, a reset that ends the old sessions, a link that works
+  once, and no email for an address without an account. Before, these rules were only tested
+  with stand-ins for the database and the mail server
 - Every image knows which build it is. `scripts/docker-build.sh` (`npm run docker:build`, also used
   by `npm run docker:prod`) builds the production images with the git commit and the build time:
   `GET /api/` answers `{version, build, builtAt}`, the sidebar shows "v 5.0.0-rc.1 · 38bdbcb" (the

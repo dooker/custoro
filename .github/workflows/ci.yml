@@ -187,14 +187,15 @@ jobs:
                   cache: npm
                   cache-dependency-path: apps/web/package-lock.json
 
-            - name: Start the dev stack (MySQL with the demo data, the API)
+            - name: Start the dev stack (MySQL with the demo data, the API, the mail catcher)
               run: |
-                  docker compose up -d --build --wait db api
+                  docker compose up -d --build --wait db api mail
                   for attempt in $(seq 1 60); do
-                      curl -fsS http://localhost:3999/ >/dev/null && exit 0
+                      curl -fsS http://localhost:3999/ >/dev/null &&
+                          curl -fsS http://localhost:8025/messages >/dev/null && exit 0
                       sleep 2
                   done
-                  echo "the API did not answer" >&2
+                  echo "the API or the mail catcher did not answer" >&2
                   exit 1
 
             - name: Install dependencies
