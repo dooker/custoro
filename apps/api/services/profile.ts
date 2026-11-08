@@ -269,7 +269,7 @@ export const forgot = async (username: string, request: Request) => {
     void requestPasswordReset(username, appOrigin, {
         findUser: async () => user,
         saveToken: (userId, tokenHash, expiresAt) =>
-            saveResetToken(database, userId, tokenHash, expiresAt),
+            saveResetToken(database, userId, String(user?.email), tokenHash, expiresAt),
         sendEmail: (to, link) => sendRestoreEmail(database, to, link),
         reportError
     });
@@ -277,24 +277,34 @@ export const forgot = async (username: string, request: Request) => {
     return { success: true };
 };
 
-// Only the hash is stored; the link in the email holds the token itself
+// Only the hash is stored; the link in the email holds the token itself. Only while the account
+// still has, byte for byte, the address the link is mailed to: if the email changed since the
+// account was looked up, that change cancelled the open links, and saving by id alone would put
+// one back and mail it to the old address. No row saved, no email.
 const saveResetToken = async (
     database: string,
     userId: number,
+    address: string,
     tokenHash: string,
     expiresAt: Date
 ) => {
-    const { success } = await query({
+    const { success, affectedRows } = await query({
         database,
         sql: `UPDATE users
               SET forgot_token         = ?,
                   forgot_token_expires = ?
-              WHERE id = ?;`,
-        params: [tokenHash, expiresAt.toISOString().slice(0, 19).replace("T", " "), userId],
+              WHERE id = ?
+                AND username COLLATE utf8mb4_bin = ?;`,
+        params: [
+            tokenHash,
+            expiresAt.toISOString().slice(0, 19).replace("T", " "),
+            userId,
+            address
+        ],
         logger: "Update user reset token"
     });
 
-    return success;
+    return success && affectedRows === 1;
 };
 
 // The password email of the settings page (forgotSubject, forgotText, forgotHtml)
@@ -320,7 +330,9 @@ const sendRestoreEmail = async (database: string, to: string, link: string) => {
 export const sendPasswordSetupLink = async (database: string, userId: number, address: string) => {
     const { token, tokenHash, expiresAt } = createResetToken(new Date(), passwordSetupLifetimeMs);
 
-    if (!(await saveResetToken(database, userId, tokenHash, expiresAt))) {
+    if (!(await saveResetToken(database, userId, address, tokenHash, expiresAt))) {
+        console.error("New user: the password link was not saved (the email changed meanwhile?)");
+
         return false;
     }
 

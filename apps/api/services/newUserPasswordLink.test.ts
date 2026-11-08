@@ -40,6 +40,7 @@ const databaseAccepts = () =>
     queryMock.mockImplementation(async ({ sql }: { sql: string }) => {
         if (/COUNT/.test(sql)) return { success: true, data: [{ count: 0 }] };
         if (/INSERT/.test(sql)) return { success: true, data: {}, insertId: 7 };
+        if (/forgot_token/.test(sql)) return { success: true, data: {}, affectedRows: 1 };
 
         return { success: true, data: {} };
     });
@@ -73,11 +74,12 @@ describe("POST /user", () => {
         expect(token).toMatch(/^[0-9a-f]{64}$/);
 
         // Only the hash is stored, with an expiry about 7 days ahead, for the new user's id
-        const [hash, expires, id] = tokenUpdate().params;
+        const [hash, expires, id, address] = tokenUpdate().params;
         const days = (new Date(`${expires}Z`).getTime() - before) / (24 * 60 * 60 * 1000);
 
         expect(hash).toBe(hashResetToken(token));
         expect(id).toBe(7);
+        expect(address).toBe("ann@example.test");
         expect(days).toBeGreaterThan(6.99);
         expect(days).toBeLessThan(7.01);
     });
