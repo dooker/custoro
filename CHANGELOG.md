@@ -98,6 +98,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
   could still set the password with the link sent there and log in; and a reset link a user asked
   for kept working for its hour after they changed their password on the profile page. A change of
   the email (by an admin or on the profile) and a password change now cancel any open link
+- The web container's access log (`docker compose logs web`) kept every password link
+  (`/restore/<token>`) and public invoice link (`/pdf/<hash>`) in full, in the request and in the
+  Referer of the API calls those pages make. Anyone who could read the server's logs could set a
+  password with a link that was still open, or open any invoice. The log now writes those parts
+  as `[hidden]`. **Rebuild the web image**; logs written before still hold the links, so remove
+  them (`docker compose -f docker-compose.prod.yml rm -sf web`, then `up -d`) if others can read
+  them
 - Removing a user's picture or the logo deleted the file whose name was stored in the database,
   joined into the upload folder without a check, so a stored name such as `../x` could delete a file
   outside it. Only a file directly in the upload folder is deleted now, the rule invoice PDFs

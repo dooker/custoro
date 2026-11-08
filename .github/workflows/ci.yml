@@ -151,6 +151,21 @@ jobs:
                       echo "a localhost origin may read API answers in production" >&2
                       exit 1
                   fi
+                  # Reset links and public invoice links never reach the web server's log
+                  token=$(printf 'c%.0s' $(seq 1 64))
+                  hash=0123456789abcdef0123456789abcdef
+                  curl -fsS -o /dev/null "http://localhost/restore/$token"
+                  curl -sS -o /dev/null "http://localhost/api/pdf/$hash"
+                  curl -sS -o /dev/null -H "Referer: http://localhost/restore/$token" \
+                      -H 'Content-Type: application/json' -d "{\"token\":\"$token\"}" \
+                      http://localhost/api/login/token
+                  sleep 1
+                  web_log=$(docker compose -f docker-compose.prod.yml logs --no-color web)
+                  echo "$web_log" | grep -q '/restore/\[hidden\]'
+                  if echo "$web_log" | grep -qE "$token|$hash"; then
+                      echo "the web server's log keeps a reset or invoice link" >&2
+                      exit 1
+                  fi
 
             - name: Logs
               if: failure()
