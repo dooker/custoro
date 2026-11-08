@@ -104,7 +104,8 @@
         "toPay": "To pay",
         "win": "Win",
         "view": "View",
-        "regenerate": "Regenerate"
+        "regenerate": "Regenerate",
+        "sent": "Carrier pigeon delivered"
     },
     "worksheets-per-customer": {
         "plural": "Worksheets"

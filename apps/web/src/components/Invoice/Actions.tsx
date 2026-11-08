@@ -1,7 +1,7 @@
 import Button from '../_shared/Form/Button';
 import { t } from 'i18next';
 import { endpoint } from '../../variables';
-import { handleError } from '../../shared/helpers';
+import { formatDateTime, handleError } from '../../shared/helpers';
 import { PdfButton } from './PdfButton';
 import type { InvoiceIF } from '../../types';
 import { useMutation } from '@tanstack/react-query';
@@ -22,11 +22,17 @@ export const Actions = ({ markAsPaid, draft }: ActionsIF) => {
     const isLocked = locked === 1;
     const notification = useNotificationHandler();
     const [pdfDropdownOpen, setPdfDropdownOpen] = useState(false);
+    // When it was last emailed: from the invoice, then from the answer of each send
+    const [sentDate, setSentDate] = useState(draft?.sentDate ?? null);
 
     const { mutate: sendEmail, isPending } = useMutation<AxiosResponse, Error>({
         mutationFn: () => Axios.post(`${endpoint}/email/`, { id: draft?.id }),
         onSuccess: async (response) => {
-            const { success, message } = response.data;
+            const { success, message, sentDate: sentNow } = response.data;
+
+            if (success && sentNow) {
+                setSentDate(sentNow);
+            }
 
             await notification({
                 success,
@@ -54,6 +60,12 @@ export const Actions = ({ markAsPaid, draft }: ActionsIF) => {
                 )}
 
                 <PdfButton isDisabled={isDisabled} draft={draft} onToggle={setPdfDropdownOpen} />
+
+                {draft.hash && sentDate && (
+                    <span className={styles.sent} data-testid="invoice-sent">
+                        {t('invoices.sent')} {formatDateTime(sentDate)}
+                    </span>
+                )}
 
                 {draft.hash && (
                     <Button

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mailPort, mailTransportOptions } from "./mailTransport";
+import { mailPort, mailSender, mailTransportOptions } from "./mailTransport";
 
 const server = { host: "smtp.example.com", port: "587", username: "mailer", password: "secret" };
 
@@ -53,5 +53,23 @@ describe("mailTransportOptions", () => {
 
         expect(options).not.toHaveProperty("tls");
         expect(options).not.toHaveProperty("ignoreTLS");
+    });
+});
+
+describe("mailSender", () => {
+    it("uses EMAIL_FROM when it is set", () => {
+        expect(mailSender("Custoro <billing@example.com>", "mailer@example.com")).toBe(
+            "Custoro <billing@example.com>"
+        );
+    });
+
+    it("falls back to the mail server login when that is an address", () => {
+        expect(mailSender(undefined, "mailer@example.com")).toBe("mailer@example.com");
+        expect(mailSender("  ", " mailer@example.com ")).toBe("mailer@example.com");
+    });
+
+    it("has no sender when neither gives an address", () => {
+        expect(mailSender(undefined, "mailer")).toBeUndefined();
+        expect(mailSender(undefined, undefined)).toBeUndefined();
     });
 });

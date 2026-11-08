@@ -104,7 +104,8 @@
         "toPay": "Maksta",
         "win": "Võit",
         "view": "Vaata",
-        "regenerate": "Regenereeri"
+        "regenerate": "Regenereeri",
+        "sent": "Saadetud"
     },
     "worksheets-per-customer": {
         "plural": "Töölehed"

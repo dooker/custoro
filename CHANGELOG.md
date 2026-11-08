@@ -252,6 +252,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - Two invoice PDFs made at the same moment in different languages could mix their texts: the API
   switched the language of the whole server for each PDF. Each PDF now gets its own texts, and a
   language the app does not have gives English
+- The app did not record when an invoice was emailed, although the database has a column for it.
+  Now a sent invoice keeps the date of its last email and shows "Emailed <date>" next to the send
+  button. Emailing an invoice that has no customer answers "no customer" instead of a server error
+- Emails went out without a sender when `EMAIL_FROM` was not set (the admin settings page has no
+  field for it): no From line and an empty envelope sender, which many mail servers refuse or
+  file as spam. The mail server login is used as sender now when it is an email address; set
+  `EMAIL_FROM` for another one
 - A paid (locked) invoice could still be changed through the API: lines added, removed or given
   another quantity, and its number, date and customer changed. The API refuses that now ("This
   invoice is paid and locked"), checked with the invoice row locked so it cannot be marked as paid

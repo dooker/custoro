@@ -16,7 +16,7 @@ import type {
 } from "../types/general";
 import type { QueryResult } from "../types/query";
 import { allowedEmailKeys } from "../variables";
-import { mailTransportOptions } from "../helpers/mailTransport";
+import { mailSender, mailTransportOptions } from "../helpers/mailTransport";
 import { resolveInside } from "../helpers/pdfFiles";
 import { uploadDir } from "../config/paths";
 import type { UserIF } from "../types/user";
@@ -357,7 +357,7 @@ export const email = async ({ email, config, attachments, replace }: EmailIF) =>
 
     try {
         const mailOptions = {
-            from: process.env.EMAIL_FROM,
+            from: mailSender(process.env.EMAIL_FROM, emailConfig.username),
             to: `${email}`,
             subject: `${config.subject}`,
             text: `${text}`,
