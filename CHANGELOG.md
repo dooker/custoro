@@ -7,6 +7,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Added
 
+- A user added on the users page gets an email with a link to set their password, valid for 7
+  days. Before, the new account had no password and nothing told the user; they had to find
+  "Forgot password?" on their own. The email is the password email of the settings page (its
+  `[RESTORE_LINK]`), so word that text for both uses. The admin sees whether the email went out;
+  if not (no mail server set up), the user can still use "Forgot password?" later
 - Every image knows which build it is. `scripts/docker-build.sh` (`npm run docker:build`, also used
   by `npm run docker:prod`) builds the production images with the git commit and the build time:
   `GET /api/` answers `{version, build, builtAt}`, the sidebar shows "v 5.0.0-rc.1 · 38bdbcb" (the

@@ -9,6 +9,7 @@ import type { UserIF } from "../types/user";
 import { isUsernameTaken } from "../helpers/users";
 import { parseInput } from "../helpers/bodyInput";
 import { userInput } from "../helpers/resourceInput";
+import { sendPasswordSetupLink } from "./profile";
 
 // The login email is unique (users.username_UNIQUE), so two requests that both passed the
 // look-up are told apart by the database: the second one gets ER_DUP_ENTRY
@@ -117,8 +118,6 @@ export const postSingle = async (request: Request) => {
         params.push(avatar);
     }
 
-    // TODO send password recovery email
-
     const created = await postGeneralSingle({
         database,
         sql,
@@ -135,9 +134,16 @@ export const postSingle = async (request: Request) => {
                 message: "user.exists"
             };
         }
+
+        return created;
     }
 
-    return created;
+    // The new user has no password yet: mail them the link to set one, and tell the admin
+    // whether it went out
+    const insertId = "insertId" in created ? Number(created.insertId) : 0;
+    const linkSent = insertId > 0 && (await sendPasswordSetupLink(database, insertId, username));
+
+    return { ...created, message: linkSent ? "user.passwordLinkSent" : "user.passwordLinkFailed" };
 };
 
 export const putSingle = async (request: Request) => {

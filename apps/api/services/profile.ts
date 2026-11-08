@@ -10,7 +10,13 @@ import {
     isValidNewPassword,
     verifyPassword
 } from "../helpers/credentials";
-import { checkResetToken, requestPasswordReset, resetPassword } from "../helpers/passwordReset";
+import {
+    checkResetToken,
+    createResetToken,
+    passwordSetupLifetimeMs,
+    requestPasswordReset,
+    resetPassword
+} from "../helpers/passwordReset";
 import { accountKey, getLoginThrottle, getResetThrottle } from "../helpers/rateLimit";
 import { getAppOrigin } from "../helpers/appOrigin";
 import { isUsernameTaken } from "../helpers/users";
@@ -261,36 +267,71 @@ export const forgot = async (username: string, request: Request) => {
 
     void requestPasswordReset(username, appOrigin, {
         findUser: async () => user,
-        saveToken: async (userId, tokenHash, expiresAt) => {
-            const { success } = await query({
-                database,
-                sql: `UPDATE users
-                      SET forgot_token         = ?,
-                          forgot_token_expires = ?
-                      WHERE id = ?;`,
-                params: [tokenHash, expiresAt.toISOString().slice(0, 19).replace("T", " "), userId],
-                logger: "Update user reset token"
-            });
-
-            return success;
-        },
-        sendEmail: async (to, link) => {
-            const config = await getConfig({
-                database,
-                fields: ["forgotSubject", "forgotText", "forgotHtml"],
-                mapper: ["subject", "text", "html"]
-            });
-
-            if (!config.success) {
-                return { success: false, message: config.message };
-            }
-
-            return email({ email: to, config: config.data, replace: { "[RESTORE_LINK]": link } });
-        },
+        saveToken: (userId, tokenHash, expiresAt) =>
+            saveResetToken(database, userId, tokenHash, expiresAt),
+        sendEmail: (to, link) => sendRestoreEmail(database, to, link),
         reportError
     });
 
     return { success: true };
+};
+
+// Only the hash is stored; the link in the email holds the token itself
+const saveResetToken = async (
+    database: string,
+    userId: number,
+    tokenHash: string,
+    expiresAt: Date
+) => {
+    const { success } = await query({
+        database,
+        sql: `UPDATE users
+              SET forgot_token         = ?,
+                  forgot_token_expires = ?
+              WHERE id = ?;`,
+        params: [tokenHash, expiresAt.toISOString().slice(0, 19).replace("T", " "), userId],
+        logger: "Update user reset token"
+    });
+
+    return success;
+};
+
+// The password email of the settings page (forgotSubject, forgotText, forgotHtml)
+const sendRestoreEmail = async (database: string, to: string, link: string) => {
+    const config = await getConfig({
+        database,
+        fields: ["forgotSubject", "forgotText", "forgotHtml"],
+        mapper: ["subject", "text", "html"]
+    });
+
+    if (!config.success) {
+        return { success: false, message: config.message };
+    }
+
+    return email({ email: to, config: config.data, replace: { "[RESTORE_LINK]": link } });
+};
+
+/**
+ * A user made on the users page has no password. This mails them the link to set one, the same
+ * page and email as a password reset, valid for 7 days. False when it could not be sent (no mail
+ * server, a failed send); the user can still use "Forgot password" later.
+ */
+export const sendPasswordSetupLink = async (database: string, userId: number, address: string) => {
+    const { token, tokenHash, expiresAt } = createResetToken(new Date(), passwordSetupLifetimeMs);
+
+    if (!(await saveResetToken(database, userId, tokenHash, expiresAt))) {
+        return false;
+    }
+
+    const sent = await sendRestoreEmail(database, address, `${getAppOrigin()}/restore/${token}`);
+
+    if (!sent.success) {
+        console.error(
+            `New user: sending the password link failed (${"message" in sent ? sent.message : ""})`
+        );
+    }
+
+    return sent.success;
 };
 
 const findUserIdByTokenHash = async (database: string, tokenHash: string) => {
