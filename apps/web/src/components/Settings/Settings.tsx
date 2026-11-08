@@ -18,6 +18,7 @@ const tabs = {
     invoice: 'invoice',
     forgot: 'forgot',
     server: 'server',
+    export: 'export',
 };
 type TabKey = keyof typeof tabs;
 

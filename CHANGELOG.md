@@ -12,6 +12,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
   "Forgot password?" on their own. The email is the password email of the settings page (its
   `[RESTORE_LINK]`), so word that text for both uses. The admin sees whether the email went out;
   if not (no mail server set up), the user can still use "Forgot password?" later
+- An invoice export for the accountant: Settings, "Export for the accountant" (admins only) gives
+  the invoices of a period, at most a year, as a CSV file (`GET /export/invoices?from=&to=`): one
+  line per invoice with number, date, due date, customer, registry code, VAT number, net, VAT rate,
+  VAT, total, paid and emailed. The amounts are those of the invoice PDFs (the same rounding, no
+  VAT for a foreign VAT number, the customer as billed for a paid invoice); offers are left out.
+  Semicolons and a decimal comma, as a spreadsheet set to Estonian expects; a customer name that
+  starts like a formula (`=`, `+`, `-`, `@`) is written so that the spreadsheet does not run it
 - Every image knows which build it is. `scripts/docker-build.sh` (`npm run docker:build`, also used
   by `npm run docker:prod`) builds the production images with the git commit and the build time:
   `GET /api/` answers `{version, build, builtAt}`, the sidebar shows "v 5.0.0-rc.1 · 38bdbcb" (the

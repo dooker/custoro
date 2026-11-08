@@ -17,6 +17,7 @@ const Pdf = lazy(() => import('./Views/Pdf'));
 const Invoice = lazy(() => import('./Views/Invoice'));
 const Forgot = lazy(() => import('./Views/Forgot'));
 const Server = lazy(() => import('./Views/Server'));
+const Export = lazy(() => import('./Views/Export'));
 
 export const tabs = {
     general: 'general',
@@ -24,6 +25,7 @@ export const tabs = {
     invoice: 'invoice',
     forgot: 'forgot',
     server: 'server',
+    export: 'export',
 };
 export type TabKey = keyof typeof tabs;
 
@@ -126,6 +128,8 @@ export const SettingsForm = ({
                 {activeTab === tabs.forgot && <Forgot settings={draft} onChange={onChange} />}
                 {activeTab === tabs.server && <Server settings={draft} onChange={onChange} />}
             </form>
+
+            {activeTab === tabs.export && <Export />}
         </section>
     );
 };

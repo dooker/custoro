@@ -237,7 +237,8 @@
         "invoice.locked": "This invoice is paid and sealed in amber, no more fiddling with it",
         "worksheet.invoiced": "That worksheet already flew off on an invoice.",
         "invalidInput": "Something in there looked fishy (too long, or the wrong kind of thing), nothing was saved",
-        "lastInvoiceIdTooLow": "That last invoice ID would hand out a number an invoice already wears, nothing was saved. Reload the page if invoices sneaked in meanwhile"
+        "lastInvoiceIdTooLow": "That last invoice ID would hand out a number an invoice already wears, nothing was saved. Reload the page if invoices sneaked in meanwhile",
+        "export.rangeTooLong": "Even the bean counter stops at one year"
     },
     "settings": {
         "singular": "Settings",
@@ -276,11 +277,18 @@
             "pdfSettings": "Pdf settings",
             "invoiceSettings": "Invoice email settings",
             "forgotSettings": "Forgot email settings",
-            "serverSettings": "Email server settings"
+            "serverSettings": "Email server settings",
+            "exportSettings": "Loot for the bean counter"
         },
         "help": {
             "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
             "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
+        },
+        "export": {
+            "description": "Every invoice of the period in one CSV scroll (semicolons, decimal comma): number, date, due date, customer, net, VAT and total as the PDFs print them, paid and emailed. Offers stay home.",
+            "from": "From",
+            "to": "To",
+            "download": "Grab the CSV"
         }
     },
     "users": {

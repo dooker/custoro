@@ -18,5 +18,21 @@
     "regNr": "Registrikood",
     "vatNr": "KMKR",
     "regNumber": "Reg number",
-    "vatNumber": "Vat number"
+    "vatNumber": "Vat number",
+    "export": {
+        "number": "Number",
+        "date": "Kuupäev",
+        "due": "Maksetähtaeg",
+        "customer": "Klient",
+        "regNumber": "Registrikood",
+        "vatNumber": "KMKR number",
+        "net": "Summa km-ta",
+        "vatRate": "KM %",
+        "vat": "Käibemaks",
+        "total": "Kokku",
+        "paid": "Makstud",
+        "sent": "Saadetud",
+        "yes": "jah",
+        "no": "ei"
+    }
 }
