@@ -93,6 +93,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Security
 
+- A password link that was still open kept working after the account's email or password changed.
+  So when an admin corrected a mistyped email of a new user, whoever read the mistyped address
+  could still set the password with the link sent there and log in; and a reset link a user asked
+  for kept working for its hour after they changed their password on the profile page. A change of
+  the email (by an admin or on the profile) and a password change now cancel any open link
 - Removing a user's picture or the logo deleted the file whose name was stored in the database,
   joined into the upload folder without a check, so a stored name such as `../x` could delete a file
   outside it. Only a file directly in the upload folder is deleted now, the rule invoice PDFs

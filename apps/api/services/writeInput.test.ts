@@ -244,7 +244,11 @@ describe("user", () => {
 
         const [update] = fake.statements(/UPDATE users/);
 
+        // The old username is compared three times first: sessions, open password link, its expiry
+        expect(update.sql).toMatch(/forgot_token = IF\(username <=> \?, forgot_token, NULL\)/);
         expect(update.params).toEqual([
+            "ann@example.test",
+            "ann@example.test",
             "ann@example.test",
             "Ann",
             "ann@example.test",

@@ -193,9 +193,10 @@ export const putSingle = async (request: Request) => {
         params.push(await hashPassword(password));
     }
 
-    // Ends every other session; the caller gets a fresh token below
+    // Ends every other session (the caller gets a fresh token below) and cancels a password link
+    // that is still open: it was sent for the old password or to the old address
     if (changesCredentials) {
-        sql += `, token_version = token_version + 1`;
+        sql += `, token_version = token_version + 1, forgot_token = NULL, forgot_token_expires = NULL`;
     }
 
     if (fileExists && avatar) {

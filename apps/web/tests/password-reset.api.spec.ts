@@ -96,4 +96,95 @@ test.describe('password links', () => {
             expect(await forgot(request, email)).toEqual({ success: true })
         );
     });
+
+    test('a reset link stops working when the user changes the password themselves', async ({
+        request,
+    }) => {
+        const email = `pw-${tag()}@example.test`;
+
+        await userWithPassword(request, email, 'old password 1');
+        const session = (await login(request, email, 'old password 1')).token;
+        const { token } = await nextPasswordLink(request, email, () => forgot(request, email));
+        const changed = await json(
+            put(
+                request,
+                '/profile',
+                {
+                    name: 'Reset test',
+                    email,
+                    password: 'new password 2',
+                    currentPassword: 'old password 1',
+                },
+                session
+            )
+        );
+
+        expect(changed.success).toBe(true);
+        expect(
+            await json(put(request, '/login/token', { token, password: 'link password 3' }))
+        ).toEqual({ success: false, message: 'noToken' });
+        expect((await login(request, email, 'new password 2')).success).toBe(true);
+    });
+
+    test('a link stops working when the user changes their email', async ({ request }) => {
+        const email = `mail-${tag()}@example.test`;
+
+        await userWithPassword(request, email, 'my password 1');
+        const session = (await login(request, email, 'my password 1')).token;
+        const { token } = await nextPasswordLink(request, email, () => forgot(request, email));
+        const changed = await json(
+            put(
+                request,
+                '/profile',
+                {
+                    name: 'Reset test',
+                    email: `moved-${tag()}@example.test`,
+                    currentPassword: 'my password 1',
+                },
+                session
+            )
+        );
+
+        expect(changed.success).toBe(true);
+        expect(
+            await json(put(request, '/login/token', { token, password: 'link password 3' }))
+        ).toEqual({ success: false, message: 'noToken' });
+    });
+
+    test('the link of a mistyped address stops working when the admin corrects it', async ({
+        request,
+    }) => {
+        const mistyped = `typo-${tag()}@wrong.test`;
+        const right = `right-${tag()}@example.test`;
+        const user = { name: 'Reset test', discount: '0', offer: '0', role: 'user' };
+        const { result, token } = await nextPasswordLink(request, mistyped, () =>
+            json(post(request, '/user', { ...user, username: mistyped }, adminToken))
+        );
+        const corrected = await json(
+            put(request, `/user/${result.insertId}`, { ...user, username: right }, adminToken)
+        );
+
+        expect(corrected.success).toBe(true);
+        // Whoever got the email at the mistyped address cannot set the account's password
+        expect(
+            await json(put(request, '/login/token', { token, password: 'stranger pass 1' }))
+        ).toEqual({ success: false, message: 'noToken' });
+        expect((await login(request, right, 'stranger pass 1')).success).toBe(false);
+    });
+
+    test('a link still works after an admin edit that keeps the email', async ({ request }) => {
+        const email = `keep-${tag()}@example.test`;
+        const user = { discount: '0', offer: '0', role: 'user', username: email };
+        const { result, token } = await nextPasswordLink(request, email, () =>
+            json(post(request, '/user', { ...user, name: 'Reset test' }, adminToken))
+        );
+
+        await put(request, `/user/${result.insertId}`, { ...user, name: 'Renamed' }, adminToken);
+
+        expect(
+            await json(put(request, '/login/token', { token, password: 'kept link 1' }))
+        ).toEqual({
+            success: true,
+        });
+    });
 });

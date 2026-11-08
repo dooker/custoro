@@ -194,17 +194,29 @@ export const putSingle = async (request: Request) => {
         };
     }
 
-    // A new username (login email) ends the user's sessions, like a change on their own profile.
-    // token_version is set first: MySQL applies SET assignments left to right, so the
-    // comparison still sees the old username.
+    // A new username (login email) ends the user's sessions, like a change on their own profile,
+    // and cancels a password link that is still open: it went to the old address, which may be
+    // a mistyped one that a stranger reads. These come first: MySQL and MariaDB apply SET
+    // assignments left to right, so the comparisons still see the old username.
     let sql = `UPDATE users
-               SET token_version   = token_version + IF(username <=> ?, 0, 1),
-                   name            = ?,
-                   username        = ?,
-                   discount        = ?,
-                   offer           = ?,
-                   role            = ?`;
-    const params: (string | number | null)[] = [username, name, username, discount, offer, role];
+               SET token_version        = token_version + IF(username <=> ?, 0, 1),
+                   forgot_token         = IF(username <=> ?, forgot_token, NULL),
+                   forgot_token_expires = IF(username <=> ?, forgot_token_expires, NULL),
+                   name                 = ?,
+                   username             = ?,
+                   discount             = ?,
+                   offer                = ?,
+                   role                 = ?`;
+    const params: (string | number | null)[] = [
+        username,
+        username,
+        username,
+        name,
+        username,
+        discount,
+        offer,
+        role
+    ];
 
     if (fileExists && avatar) {
         sql += `, avatar = ?`;
