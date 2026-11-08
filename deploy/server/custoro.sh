@@ -291,9 +291,13 @@ deploy() {
         echo "$dump"
     fi
 
-    # From here on the API is stopped: every failure goes back to the previous release
+    # The migrations only run on a stopped API: the old one must not write while the schema
+    # changes. From here on every failure goes back to the previous release
     say "Stopping the API and migrating the database"
-    systemctl stop "$service" 2>/dev/null || true
+    if ! systemctl stop "$service"; then
+        back_to "$current" "" "the API did not stop, so nothing was migrated"
+        exit 1
+    fi
     if ! (cd "$api" && NODE_ENV=production node scripts/migrate.js up); then
         back_to "$current" "$dump" "the migration stopped"
         exit 1
