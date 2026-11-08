@@ -55,15 +55,19 @@ export const parseLegacyEmailEnv = (text: string): MailValues =>
 /**
  * The file's new content: the new value of each field, or the one it had when no new value (or
  * an empty one) was sent. Only the four settings, each on one line. With a key the password is
- * stored encrypted (helpers/mailSecret.ts): a new one, and a plain one the file still had. One
- * already encrypted is kept as it is, so saving other fields never needs to open it.
+ * stored encrypted (helpers/mailSecret.ts): a new one always, and a kept one that is still plain.
+ * A kept one that is encrypted stays as it is, so saving other fields never needs to open it.
  */
 export const formatMailSettings = (next: MailValues, current: MailValues, key?: string) => {
     const values = Object.fromEntries(
         mailFieldNames.map((field) => [field, oneLine(next[field] || current[field] || "")])
     ) as Record<MailField, string>;
 
-    if (key && values.password && !isEncrypted(values.password)) {
+    // A password typed now is always encrypted, whatever it looks like ("enc:v1:..." is a valid
+    // password too); only a kept one that is encrypted already stays as it is
+    const typedNow = !!oneLine(next.password || "");
+
+    if (key && values.password && (typedNow || !isEncrypted(values.password))) {
         values.password = encryptSecret(values.password, key);
     }
 

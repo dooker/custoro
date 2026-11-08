@@ -198,6 +198,13 @@ describe("the mail password at rest", () => {
         expect(decryptSecret(sealed.password ?? "", key)).toBe("old secret");
     });
 
+    it("encrypts a newly typed password even when it looks encrypted", () => {
+        const saved = read(formatMailSettings({ password: "enc:v1:secret123" }, {}, key));
+
+        expect(saved.password).not.toBe("enc:v1:secret123");
+        expect(decryptSecret(saved.password ?? "", key)).toBe("enc:v1:secret123");
+    });
+
     it("stores it as typed without a key, as before", () => {
         expect(read(formatMailSettings({ password: "plain" }, {})).password).toBe("plain");
     });
