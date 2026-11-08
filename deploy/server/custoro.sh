@@ -198,6 +198,40 @@ point() {
     mv -T "$home/$1.new" "$home/$1"
 }
 
+# The new release in place and running: each step is checked here, because a function called
+# in an `if` runs without `set -e`
+switch_to_release() {
+    local release=$1 version=$2 port
+    (cd "$release/api" && npm prune --omit=dev --omit=optional --no-audit --no-fund --loglevel=error) ||
+        return 1
+    chown -R root:root "$release" && chmod -R go-w "$release" || return 1
+    point current "$release" || return 1
+    systemctl restart "$service" || return 1
+    port=$(api_port "$release/api") || return 1
+    healthy "$port" "$version" || {
+        echo "$version does not answer on port $port; its log: journalctl -u $service -n 50" >&2
+        return 1
+    }
+}
+
+# After a failed update: the previous release runs again (if there is one), and says so
+back_to() {
+    local current=$1 dump=$2 reason=$3
+    echo "custoro: $reason." >&2
+    if [ -z "$current" ]; then
+        echo "Nothing runs yet; fix the cause and run the same command again." >&2
+        return
+    fi
+    point current "$current" || true
+    systemctl restart "$service" || true
+    if healthy "$(api_port "$current/api")" "$(cat "$current/VERSION")"; then
+        echo "Back on $(cat "$current/VERSION"), which answers again." >&2
+    else
+        echo "$(cat "$current/VERSION") does not answer either: journalctl -u $service -n 50" >&2
+    fi
+    [ -z "$dump" ] || echo "If the database was migrated and the old release misbehaves, restore $dump (README.md)." >&2
+}
+
 deploy() {
     local wanted=${1:-} skip_backup=false
     [ -n "$wanted" ] || fail "which version? custoro.sh deploy 5.0.0 (or a bundle file)"
@@ -249,35 +283,15 @@ deploy() {
         echo "$dump"
     fi
 
+    # From here on the API is stopped: every failure goes back to the previous release
     say "Stopping the API and migrating the database"
     systemctl stop "$service" 2>/dev/null || true
     if ! (cd "$api" && NODE_ENV=production node scripts/migrate.js up); then
-        [ -z "$current" ] || systemctl start "$service" || true
-        echo "The migration stopped; $( [ -n "$current" ] && echo "the previous release runs again" || echo "nothing runs yet")." >&2
-        [ -z "$dump" ] || echo "If the database is half migrated, restore $dump (see README.md)." >&2
+        back_to "$current" "$dump" "the migration stopped"
         exit 1
     fi
-    (cd "$api" && npm prune --omit=dev --omit=optional --no-audit --no-fund --loglevel=error)
-    chown -R root:root "$release"
-    chmod -R go-w "$release"
-
-    point current "$release"
-    systemctl restart "$service"
-
-    local port
-    port=$(api_port "$api")
-    if ! healthy "$port" "$version"; then
-        echo "$version does not answer on port $port; its log: journalctl -u $service -n 50" >&2
-        if [ -n "$current" ]; then
-            point current "$current"
-            systemctl restart "$service"
-            if healthy "$port" "$(cat "$current/VERSION")"; then
-                echo "Back on $(cat "$current/VERSION"), which answers again." >&2
-            else
-                echo "$(cat "$current/VERSION") does not answer either: journalctl -u $service -n 50" >&2
-            fi
-            [ -z "$dump" ] || echo "The database was migrated; if the old release misbehaves, restore $dump" >&2
-        fi
+    if ! switch_to_release "$release" "$version"; then
+        back_to "$current" "$dump" "$version did not start"
         exit 1
     fi
     [ -z "$current" ] || point previous "$current"
@@ -291,7 +305,7 @@ deploy() {
     done
 
     say "Custoro $version runs"
-    curl -fsS "http://127.0.0.1:$port/"
+    curl -fsS "http://127.0.0.1:$(api_port "$api")/"
     echo
     if command -v nginx >/dev/null && ! grep -rqs "$home/current/web" /etc/nginx/; then
         echo
