@@ -120,7 +120,8 @@ check_settings() {
         [ -n "$(setting "$api" "$key")" ] || missing+=("$key")
     done
     [ ${#missing[@]} -eq 0 ] || fail "set ${missing[*]} in $home/shared/.env.production"
-    [ "$(setting "$api" JWT_SECRET | wc -c)" -gt 32 ] ||
+    # At least 32 characters, the API's own rule (jwtSecretProblem in helpers/startupChecks.ts)
+    [ "$(setting "$api" JWT_SECRET | wc -c)" -ge 32 ] ||
         fail "JWT_SECRET has fewer than 32 characters; make one with: openssl rand -hex 32"
 }
 
