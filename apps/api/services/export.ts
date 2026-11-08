@@ -26,23 +26,21 @@ const invoicesSql = `
               customers.payment_period) AS paymentPeriod,
            invoices.vat,
            invoices.locked,
-           invoices.sent_date AS sentDate
+           invoices.sent_date AS sentDate,
+           invoice_items.price AS linePrice,
+           invoice_items.quantity AS lineQuantity
     FROM invoices
              LEFT JOIN customers ON customers.id = invoices.customer_id
+             LEFT JOIN invoice_items ON invoice_items.invoice_id = invoices.id
     WHERE invoices.invoice_type = 'invoice'
       AND invoices.invoice_date >= ?
       AND invoices.invoice_date < ?
-    ORDER BY invoices.invoice_date, invoices.number_sort, invoices.id`;
+    ORDER BY invoices.invoice_date, invoices.number_sort, invoices.id, invoice_items.id`;
 
-const linesSql = `
-    SELECT invoice_items.invoice_id AS invoiceId,
-           invoice_items.price,
-           invoice_items.quantity
-    FROM invoice_items
-             INNER JOIN invoices ON invoices.id = invoice_items.invoice_id
-    WHERE invoices.invoice_type = 'invoice'
-      AND invoices.invoice_date >= ?
-      AND invoices.invoice_date < ?`;
+type ExportRow = ExportInvoiceRow & {
+    linePrice: number | string | null;
+    lineQuantity: number | string | null;
+};
 
 /** GET /export/invoices?from=YYYY-MM-DD&to=YYYY-MM-DD&language=et */
 export const getInvoicesCsv = async (request: Request) => {
@@ -53,28 +51,32 @@ export const getInvoicesCsv = async (request: Request) => {
         return { success: false as const, message: range.message };
     }
 
-    const params = [range.from, range.before];
-    const invoices = await query<ExportInvoiceRow>({
+    // One statement, one snapshot: the invoices with their lines (one row per line, one row
+    // without a line for an invoice that has none). Two reads could miss the lines of an invoice
+    // whose date was moved out of the period in between, and export it at zero.
+    const read = await query<ExportRow>({
         database,
         sql: invoicesSql,
-        params,
+        params: [range.from, range.before],
         logger: "Export invoices"
     });
-    const items = await query<InvoiceLineAmounts & { invoiceId: number }>({
-        database,
-        sql: linesSql,
-        params,
-        logger: "Export invoice lines"
-    });
 
-    if (!invoices.success || !items.success) {
+    if (!read.success) {
         return { success: false as const, message: "error" };
     }
 
+    const invoices = new Map<number, ExportInvoiceRow>();
     const lines = new Map<number, InvoiceLineAmounts[]>();
 
-    for (const { invoiceId, price, quantity } of items.data ?? []) {
-        lines.set(invoiceId, [...(lines.get(invoiceId) ?? []), { price, quantity }]);
+    for (const { linePrice, lineQuantity, ...invoice } of read.data ?? []) {
+        if (!invoices.has(invoice.id)) {
+            invoices.set(invoice.id, invoice);
+            lines.set(invoice.id, []);
+        }
+
+        if (linePrice !== null && linePrice !== undefined) {
+            lines.get(invoice.id)?.push({ price: linePrice, quantity: lineQuantity });
+        }
     }
 
     const t = await pdfTranslator(search.language);
@@ -85,6 +87,6 @@ export const getInvoicesCsv = async (request: Request) => {
     return {
         success: true as const,
         filename: `invoices_${range.from}_${range.to}.csv`,
-        csv: invoicesCsv(invoices.data ?? [], lines, headings)
+        csv: invoicesCsv([...invoices.values()], lines, headings)
     };
 };
