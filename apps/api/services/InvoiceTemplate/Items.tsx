@@ -1,25 +1,26 @@
 import React from "react";
 import { Text, View } from "@react-pdf/renderer";
 import { styles } from "./Styles";
-import i18n from "../../i18n";
+import type { TFunction } from "i18next";
 import type { InvoiceIF } from "../../types/invoice";
 import { formatCents, formatPrice, lineCents } from "../../helpers/invoiceTotals";
 
 interface ItemsIF {
     invoice: InvoiceIF;
+    t: TFunction;
 }
 
-const Items = ({ invoice }: ItemsIF) => {
+const Items = ({ invoice, t }: ItemsIF) => {
     return (
         <View style={styles.items}>
             <View style={[styles.item, styles.bold, styles.cell]}>
                 <Text style={[styles.number]}>#</Text>
-                <Text style={[styles.code]}>{i18n.t("code")}</Text>
-                <Text style={[styles.name]}>{i18n.t("name")}</Text>
-                <Text style={[styles.unit]}>{i18n.t("unit")}</Text>
-                <Text style={[styles.quantity]}>{i18n.t("quantity")}</Text>
-                <Text style={[styles.price]}>{i18n.t("price")}</Text>
-                <Text style={[styles.total]}>{i18n.t("total")}</Text>
+                <Text style={[styles.code]}>{t("code")}</Text>
+                <Text style={[styles.name]}>{t("name")}</Text>
+                <Text style={[styles.unit]}>{t("unit")}</Text>
+                <Text style={[styles.quantity]}>{t("quantity")}</Text>
+                <Text style={[styles.price]}>{t("price")}</Text>
+                <Text style={[styles.total]}>{t("total")}</Text>
             </View>
 
             {invoice.items?.map((item, index) => {

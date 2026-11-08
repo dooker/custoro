@@ -249,6 +249,9 @@ version number, kept in each app's `package.json`. The web app shows this file o
   Unit prices are shown with the decimals they have (up to 4) instead of cut to 2. A PDF made
   again for an existing invoice, paid ones included, can show a total one cent different from
   the PDF made before
+- Two invoice PDFs made at the same moment in different languages could mix their texts: the API
+  switched the language of the whole server for each PDF. Each PDF now gets its own texts, and a
+  language the app does not have gives English
 - A paid (locked) invoice could still be changed through the API: lines added, removed or given
   another quantity, and its number, date and customer changed. The API refuses that now ("This
   invoice is paid and locked"), checked with the invoice row locked so it cannot be marked as paid

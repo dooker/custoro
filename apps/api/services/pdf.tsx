@@ -12,6 +12,7 @@ import type { PdfIF } from "../types/pdf";
 import i18n from "../i18n";
 import { Document, Page } from "@react-pdf/renderer";
 import type { Request, Response } from "express";
+import type { TFunction } from "i18next";
 import { pdfDir } from "../config/paths";
 import { filenamePrefixMessage } from "../helpers/settingsInput";
 import {
@@ -19,6 +20,21 @@ import {
     invoiceFilenamePrefixPattern,
     resolveInside
 } from "../helpers/pdfFiles";
+
+const pdfLanguages = ["en", "et"];
+
+/**
+ * The texts of one PDF in its own language. Switching the shared i18n instance instead
+ * (changeLanguage) let a PDF rendered at the same time in the other language take its texts.
+ * Anything but a known language is English.
+ */
+export const pdfTranslator = async (language: unknown): Promise<TFunction> => {
+    const lng = typeof language === "string" && pdfLanguages.includes(language) ? language : "en";
+
+    await i18n.loadLanguages(lng);
+
+    return i18n.getFixedT(lng);
+};
 
 export const getSingle = async (request: Request, response: Response) => {
     const {
@@ -162,6 +178,8 @@ export const putSingle = async (request: Request) => {
     // taken from the client. Regenerating the PDF keeps the hash so emailed links stay valid.
     const hash = invoice.hash || crypto.randomBytes(16).toString("hex");
 
+    const t = await pdfTranslator(language);
+
     // Generate PDF and save it
     const generatePDF = async () => {
         const { renderToStream } = await import("@react-pdf/renderer");
@@ -169,7 +187,8 @@ export const putSingle = async (request: Request) => {
         const data = {
             invoice,
             customer: customer[0],
-            settings
+            settings,
+            t
         };
 
         const element = (
@@ -211,8 +230,6 @@ export const putSingle = async (request: Request) => {
             });
         });
     };
-
-    await i18n.changeLanguage(language);
 
     try {
         await generatePDF();

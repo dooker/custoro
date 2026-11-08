@@ -20,7 +20,7 @@ Font.register({
     ]
 });
 
-const InvoiceTemplate = ({ invoice, customer, settings }: InvoiceTemplateProps) => {
+const InvoiceTemplate = ({ invoice, customer, settings, t }: InvoiceTemplateProps) => {
     const { vatNumber } = customer;
     // A foreign VAT number makes the invoice VAT-free
     const currentVatNumber = isForeignVatNumber(vatNumber) ? vatNumber : null;
@@ -28,16 +28,17 @@ const InvoiceTemplate = ({ invoice, customer, settings }: InvoiceTemplateProps) 
 
     return (
         <View style={styles.body}>
-            <Header customer={customer} settings={settings} invoice={invoice} />
-            <Items invoice={invoice} />
+            <Header customer={customer} settings={settings} invoice={invoice} t={t} />
+            <Items invoice={invoice} t={t} />
             <Total
                 items={invoice.items}
                 currentVatNumber={currentVatNumber}
                 vatRate={invoice.vat || 0}
                 settings={settings}
                 offer={offer}
+                t={t}
             />
-            <Footer settings={settings} offer={offer} />
+            <Footer settings={settings} offer={offer} t={t} />
         </View>
     );
 };

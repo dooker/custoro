@@ -1,12 +1,13 @@
 import React from "react";
 import { Text, View } from "@react-pdf/renderer";
 import { styles } from "./Styles";
-import i18n from "../../i18n";
+import type { TFunction } from "i18next";
 import type { SettingsIF } from "../../types/settings";
 
 interface FooterIF {
     settings: SettingsIF;
     offer: boolean;
+    t: TFunction;
 }
 
 const Footer = ({
@@ -22,7 +23,8 @@ const Footer = ({
         companyBankAccount,
         companyBankAccount2
     },
-    offer
+    offer,
+    t
 }: FooterIF) => {
     return (
         <View style={styles.footer} fixed>
@@ -35,7 +37,7 @@ const Footer = ({
                 <Text style={[styles.perThree, styles.left]}>{companyAddress1}</Text>
                 <Text style={[styles.perThree, styles.center]}>{companyWebsite}</Text>
                 <Text style={[styles.perThree, styles.right]}>
-                    {i18n.t("regNr")}: {companyRegNr}
+                    {t("regNr")}: {companyRegNr}
                 </Text>
             </View>
             {companyVatNumber ? (
@@ -43,7 +45,7 @@ const Footer = ({
                     <View style={styles.footerItem}>
                         <Text style={[styles.perTwo, styles.left]}>{companyAddress2}</Text>
                         <Text style={[styles.perTwo, styles.right]}>
-                            {i18n.t("vatNr")}: {companyVatNumber}
+                            {t("vatNr")}: {companyVatNumber}
                         </Text>
                     </View>
                     {!offer && (
