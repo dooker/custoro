@@ -59,6 +59,8 @@ services:
             EMAIL_USER: ${EMAIL_USER:-dev@custoro.test}
             EMAIL_PASS: ${EMAIL_PASS:-dev}
             EMAIL_FROM: ${EMAIL_FROM:-Custoro dev <dev@custoro.test>}
+            # Development key for the saved mail password (production: openssl rand -hex 32)
+            MAIL_SETTINGS_KEY: ${MAIL_SETTINGS_KEY:-dev-only-mail-settings-key-not-a-secret}
             # A local test mail catcher (MailHog, Mailpit, ...) has no TLS, so development allows a
             # plain connection to the mail server. Production requires TLS (EMAIL_REQUIRE_TLS unset).
             EMAIL_REQUIRE_TLS: ${EMAIL_REQUIRE_TLS:-false}

@@ -1,11 +1,13 @@
 import fs from "node:fs";
 import { legacyEmailEnvFile, mailSettingsFile } from "./config/paths";
 import {
+    openMailSettings,
     parseLegacyEmailEnv,
     parseMailSettings,
     resolveMailSettings,
     type MailValues
 } from "./helpers/mailSettings";
+import { mailSettingsKey } from "./helpers/mailSecret";
 
 export const tagsToReplace: Record<"&" | "<" | ">", string> = {
     "&": "&amp;",
@@ -69,7 +71,8 @@ export const readSavedMailSettings = (): MailValues => {
 };
 
 /** What mail is sent with: each saved setting, else the EMAIL_ variable of the environment. */
-export const getMailSettings = () => resolveMailSettings(readSavedMailSettings(), process.env);
+export const getMailSettings = () =>
+    resolveMailSettings(openMailSettings(readSavedMailSettings(), mailSettingsKey()), process.env);
 
 export const normalizeDate = (isoString: string | Date) => {
     const date = new Date(isoString);

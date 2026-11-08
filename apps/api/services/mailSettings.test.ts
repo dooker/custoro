@@ -28,13 +28,20 @@ vi.mock("../helper/query", async (importOriginal) => ({
     query: vi.fn(async () => ({ success: true, data: [{ value: "" }] }))
 }));
 
-const { putAll } = await import("./settings");
+const { putAll, encryptSavedMailPassword } = await import("./settings");
 const { getMailSettings, readSavedMailSettings } = await import("../helper");
 
 const put = (body: object) =>
     putAll({ database: "shop", params: {}, query: {}, body } as unknown as Request);
 
-const emailEnv = ["EMAIL_HOST", "EMAIL_PORT", "EMAIL_USER", "EMAIL_PASS"] as const;
+// MAIL_SETTINGS_KEY too: unset here (a password stored as typed), set by the tests of encryption
+const emailEnv = [
+    "EMAIL_HOST",
+    "EMAIL_PORT",
+    "EMAIL_USER",
+    "EMAIL_PASS",
+    "MAIL_SETTINGS_KEY"
+] as const;
 const savedEnv = Object.fromEntries(emailEnv.map((key) => [key, process.env[key]]));
 
 beforeEach(() => {
@@ -125,5 +132,52 @@ describe("saving the mail settings", () => {
         expect(fs.readdirSync(path.dirname(files.mailSettingsFile))).toEqual([
             "mail-settings.json"
         ]);
+    });
+});
+
+describe("saving the mail settings with MAIL_SETTINGS_KEY", () => {
+    const key = "test-mail-settings-key-0123456789abcdef";
+
+    it("stores the password encrypted and sends with it", async () => {
+        process.env.MAIL_SETTINGS_KEY = key;
+
+        await put({
+            host: "smtp.example.test",
+            port: "587",
+            username: "mailer",
+            password: "s3cret pw"
+        });
+
+        const stored = JSON.parse(fs.readFileSync(files.mailSettingsFile, "utf8"));
+
+        expect(stored.password).toMatch(/^enc:v1:/);
+        expect(fs.readFileSync(files.mailSettingsFile, "utf8")).not.toContain("s3cret");
+        expect(getMailSettings().password).toBe("s3cret pw");
+    });
+
+    it("encrypts a plain password saved before, once, at startup", async () => {
+        await put({ host: "smtp.example.test", password: "old plain" });
+        process.env.MAIL_SETTINGS_KEY = key;
+        vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+        expect(encryptSavedMailPassword()).toBe(true);
+        expect(readSavedMailSettings().password).toMatch(/^enc:v1:/);
+        expect(getMailSettings().password).toBe("old plain");
+        // Nothing left to do the next time
+        expect(encryptSavedMailPassword()).toBe(false);
+    });
+
+    it("does not send with a password it cannot open, and keeps it on the next save", async () => {
+        process.env.MAIL_SETTINGS_KEY = key;
+        await put({ host: "smtp.example.test", password: "s3cret pw" });
+        const sealed = readSavedMailSettings().password;
+
+        process.env.MAIL_SETTINGS_KEY = "another-key-0123456789abcdef-0123456789";
+
+        expect(getMailSettings().password).toBeUndefined();
+
+        await put({ port: "465" });
+
+        expect(readSavedMailSettings().password).toBe(sealed);
     });
 });

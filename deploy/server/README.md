@@ -40,6 +40,7 @@ The first run creates `/opt/custoro/shared/.env.production` and stops. Fill it i
 | `APP_ORIGIN`                                                  | `https://your.domain`, the address people open                                                                                                                                                                                       |
 | `JWT_SECRET`                                                  | `openssl rand -hex 32`                                                                                                                                                                                                               |
 | `TRUST_PROXY`                                                 | `1`: nginx is the one proxy in front of the API                                                                                                                                                                                      |
+| `MAIL_SETTINGS_KEY`                                           | `openssl rand -hex 32`: encrypts the mail server password the admin saves; keep it here, not with the backups                                                                                                                        |
 | `EMAIL_FROM`                                                  | the sender of invoices and password emails; the mail server itself is set on the admin settings page                                                                                                                                 |
 
 Run the same command again. It installs the release, loads the schema if the database is empty,
@@ -103,7 +104,9 @@ Every update dumps the database first. For a daily dump, as root (`sudo crontab 
 
 Copy `/opt/custoro/backups/` and `/opt/custoro/shared/` (pictures, invoice PDFs, mail settings)
 somewhere else regularly: a backup on the same disk is lost with it. They hold customer data and
-password hashes: keep them private. `.env.production` holds the secrets: keep a copy too.
+password hashes: keep them private. `.env.production` holds the secrets, `MAIL_SETTINGS_KEY` among
+them: keep a copy too, but not next to the backups (with the key set, the mail password in
+`shared/storage` is encrypted, and a backup without the key cannot reveal it).
 
 To restore a dump (stop the API first; everything written since the dump is lost):
 

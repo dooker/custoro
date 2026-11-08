@@ -104,6 +104,16 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Security
 
+- The mail server password saved on the admin settings page can be stored encrypted. It was plain
+  text in `storage/mail-settings.json`, so every backup of the storage folder held it. With the
+  new setting `MAIL_SETTINGS_KEY` (`openssl rand -hex 32`, in `.env` or `.env.production`) it is
+  encrypted (AES-256-GCM) and a backup is no use for it without the key; a password saved before
+  is encrypted when the API starts. It still cannot be hashed like a login password, because the
+  mail server needs the password itself, and whoever runs the API has the key: this protects
+  copies of the file, not a server that is taken over. If the key changes or is lost, mail stops
+  ("missingInfo", and the log says why) until the admin saves the password again. Without the
+  key the API warns at start and stores it as before; a key shorter than 32 characters stops the
+  start. **Production setups should add `MAIL_SETTINGS_KEY`** and keep it apart from the backups
 - A password link that was still open kept working after the account's email or password changed.
   So when an admin corrected a mistyped email of a new user, whoever read the mistyped address
   could still set the password with the link sent there and log in; and a reset link a user asked
