@@ -24,6 +24,12 @@ COPY apps/web/ ./
 # Relative by default: nginx proxies /api to the API container (same origin, no CORS)
 ARG VITE_API_ENDPOINT=/api
 ENV VITE_API_ENDPOINT=$VITE_API_ENDPOINT
+# The commit and time of this build (scripts/docker-build.sh); there is no .git in the context.
+# vite.config.ts bakes them into the bundle for the sidebar and error reports.
+ARG APP_BUILD=
+ARG APP_BUILT_AT=
+ENV APP_BUILD=$APP_BUILD \
+    APP_BUILT_AT=$APP_BUILT_AT
 RUN npm run build
 
 # --- Production: nginx serving the SPA and proxying the API
@@ -34,3 +40,10 @@ COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 80
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 \
     CMD wget -qO- http://127.0.0.1/ >/dev/null || exit 1
+ARG APP_VERSION=
+ARG APP_BUILD=
+ARG APP_BUILT_AT=
+LABEL org.opencontainers.image.title="custoro-web" \
+      org.opencontainers.image.version=$APP_VERSION \
+      org.opencontainers.image.revision=$APP_BUILD \
+      org.opencontainers.image.created=$APP_BUILT_AT

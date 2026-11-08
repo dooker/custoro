@@ -133,7 +133,9 @@ interface InvoiceIF {
     items: Array<InvoiceProductIF>;
     hash: string;
     vat: number;
-    customerName?: string;
+    // A paid invoice's customer as billed (the copy taken when it was marked as paid)
+    customerName?: string | null;
+    customerVatNumber?: string | null;
 }
 
 type InvoiceWithCustomerIF = InvoiceIF & {

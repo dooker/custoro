@@ -1,7 +1,8 @@
 # Production deployment.
 #
 #   cp .env.production.example .env      # fill in secrets; never commit .env
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   scripts/docker-build.sh               # the images, named with their version and commit
+#   docker compose -f docker-compose.prod.yml up -d
 #
 # Exposes only the web container (nginx) on WEB_PORT; it serves the SPA and proxies /api to the API.
 # Put a TLS-terminating proxy (e.g. Caddy) in front of it for HTTPS.
@@ -41,6 +42,11 @@ services:
         build:
             context: ./apps/api
             target: prod
+            # The version and commit of this build, filled in by scripts/docker-build.sh
+            args:
+                APP_VERSION: ${APP_VERSION:-}
+                APP_BUILD: ${APP_BUILD:-}
+                APP_BUILT_AT: ${APP_BUILT_AT:-}
         restart: unless-stopped
         logging: *logging
         # On a stop the API finishes the requests that are running (an invoice, a PDF, an email)
@@ -71,6 +77,7 @@ services:
             LOGIN_MAX_FAILURES_PER_ACCOUNT_ADDRESS: ${LOGIN_MAX_FAILURES_PER_ACCOUNT_ADDRESS:-}
             LOGIN_MAX_FAILURES_PER_ACCOUNT: ${LOGIN_MAX_FAILURES_PER_ACCOUNT:-}
             LOGIN_MAX_FAILURES_PER_IP: ${LOGIN_MAX_FAILURES_PER_IP:-}
+            RESET_MAX_REQUESTS_PER_ACCOUNT_ADDRESS: ${RESET_MAX_REQUESTS_PER_ACCOUNT_ADDRESS:-}
             RESET_MAX_REQUESTS_PER_ACCOUNT: ${RESET_MAX_REQUESTS_PER_ACCOUNT:-}
             RESET_MAX_REQUESTS_PER_IP: ${RESET_MAX_REQUESTS_PER_IP:-}
         volumes:
@@ -117,6 +124,9 @@ services:
             target: prod
             args:
                 VITE_API_ENDPOINT: /api
+                APP_VERSION: ${APP_VERSION:-}
+                APP_BUILD: ${APP_BUILD:-}
+                APP_BUILT_AT: ${APP_BUILT_AT:-}
         restart: unless-stopped
         logging: *logging
         ports:

@@ -12,7 +12,7 @@ import {
     type SearchTable
 } from "./_getters";
 
-const { itemsPerPage, maxItemsPerPage, maxListRows, maxKeywordWords, maxKeywordLength } = config;
+const { itemsPerPage, maxItemsPerPage, maxKeywordWords, maxKeywordLength } = config;
 
 describe("getPaging", () => {
     it("takes a page and a size as they are", () => {
@@ -50,14 +50,15 @@ describe("getPaging", () => {
         expect(getPaging(0, 0)).toEqual({ page: 1, limit: itemsPerPage });
     });
 
-    it("gives the first rows, up to a cap, when neither is asked for", () => {
+    // It used to be up to 1000 rows, for the web app's pickers, which search now
+    it("gives the first page of the default size when neither is asked for", () => {
         for (const [page, limit] of [
             [undefined, undefined],
             ["", ""],
             [null, undefined],
             [NaN, NaN]
         ]) {
-            expect(getPaging(page, limit)).toEqual({ page: 1, limit: maxListRows });
+            expect(getPaging(page, limit)).toEqual({ page: 1, limit: itemsPerPage });
         }
     });
 
@@ -87,21 +88,19 @@ describe("getFromTo", () => {
         }
     });
 
-    it("cannot be asked for more than the largest page, or the list cap without paging", () => {
+    it("cannot be asked for more than the largest page, nor for everything without paging", () => {
         expect(getFromTo("SELECT 1", "1", "1000000")).toMatch(
             new RegExp(`LIMIT 0, ${maxItemsPerPage}\\s*$`)
         );
         expect(getFromTo("SELECT 1", undefined, undefined)).toMatch(
-            new RegExp(`LIMIT 0, ${maxListRows}\\s*$`)
+            new RegExp(`LIMIT 0, ${itemsPerPage}\\s*$`)
         );
     });
 });
 
 describe("applyPaging", () => {
-    it("uses an already checked page as it is, so the list cap is not cut to a page size", () => {
-        expect(applyPaging("SELECT 1", { page: 1, limit: maxListRows })).toMatch(
-            new RegExp(`LIMIT 0, ${maxListRows}\\s*$`)
-        );
+    it("uses an already checked page as it is", () => {
+        expect(applyPaging("SELECT 1", { page: 3, limit: 7 })).toMatch(/LIMIT 14, 7\s*$/);
     });
 });
 
@@ -177,7 +176,7 @@ describe("keywordWhere", () => {
         );
         expect(search("x", "users").sql).toContain("users.username LIKE ? OR users.name LIKE ?");
         expect(search("x", "invoices").sql).toContain(
-            "customers.name LIKE ? OR invoices.number LIKE ?"
+            "customers.name LIKE ? OR invoices.customer_name LIKE ? OR invoices.number LIKE ?"
         );
         expect(search("x", "worksheets", { customer: true }).sql).toContain("products.name LIKE ?");
     });
@@ -282,7 +281,7 @@ describe("getInvoices", () => {
             expect(statement).toContain("invoices.customer_id = ? AND (customers.name LIKE ?");
         }
 
-        expect(params).toEqual([7, "%ann%", "%ann%", "%2%", "%2%"]);
+        expect(params).toEqual([7, "%ann%", "%ann%", "%ann%", "%2%", "%2%", "%2%"]);
     });
 
     it("counts only the customer's invoices when asked for one customer", () => {

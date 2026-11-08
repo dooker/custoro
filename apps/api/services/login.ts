@@ -77,3 +77,27 @@ export const postSingle = async (request: Request): Promise<LoginResultIF> => {
 
     return result;
 };
+
+// Ends the caller's sessions. Every token carries the account's token_version, and authenticate
+// refuses one that does not match, so this token and the account's tokens on other devices stop
+// working at once instead of when they expire. A token that is copied or left in a browser is
+// then worth nothing.
+export const logout = async (request: Request) => {
+    const { database, user } = request;
+    const id = typeof user === "object" ? user.id : undefined;
+
+    if (!id) {
+        return { success: false, message: "invalid.token" };
+    }
+
+    const { success } = await query({
+        database,
+        sql: `UPDATE users
+              SET token_version = token_version + 1
+              WHERE id = ?;`,
+        params: [id],
+        logger: "Log out"
+    });
+
+    return success ? { success: true } : { success: false, message: "logoutFailed" };
+};

@@ -8,6 +8,7 @@ vi.mock("../db", () => ({ getPool: () => fake.pool }));
 vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 
 const { deleteSingle } = await import("./worksheet");
+const { maxTransactionAttempts } = await import("../helper/transaction");
 
 const remove = (id = "9") =>
     deleteSingle({ database: "shop", params: { id } } as unknown as Request);
@@ -80,6 +81,8 @@ describe("deleteSingle (worksheet)", () => {
         });
 
         expect(await remove()).toEqual({ success: false, message: "delete.worksheet" });
-        expect(fake.connection.rollback).toHaveBeenCalledOnce();
+        // A deadlock is tried three times, each attempt rolled back, and nothing is deleted
+        expect(fake.connection.rollback).toHaveBeenCalledTimes(maxTransactionAttempts);
+        expect(fake.connection.commit).not.toHaveBeenCalled();
     });
 });

@@ -38,11 +38,22 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY --from=build /app/dist ./dist
 COPY locales ./locales
-# uploads/ (public files) and storage/ (invoice PDFs) are volumes; the app also writes
-# .env.email into its working dir
+# uploads/ (public files) and storage/ (invoice PDFs, the mail settings saved on the admin page)
+# are volumes
 RUN mkdir -p uploads storage/pdf && chown -R node:node /app
 USER node
 EXPOSE 3999
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 \
     CMD node -e "fetch('http://localhost:3999/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# Which commit this image was built from, and when (scripts/docker-build.sh fills them in). GET /
+# answers with them and errors are reported with them. Last, so a new commit rebuilds no layer.
+ARG APP_VERSION=
+ARG APP_BUILD=
+ARG APP_BUILT_AT=
+ENV APP_BUILD=$APP_BUILD \
+    APP_BUILT_AT=$APP_BUILT_AT
+LABEL org.opencontainers.image.title="custoro-api" \
+      org.opencontainers.image.version=$APP_VERSION \
+      org.opencontainers.image.revision=$APP_BUILD \
+      org.opencontainers.image.created=$APP_BUILT_AT
 CMD ["node", "dist/index.js"]

@@ -12,8 +12,15 @@ vi.mock("../helper/query", async (importOriginal) => ({
     query: queryMock
 }));
 
-const { buildInvoiceLines, deleteSingleItem, postSingle, putSingle, putSingleData, putSingleItem } =
-    await import("./invoice");
+const {
+    buildInvoiceLines,
+    deleteSingleItem,
+    markAsPaid,
+    postSingle,
+    putSingle,
+    putSingleData,
+    putSingleItem
+} = await import("./invoice");
 
 const request = (parts: { params?: object; body?: object }) =>
     ({ database: "shop", params: {}, body: {}, ...parts }) as unknown as Request;
@@ -308,30 +315,25 @@ describe("putSingleData (invoice details)", () => {
         items: [{ id: 1 }]
     };
 
-    it("saves the details, takes the payment period from the customer and moves the worksheets along", async () => {
+    it("saves the details, takes the payment period from the customer and moves the worksheets along, together", async () => {
         queryMock.mockImplementation(async ({ sql }: { sql: string }) =>
             /FROM customers/.test(sql)
                 ? { success: true, data: [{ paymentPeriod: 30 }] }
                 : { success: true, data: [] }
         );
+        fake.respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 0 }] : {}));
 
         expect(await putSingleData(request({ body: draft }))).toEqual({ success: true });
 
-        const [update] = queryMock.mock.calls
-            .map(([call]) => call)
-            .filter(({ sql }: { sql: string }) => /UPDATE invoices/.test(sql));
-        const [worksheets] = queryMock.mock.calls
-            .map(([call]) => call)
-            .filter(({ sql }: { sql: string }) => /UPDATE worksheets/.test(sql));
+        const [update] = fake.statements(/UPDATE invoices/);
+        const [worksheets] = fake.statements(/UPDATE worksheets/);
 
         expect(update.params).toEqual(["2026-10-21", 5, "42", "cash", "offer", 30, 7]);
         expect(worksheets.params).toEqual([5, 7, 5]);
+        expect(fake.connection.commit).toHaveBeenCalledOnce();
     });
 
-    const updates = () =>
-        queryMock.mock.calls
-            .map(([call]) => call)
-            .filter(({ sql }: { sql: string }) => /UPDATE (invoices|worksheets)/.test(sql));
+    const updates = () => fake.statements(/UPDATE (invoices|worksheets)/);
 
     it("does not save the invoice when its customer cannot be read, so it never keeps the old customer's terms", async () => {
         // a failed look-up, and a customer that does not exist
@@ -368,18 +370,28 @@ describe("putSingleData (invoice details)", () => {
     });
 
     it("keeps the invoice's own payment period when it has no customer", async () => {
-        queryMock.mockResolvedValue({ success: true, data: [] });
-
         expect(await putSingleData(request({ body: { ...draft, customerId: null } }))).toEqual({
             success: true
         });
 
-        const calls = queryMock.mock.calls.map(([call]) => call);
-
         // no customer to look up, no worksheets to move, and NULL leaves payment_period alone
-        expect(calls).toHaveLength(1);
-        expect(calls[0].sql).toContain("COALESCE(?, payment_period)");
-        expect(calls[0].params).toEqual(["2026-10-21", null, "42", "cash", "offer", null, 7]);
+        expect(queryMock).not.toHaveBeenCalled();
+        expect(updates()).toHaveLength(1);
+        expect(updates()[0].sql).toContain("COALESCE(?, payment_period)");
+        expect(updates()[0].params).toEqual(["2026-10-21", null, "42", "cash", "offer", null, 7]);
+    });
+
+    it("refuses to change a paid invoice, and changes nothing", async () => {
+        queryMock.mockResolvedValue({ success: true, data: [{ paymentPeriod: 30 }] });
+        fake.respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 1 }] : {}));
+
+        expect(await putSingleData(request({ body: draft }))).toEqual({
+            success: false,
+            message: "invoice.locked"
+        });
+        expect(updates()).toHaveLength(0);
+        expect(fake.statements(/SELECT locked/)[0].sql).toContain("FOR UPDATE");
+        expect(fake.connection.rollback).toHaveBeenCalledOnce();
     });
 
     it("refuses details that are not valid, without touching the database", async () => {
@@ -462,5 +474,93 @@ describe("putSingle (add a line to an invoice)", () => {
         expect(result).toEqual({ success: false, message: "worksheet.invoiced" });
         expect(fake.statements(/UPDATE invoices/)).toHaveLength(0);
         expect(fake.connection.rollback).toHaveBeenCalledOnce();
+    });
+});
+
+// A paid invoice is a record of what was billed: none of its lines, quantities or details change
+describe("a paid invoice", () => {
+    beforeEach(() => {
+        databaseHas([cable]);
+        fake.respondWith((sql) =>
+            /SELECT locked/.test(sql) ? [{ locked: 1 }] : { affectedRows: 1 }
+        );
+    });
+
+    const changes = () => fake.statements(/^(UPDATE|INSERT|DELETE)/);
+
+    it("gets no new line", async () => {
+        expect(
+            await putSingle(
+                request({ body: { invoiceId: 12, items: [{ productId: 3, quantity: 1 }] } })
+            )
+        ).toEqual({ success: false, message: "invoice.locked" });
+        expect(changes()).toHaveLength(0);
+    });
+
+    it("keeps the quantities of its lines", async () => {
+        expect(
+            await putSingleItem(
+                request({ params: { invoiceId: "12", id: "99" }, body: { value: 5 } })
+            )
+        ).toEqual({ success: false, message: "invoice.locked" });
+        expect(changes()).toHaveLength(0);
+    });
+
+    it("keeps its lines", async () => {
+        expect(await deleteSingleItem(request({ params: { invoiceId: "12", id: "99" } }))).toEqual({
+            success: false,
+            message: "invoice.locked"
+        });
+        expect(changes()).toHaveLength(0);
+    });
+
+    it("is checked with the invoice row locked, before anything changes", async () => {
+        await putSingleItem(request({ params: { invoiceId: "12", id: "99" }, body: { value: 5 } }));
+
+        const [check] = fake.statements(/SELECT locked/);
+
+        expect(check.sql).toContain("FOR UPDATE");
+        expect(check.params).toEqual(["12"]);
+    });
+});
+
+describe("markAsPaid", () => {
+    it("locks the invoice and its worksheets and copies the customer into it, together", async () => {
+        fake.respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 0 }] : {}));
+
+        expect(await markAsPaid(request({ params: { id: "7" } }))).toEqual({ success: true });
+
+        const [invoice] = fake.statements(/UPDATE invoices/);
+
+        expect(invoice.sql).toContain("LEFT JOIN customers ON customers.id = invoices.customer_id");
+        for (const copy of [
+            "invoices.locked = 1",
+            "invoices.customer_name = customers.name",
+            "invoices.customer_vat_number = customers.vat_number",
+            "invoices.customer_address = customers.address",
+            "invoices.customer_payment_period = customers.payment_period"
+        ]) {
+            expect(invoice.sql).toContain(copy);
+        }
+        expect(invoice.params).toEqual(["7"]);
+        expect(fake.statements(/UPDATE worksheets/)[0].params).toEqual(["7"]);
+        expect(fake.connection.commit).toHaveBeenCalledOnce();
+    });
+
+    it("keeps the copy of an invoice that is already paid", async () => {
+        fake.respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 1 }] : {}));
+
+        expect(await markAsPaid(request({ params: { id: "7" } }))).toEqual({ success: true });
+        expect(fake.statements(/^UPDATE/)).toHaveLength(0);
+    });
+
+    it("says so for an invoice that does not exist", async () => {
+        fake.respondWith(() => []);
+
+        expect(await markAsPaid(request({ params: { id: "404" } }))).toEqual({
+            success: false,
+            message: "put.invoice.lock"
+        });
+        expect(fake.statements(/^UPDATE/)).toHaveLength(0);
     });
 });

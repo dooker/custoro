@@ -2,9 +2,22 @@ import CreatableSelect from 'react-select/creatable';
 import type { SelectOptionIF } from '../../../types';
 import type { SingleValue } from 'react-select';
 import type { FieldIF } from '../../../types/form';
+import SearchSelect from './SearchSelect';
 
 const Select = ({ name, onChange, select, placeholder }: FieldIF) => {
-    const { options, initial } = select || {};
+    const { options, initial, search } = select || {};
+
+    if (search) {
+        return (
+            <SearchSelect
+                resource={search}
+                name={name}
+                value={initial}
+                onSelect={(option) => onChange?.({ name, value: option?.value ?? '' })}
+                placeholder={placeholder}
+            />
+        );
+    }
 
     return (
         <CreatableSelect<SelectOptionIF>

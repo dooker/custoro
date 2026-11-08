@@ -1,6 +1,6 @@
 {
     "name": "custoro-api",
-    "version": "4.0.0",
+    "version": "5.0.0-rc.1",
     "description": "Custoro REST API",
     "scripts": {
         "build": "tsc",

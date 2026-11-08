@@ -40,6 +40,11 @@ jobs:
             - name: Unit tests
               run: npx vitest run
 
+            # Every route is public on purpose, or has authenticate and authorize in front of it,
+            # and no upload runs before them (the security-review skill's route table)
+            - name: Route audit
+              run: node ../../.claude/skills/custoro-security-review/scripts/route-table.mjs
+
             - name: Build
               run: npm run build
 
@@ -78,20 +83,132 @@ jobs:
             - name: Build
               run: npm run build
 
-    docker:
+    # One version in every package file (scripts/version.mjs), and the tests of the version rules
+    version:
         runs-on: ubuntu-latest
 
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
 
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: .nvmrc
+
+            - name: Same version everywhere
+              run: node scripts/version.mjs check
+
+            - name: Version script tests
+              run: node --test "scripts/*.test.mjs"
+
+    # Builds the production images, starts them as a server would and checks that they answer:
+    # nginx serves the app and proxies /api, the API reaches its database, migrations run
+    docker:
+        runs-on: ubuntu-latest
+        env:
+            # Throwaway values for this job's own stack; nothing outside the runner uses them
+            DB_ROOT_PASSWORD: ci-root
+            DB_USERNAME: ci
+            DB_PASSWORD: ci-password
+            APP_ORIGIN: http://localhost
+            # The API refuses to start in production with a secret shorter than 32 characters
+            JWT_SECRET: ci-only-secret-0123456789abcdef0123456789
+            TRUST_PROXY: 1
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            # The build script names the version and commit in the images (checked below)
             - name: Build production images
-              run: docker compose -f docker-compose.prod.yml --profile migrate build
-              env:
-                  # Required by the compose file, not used at build time
-                  DB_ROOT_PASSWORD: ci
-                  DB_USERNAME: ci
-                  DB_PASSWORD: ci
-                  APP_ORIGIN: http://localhost
-                  JWT_SECRET: ci
-                  TRUST_PROXY: 1
+              run: scripts/docker-build.sh
+
+            - name: Start the production stack
+              run: docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 180
+
+            - name: Run the migrations
+              run: docker compose -f docker-compose.prod.yml --profile migrate run --rm migrate
+
+            - name: Smoke test through nginx
+              run: |
+                  set -euo pipefail
+                  curl -fsS http://localhost/ | grep -q '<div id="root">'
+                  curl -fsS http://localhost/api/ | grep -q '"message":"Custoro API"'
+                  # The API names the commit it was built from
+                  build=$(git rev-parse --short HEAD)
+                  curl -fsS http://localhost/api/ | grep -q "\"build\":\"$build\""
+                  # A login is answered from the database, and no API answer may be cached
+                  headers=$(mktemp)
+                  curl -fsS -D "$headers" -o login.json -H 'Content-Type: application/json' \
+                      -d '{"username":"nobody@example.test","password":"not-the-password"}' \
+                      http://localhost/api/login
+                  grep -q '"success":false' login.json
+                  grep -qi '^cache-control: no-store' "$headers"
+                  # Production only lets the app itself read API answers
+                  if curl -fsS -D - -o /dev/null -H 'Origin: http://localhost:5173' http://localhost/api/ \
+                      | grep -qi '^access-control-allow-origin'; then
+                      echo "a localhost origin may read API answers in production" >&2
+                      exit 1
+                  fi
+
+            - name: Logs
+              if: failure()
+              run: docker compose -f docker-compose.prod.yml logs --no-color
+
+    # A database upgraded by the migrations must equal a fresh install of db/01-schema.sql, on
+    # MySQL 8.4 (production) and MariaDB 11.4 (the hosted database). The script compares with the
+    # schema of the merge base with main, so it needs the history.
+    schema-drift:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - name: Schema drift on MySQL 8.4 and MariaDB 11.4
+              run: .claude/skills/custoro-db-migration/scripts/schema-drift.sh
+
+    # The Playwright api project (no browser) against the dev stack with its demo data: what the
+    # API answers to real requests, hostile ones included
+    api-tests:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+                  cache-dependency-path: apps/web/package-lock.json
+
+            - name: Start the dev stack (MySQL with the demo data, the API)
+              run: |
+                  docker compose up -d --build --wait db api
+                  for attempt in $(seq 1 60); do
+                      curl -fsS http://localhost:3999/ >/dev/null && exit 0
+                      sleep 2
+                  done
+                  echo "the API did not answer" >&2
+                  exit 1
+
+            - name: Install dependencies
+              working-directory: apps/web
+              run: npm ci
+
+            # The demo logins of the dev database (apps/api/db/demo/demo-logins.md), public on purpose
+            - name: Test settings
+              run: cp apps/web/.env.development.example apps/web/.env
+
+            - name: Playwright api tests
+              working-directory: apps/web
+              run: npx playwright test --project=api --workers=1 --reporter=line
+
+            - name: API logs
+              if: failure()
+              run: docker compose logs --no-color api

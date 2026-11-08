@@ -13,6 +13,10 @@ import Settings from '../Icons/Settings';
 import Users from '../Icons/Users';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { endpoint, PATHS, RESOURCE } from '../../../variables';
+import { Axios } from '../../../Axios';
+import { getLogoutUrl, revokeSession } from '../../../utils/auth';
+import { useNotification } from '../../../store/notification';
+import { versionLabel } from '../../../utils/buildInfo';
 import styles from './Navigation.module.sass';
 
 const menuItems = [
@@ -31,10 +35,25 @@ const Navigation = () => {
     const navigate = useNavigate();
     const { name, avatar } = user || {};
 
-    const handleLogout = () => {
-        logout();
+    // The API ends the session on every device first (the token is still needed for that). The
+    // browser forgets the token either way; unless the API confirmed it (it refused, did not answer
+    // in time, or no longer took this token), the login page says the other sessions may still be
+    // valid.
+    const handleLogout = async () => {
+        const revoked = await revokeSession(() =>
+            Axios.post(getLogoutUrl(endpoint), {}, { timeout: 5000 })
+        );
 
+        logout();
         navigate('/login', { replace: true });
+
+        if (!revoked) {
+            const notification = useNotification.getState();
+
+            notification.updateMessage('logoutFailed');
+            notification.updateError(true);
+            notification.updateShow(true);
+        }
     };
 
     return (
@@ -71,14 +90,16 @@ const Navigation = () => {
                         <Button
                             text={t('button.logout')}
                             additionalClassName="large secondary"
-                            onClick={() => handleLogout()}
+                            onClick={() => void handleLogout()}
                         />
                     </div>
 
                     <div className={styles.version}>
                         <LanguageSelector></LanguageSelector>
 
-                        <span>v {__APP_VERSION__}</span>
+                        <span title={__APP_BUILT_AT__}>
+                            {versionLabel(__APP_VERSION__, __APP_BUILD__)}
+                        </span>
 
                         <Link to={PATHS.CHANGELOG}>{t('changelog')}</Link>
                     </div>

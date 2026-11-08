@@ -6,6 +6,7 @@ import { getInvoice, toCamelCase } from "./_helpers";
 import { query } from "../helper/query";
 import { getAll } from "./settings";
 import { getSingle as getSingleCustomer } from "./customer";
+import { billedCustomer, printsBilledCustomer } from "../helpers/billedCustomer";
 import InvoiceTemplate from "./InvoiceTemplate/InvoiceTemplate";
 import type { PdfIF } from "../types/pdf";
 import i18n from "../i18n";
@@ -119,11 +120,14 @@ export const putSingle = async (request: Request) => {
     }
 
     const settings = settingsData[0];
+    // A paid invoice prints the customer as billed, an open one the customer as it is now
     const {
         success: customerSuccess,
         message: customerMessage,
         data: customer
-    } = await getSingleCustomer(request, invoice.customerId);
+    } = printsBilledCustomer(invoice)
+        ? { success: true, message: undefined, data: [billedCustomer(invoice)] }
+        : await getSingleCustomer(request, invoice.customerId);
 
     // The PDF is addressed to the customer: an invoice without one has none to print
     if (!customerSuccess || !customer?.[0]) {
