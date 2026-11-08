@@ -3,6 +3,7 @@ import { Text, View } from "@react-pdf/renderer";
 import { styles } from "./Styles";
 import i18n from "../../i18n";
 import type { InvoiceIF } from "../../types/invoice";
+import { formatCents, formatPrice, lineCents } from "../../helpers/invoiceTotals";
 
 interface ItemsIF {
     invoice: InvoiceIF;
@@ -31,9 +32,9 @@ const Items = ({ invoice }: ItemsIF) => {
                         <Text style={[styles.name]}>{name}</Text>
                         <Text style={[styles.unit]}>{unit}</Text>
                         <Text style={[styles.quantity]}>{quantity}</Text>
-                        <Text style={[styles.price]}>{Number(price).toFixed(2)}</Text>
+                        <Text style={[styles.price]}>{formatPrice(price)}</Text>
                         <Text style={[styles.total]}>
-                            {(Number(price) * Number(quantity)).toFixed(2)}
+                            {formatCents(lineCents({ price, quantity }))}
                         </Text>
                     </View>
                 );

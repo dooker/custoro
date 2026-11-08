@@ -4,6 +4,7 @@ import { styles } from "./Styles";
 import i18n from "../../i18n";
 import type { SettingsIF } from "../../types/settings";
 import type { InvoiceItemIF } from "../../types/invoice";
+import { formatCents, invoiceTotals } from "../../helpers/invoiceTotals";
 
 interface TotalIF {
     items: InvoiceItemIF[] | undefined;
@@ -20,31 +21,24 @@ const Total = ({
     settings: { pdfDisclaimer },
     offer
 }: TotalIF) => {
-    let total = 0;
-
-    items?.forEach((item) => {
-        const { price, quantity } = item;
-
-        total += Number(price) * Number(quantity);
-    });
-
-    const vat = currentVatNumber ? 0 : (total * vatRate) / 100;
+    // In cents, so the printed lines add up to the net and net plus VAT to the total
+    const { net, vat, total } = invoiceTotals(items, vatRate, Boolean(currentVatNumber));
 
     return (
         <View style={styles.totalContainer} wrap={false}>
             <View style={styles.totalItem}>
                 <Text>{i18n.t("total")}:</Text>
-                <Text>{total.toFixed(2)}</Text>
+                <Text>{formatCents(net)}</Text>
             </View>
             <View style={styles.totalItem}>
                 <Text>
                     {i18n.t("vat")} {vatRate}%:
                 </Text>
-                <Text>{vat.toFixed(2)}</Text>
+                <Text>{formatCents(vat)}</Text>
             </View>
             <View style={[styles.totalItem, styles.bold]}>
                 <Text style={styles.h3}>{i18n.t("toPay")}:</Text>
-                <Text style={styles.h3}>{(total + vat).toFixed(2)}</Text>
+                <Text style={styles.h3}>{formatCents(total)}</Text>
             </View>
 
             {!offer && <Text style={styles.disclaimer}>{pdfDisclaimer}:</Text>}

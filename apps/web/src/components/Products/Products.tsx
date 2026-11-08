@@ -18,6 +18,7 @@ import { useHeadlineHandler } from '../../hooks/useHeadline';
 import { useEffect } from 'react';
 import { useButtonsHandler } from '../../hooks/useButtons';
 import type { HeaderIF } from '../../types/header';
+import { formatPrice } from '../../utils/invoiceTotals';
 
 interface ProductsIF {
     compact?: boolean;
@@ -93,11 +94,11 @@ const Products = ({ compact }: ProductsIF) => {
                         <span>{name}</span>
                     </td>
                     <td onClick={() => handleViewClick(id)} className="items">
-                        {Number(price).toFixed(2)}
+                        {formatPrice(price)}
                     </td>
                     {showDiscount ? (
                         <td onClick={() => handleViewClick(id)} className="items">
-                            {Number(discountPrice).toFixed(2)}
+                            {formatPrice(discountPrice)}
                         </td>
                     ) : (
                         ''

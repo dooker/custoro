@@ -1,0 +1,127 @@
+{
+    "description": "Invoice totals for the PDF (apps/api/helpers/invoiceTotals.ts) and the screen (apps/web/src/utils/invoiceTotals.ts). Amounts are what is printed: lines, net, VAT and total.",
+    "totals": [
+        {
+            "note": "two lines of 1.5 h at 33.33: each 49.995, printed 49.99 + 49.99 with a net of 99.99 before",
+            "items": [
+                { "price": 33.33, "quantity": 1.5 },
+                { "price": 33.33, "quantity": 1.5 }
+            ],
+            "vat": 24,
+            "lines": ["50.00", "50.00"],
+            "net": "100.00",
+            "vatAmount": "24.00",
+            "total": "124.00"
+        },
+        {
+            "note": "net plus VAT is the total: printed 45.11 + 10.83 = 55.93 before",
+            "items": [
+                { "price": 1.07, "quantity": 0.1 },
+                { "price": 45, "quantity": 1 }
+            ],
+            "vat": 24,
+            "lines": ["0.11", "45.00"],
+            "net": "45.11",
+            "vatAmount": "10.83",
+            "total": "55.94"
+        },
+        {
+            "note": "a price with four decimals",
+            "items": [{ "price": 1.2345, "quantity": 10 }],
+            "vat": 24,
+            "lines": ["12.35"],
+            "net": "12.35",
+            "vatAmount": "2.96",
+            "total": "15.31"
+        },
+        {
+            "note": "a foreign VAT number: no VAT",
+            "items": [{ "price": 100, "quantity": 1 }],
+            "vat": 24,
+            "noVat": true,
+            "lines": ["100.00"],
+            "net": "100.00",
+            "vatAmount": "0.00",
+            "total": "100.00"
+        },
+        {
+            "note": "a negative line rounds away from zero",
+            "items": [
+                { "price": -10.005, "quantity": 1 },
+                { "price": 20, "quantity": 1 }
+            ],
+            "vat": 24,
+            "lines": ["-10.01", "20.00"],
+            "net": "9.99",
+            "vatAmount": "2.40",
+            "total": "12.39"
+        },
+        {
+            "note": "an invoice stored with the old 22 % rate",
+            "items": [{ "price": 99.99, "quantity": 1 }],
+            "vat": 22,
+            "lines": ["99.99"],
+            "net": "99.99",
+            "vatAmount": "22.00",
+            "total": "121.99"
+        },
+        {
+            "note": "half a cent of VAT rounds up",
+            "items": [{ "price": 0.5, "quantity": 1 }],
+            "vat": 9,
+            "lines": ["0.50"],
+            "net": "0.50",
+            "vatAmount": "0.05",
+            "total": "0.55"
+        },
+        {
+            "note": "no lines",
+            "items": [],
+            "vat": 24,
+            "lines": [],
+            "net": "0.00",
+            "vatAmount": "0.00",
+            "total": "0.00"
+        },
+        {
+            "note": "a quantity that is empty while it is typed counts as 0",
+            "items": [
+                { "price": 33.33, "quantity": null },
+                { "price": 10, "quantity": "" }
+            ],
+            "vat": 24,
+            "lines": ["0.00", "0.00"],
+            "net": "0.00",
+            "vatAmount": "0.00",
+            "total": "0.00"
+        },
+        {
+            "note": "strings, as a form or the database send them",
+            "items": [{ "price": "33.3300", "quantity": "1.500" }],
+            "vat": "24.00",
+            "lines": ["50.00"],
+            "net": "50.00",
+            "vatAmount": "12.00",
+            "total": "62.00"
+        },
+        {
+            "note": "the largest price stays exact",
+            "items": [{ "price": 99999999.9999, "quantity": 1000 }],
+            "vat": 24,
+            "lines": ["99999999999.90"],
+            "net": "99999999999.90",
+            "vatAmount": "23999999999.98",
+            "total": "123999999999.88"
+        }
+    ],
+    "prices": [
+        { "price": 33.3, "printed": "33.30" },
+        { "price": 1.2345, "printed": "1.2345" },
+        { "price": 1.234, "printed": "1.234" },
+        { "price": 10, "printed": "10.00" },
+        { "price": "33.3300", "printed": "33.33" },
+        { "price": 0.0001, "printed": "0.0001" },
+        { "price": -10.005, "printed": "-10.005" },
+        { "price": null, "printed": "0.00" }
+    ]
+}

@@ -239,6 +239,16 @@ version number, kept in each app's `package.json`. The web app shows this file o
   ("PDF generation failed") and no invoice could be emailed. The two Roboto files are now part of
   the API image (`apps/api/assets/fonts`, Apache License 2.0) and nothing is downloaded. **Rebuild
   the API image**
+- Invoice totals did not always add up. The PDF and the invoice screen added the lines as floating
+  point numbers and rounded only what they printed, so two lines of 1.5 h at 33.33 printed 49.99 +
+  49.99 with a net of 99.99, and 45.11 net + 10.83 VAT printed a total of 55.93. Of 99 000 tried
+  two-line invoices, a quarter printed a total a cent off net plus VAT and half printed lines that
+  did not add up to the net. Now each line is rounded to cents (half away from zero), the net is
+  the sum of the printed lines, the VAT is the net times the rate rounded to cents, and the total
+  is net plus VAT, the same rule in the PDF and on the screen (one list of test cases for both).
+  Unit prices are shown with the decimals they have (up to 4) instead of cut to 2. A PDF made
+  again for an existing invoice, paid ones included, can show a total one cent different from
+  the PDF made before
 - A paid (locked) invoice could still be changed through the API: lines added, removed or given
   another quantity, and its number, date and customer changed. The API refuses that now ("This
   invoice is paid and locked"), checked with the invoice row locked so it cannot be marked as paid
