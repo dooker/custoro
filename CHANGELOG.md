@@ -439,6 +439,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Changed
 
+- Error tracking in the browser can be switched on for the production web image: set
+  `WEB_SENTRY_DSN` in `.env` (the DSN of a browser project in Sentry) and rebuild the web image.
+  Before, the image had no way to take it, so browser errors were never reported. When it is on,
+  a tenth of the page loads are traced in production (all of them were), and screen recordings
+  are only kept of sessions with an error, with text and inputs masked (a tenth of all sessions
+  were recorded). The prebuilt images of a release have it off
 - The customer and product pickers (an invoice's customer, a new invoice line, a worksheet's
   customer and product) search as you type and show the first 20 matches, instead of loading every
   customer and product when the page opens. A list asked for without `page` and `limit` now answers
