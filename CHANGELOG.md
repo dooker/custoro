@@ -7,6 +7,17 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Added
 
+- Production without Docker: every release now also has `custoro-<version>.tar.gz` (the built API
+  and web app, the migrations, the schema for an empty database, an nginx site and a systemd unit)
+  and `custoro.sh`. On a Linux server with Node 24 and nginx, `sudo bash custoro.sh deploy <version>`
+  installs it under `/opt/custoro`; the same command updates it: it dumps the database, stops the
+  API, migrates, switches to the new release and checks that it answers with the new version, and
+  goes back to the previous release by itself if it does not. `rollback`, `status`, `backup` and
+  `create-admin` do what they say. The database can stay where it is (a hosted MariaDB), the app's
+  files and settings live in `/opt/custoro/shared`. Rehearsed on Debian with Node 24 against
+  MariaDB 11.4: a first install on an empty database, an update, a broken update, a rollback and
+  a restore of the dump. Guide: `deploy/server/README.md`; `scripts/build-bundle.sh` builds the
+  bundle from a checkout
 - A user added on the users page gets an email with a link to set their password, valid for 7
   days. Before, the new account had no password and nothing told the user; they had to find
   "Forgot password?" on their own. The email is the password email of the settings page (its

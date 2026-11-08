@@ -15,6 +15,8 @@ apps/api/    Express 5 + TypeScript + MySQL REST API, port 3999
 apps/web/    React + Vite + TypeScript, port 3000; Playwright suites in tests/, texts in public/locales
 docker-compose.yml        dev: MySQL + API + web, ports on 127.0.0.1 only
 docker-compose.prod.yml   production: MySQL + API + nginx
+deploy/server/            production without Docker: custoro.sh, systemd unit, guide (bundle: scripts/build-bundle.sh)
+scripts/mail-catcher.mjs  the dev stack's `mail` service: catches every email (http://localhost:8025/messages)
 ```
 
 Request flow: **route -> service -> helper**. A route holds no SQL and no business rules, a service holds both, helpers are small and generic. The API answers refusals with HTTP 200 and `{ success: false, message: "<key>" }`, where the key is a text under `notification` in `apps/web/public/locales/{en,et,fun}.json`.

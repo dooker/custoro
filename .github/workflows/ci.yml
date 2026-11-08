@@ -130,6 +130,20 @@ jobs:
             - name: Run the migrations
               run: docker compose -f docker-compose.prod.yml --profile migrate run --rm migrate
 
+            # The release bundle for servers without Docker builds, with the paths of a server
+            - name: Server bundle
+              run: |
+                  set -euo pipefail
+                  scripts/build-bundle.sh "$RUNNER_TEMP/bundle"
+                  bundle=$(ls "$RUNNER_TEMP"/bundle/custoro-*.tar.gz)
+                  files=$(tar -tzf "$bundle")
+                  for wanted in VERSION api/dist/index.js api/scripts/migrate.js api/migrations/ \
+                      api/assets/fonts/Roboto-Regular.ttf db/01-schema.sql web/index.html \
+                      deploy/custoro.sh deploy/custoro-api.service deploy/nginx/custoro-site.conf; do
+                      echo "$files" | grep -q "^custoro-[^/]*/$wanted" ||
+                          { echo "the bundle lacks $wanted" >&2; exit 1; }
+                  done
+
             - name: Smoke test through nginx
               run: |
                   set -euo pipefail

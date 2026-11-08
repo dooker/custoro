@@ -64,6 +64,15 @@ The first time the database volume is created, MySQL loads the schema, the seed 
 
 Log in with the demo accounts in [apps/api/db/demo/demo-logins.md](apps/api/db/demo/demo-logins.md).
 
+## Production without Docker
+
+A server with Node 24, nginx and SSH access can run Custoro without Docker: every release has a
+bundle (`custoro-<version>.tar.gz`, the built API and web app with the migrations) and
+`custoro.sh`, which installs it, updates it (database backup, migrations, health check, automatic
+way back) and rolls it back. The database can stay where it is, a hosted MariaDB for example. See
+[deploy/server/README.md](deploy/server/README.md). `scripts/build-bundle.sh` builds the bundle
+from a checkout (with Docker, so it needs no Node 24 on that machine).
+
 ## Production (Docker)
 
 ```bash
