@@ -259,6 +259,14 @@ jobs:
                   cache: npm
                   cache-dependency-path: apps/web/package-lock.json
 
+            # Before the stack: the web container mounts apps/web with its own node_modules volume,
+            # and Docker would create apps/web/node_modules for it as root (npm ci: EACCES)
+            - name: Install dependencies and Chromium
+              working-directory: apps/web
+              run: |
+                  npm ci
+                  npx playwright install --with-deps chromium
+
             - name: Start the dev stack (MySQL with the demo data, the API, the web app)
               run: |
                   docker compose up -d --build --wait db api web
@@ -269,12 +277,6 @@ jobs:
                   done
                   echo "the API or the web app did not answer" >&2
                   exit 1
-
-            - name: Install dependencies and Chromium
-              working-directory: apps/web
-              run: |
-                  npm ci
-                  npx playwright install --with-deps chromium
 
             # The demo logins of the dev database (apps/api/db/demo/demo-logins.md), public on purpose
             - name: Test settings
