@@ -224,4 +224,28 @@ test.describe('password links', () => {
             await json(put(request, '/login/token', { token, password: 'accent pass 1' }))
         ).toEqual({ success: false, message: 'noToken' });
     });
+
+    test('an email typed with spaces is stored without them and logs in', async ({ request }) => {
+        const email = `spaced-${tag()}@example.test`;
+        const { result, token } = await nextPasswordLink(request, email, () =>
+            json(
+                post(
+                    request,
+                    '/user',
+                    {
+                        name: 'Reset test',
+                        username: `  ${email}\t`,
+                        discount: '0',
+                        offer: '0',
+                        role: 'user',
+                    },
+                    adminToken
+                )
+            )
+        );
+
+        expect(result.success).toBe(true);
+        await put(request, '/login/token', { token, password: 'spaced pass 1' });
+        expect((await login(request, email, 'spaced pass 1')).success).toBe(true);
+    });
 });

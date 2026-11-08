@@ -53,7 +53,8 @@ export const worksheetInput = { customer_id: rowId({ required: true }), ...works
 
 export const userInput = {
     name: text(100, { empty: null }),
-    username: text(254, { required: true, notBlank: true }),
+    // Trimmed like the login and the profile do: " ann@…" could never log in
+    username: text(254, { required: true, notBlank: true, trim: true }),
     discount: whole({ min: -128, max: 127 }),
     offer: whole({ min: -128, max: 127 }),
     role: oneOf(userRoles, { required: true })

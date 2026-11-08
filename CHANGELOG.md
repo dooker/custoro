@@ -293,6 +293,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- An account whose email was saved on the users page with spaces around it (`" ann@…"`) could
+  never log in or get a reset email: the login looks the address up without them. The users page
+  now stores it without spaces, and a new migration trims the accounts saved before; it stops with
+  a list if a trimmed address belongs to another account. **Existing databases must run the new
+  migration** (`20261108100000-trim-usernames`)
 - A user whose email has an apostrophe or an ampersand (`o'brien@…`, `sales&co@…`) could never
   log in or get a reset email: the login and the forgot-password form escaped the address
   before looking it up (`o\'brien@…`), so no account matched. The address is now looked up as
