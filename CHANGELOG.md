@@ -124,7 +124,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
   (`/restore/<token>`) and public invoice link (`/pdf/<hash>`) in full, in the request and in the
   Referer of the API calls those pages make. Anyone who could read the server's logs could set a
   password with a link that was still open, or open any invoice. The log now writes those parts
-  as `[hidden]`. **Rebuild the web image**; logs written before still hold the links, so remove
+  as `[hidden]`, also in the variants the app answers (`/RESTORE/`, `//pdf/`, `/api/%70df/`), and
+  hides any run of 32 or more hex digits wherever it stands. **Rebuild the web image**; logs written before still hold the links, so remove
   them (`docker compose -f docker-compose.prod.yml rm -sf web`, then `up -d`) if others can read
   them
 - Removing a user's picture or the logo deleted the file whose name was stored in the database,

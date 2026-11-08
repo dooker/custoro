@@ -169,8 +169,12 @@ jobs:
                   token=$(printf 'c%.0s' $(seq 1 64))
                   hash=0123456789abcdef0123456789abcdef
                   curl -fsS -o /dev/null "http://localhost/restore/$token"
-                  curl -sS -o /dev/null "http://localhost/api/pdf/$hash"
-                  curl -sS -o /dev/null -H "Referer: http://localhost/restore/$token" \
+                  # and the variants the app also answers: case, extra slashes, encoded path
+                  for path in "/RESTORE/$token" "//restore/$token" "/api/pdf/$hash" \
+                      "/api/PDF/$hash" "/api//pdf/$hash" "/api/%70df/$hash"; do
+                      curl -sS -o /dev/null "http://localhost$path"
+                  done
+                  curl -sS -o /dev/null -H "Referer: http://localhost/RESTORE/$token" \
                       -H 'Content-Type: application/json' -d "{\"token\":\"$token\"}" \
                       http://localhost/api/login/token
                   sleep 1
