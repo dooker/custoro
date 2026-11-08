@@ -9,16 +9,21 @@ import {
 import type { InvoiceLineAmounts } from "../helpers/invoiceTotals";
 import { pdfTranslator } from "./pdf";
 
-// Invoices only, never offers. The customer as billed for a paid invoice (the copy taken when it
-// was marked as paid), the customer as it is now for an open one: what its PDF prints.
+// Invoices only, never offers. What the PDF prints (helpers/billedCustomer.ts): a paid invoice
+// its own copy of the customer, an empty field of the copy included, and an open one the
+// customer as it is now. A copied field that is NULL must not fall back to today's customer:
+// a VAT number added later would take the VAT off an invoice that was billed with VAT.
+const billed = "invoices.locked = 1 AND invoices.customer_id IS NOT NULL";
 const invoicesSql = `
     SELECT invoices.id,
            invoices.number,
            invoices.invoice_date AS invoiceDate,
-           COALESCE(invoices.customer_name, customers.name) AS customerName,
-           COALESCE(invoices.customer_reg_number, customers.reg_number) AS regNumber,
-           COALESCE(invoices.customer_vat_number, customers.vat_number) AS vatNumber,
-           COALESCE(invoices.customer_payment_period, customers.payment_period) AS paymentPeriod,
+           IF(${billed}, COALESCE(invoices.customer_name, ''), customers.name) AS customerName,
+           IF(${billed}, COALESCE(invoices.customer_reg_number, ''), customers.reg_number) AS regNumber,
+           IF(${billed}, COALESCE(invoices.customer_vat_number, ''), customers.vat_number) AS vatNumber,
+           IF(${billed},
+              COALESCE(invoices.customer_payment_period, invoices.payment_period, 14),
+              customers.payment_period) AS paymentPeriod,
            invoices.vat,
            invoices.locked,
            invoices.sent_date AS sentDate

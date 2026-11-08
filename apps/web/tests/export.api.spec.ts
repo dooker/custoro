@@ -103,4 +103,58 @@ test.describe('invoice export', () => {
             await (await exportCsv(request, 'from=2025-01-01&to=2026-06-30', token)).json()
         ).toEqual({ success: false, message: 'export.rangeTooLong' });
     });
+
+    test('a paid invoice is exported with its customer as billed, empty fields too', async ({
+        request,
+    }) => {
+        const token = await getApiToken(request);
+        const send = async (method: 'post' | 'put', path: string, data: object) =>
+            (
+                await request[method](`${apiUrl}${path}`, { headers: apiHeaders(token), data })
+            ).json();
+        const tag = Date.now().toString(36);
+        // Billed without a VAT number: the PDF of the paid invoice charges VAT
+        const customer = await send('post', '/customer', {
+            name: `Billed ${tag}`,
+            paymentPeriod: 7,
+        });
+        const product = await send('post', '/product', {
+            code: `B-${tag}`,
+            name: `Billed hour ${tag}`,
+            price: '100',
+            discountPrice: '100',
+            unit: 'hour',
+        });
+        const invoice = await send('post', '/invoice', {
+            customerId: customer.insertId,
+            items: [{ productId: product.insertId, quantity: 1 }],
+        });
+
+        expect((await send('put', `/invoice/paid/${invoice.lastId}`, {})).success).toBe(true);
+        // Later the customer gets a foreign VAT number and another payment period
+        expect(
+            (
+                await send('put', `/customer/${customer.insertId}`, {
+                    name: `Renamed ${tag}`,
+                    vatNumber: 'DE123456789',
+                    paymentPeriod: 30,
+                })
+            ).success
+        ).toBe(true);
+
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        const [, ...lines] = rows(
+            await (await exportCsv(request, `from=${yesterday}&to=${tomorrow}`, token)).text()
+        );
+        const line = lines.find(([, , , name]) => name === `Billed ${tag}`);
+
+        // As billed: the old name, no VAT number, so 24 % VAT, and the 7-day period
+        expect(line?.[5]).toBe('');
+        expect(line?.slice(6, 10)).toEqual(['100,00', '24', '24,00', '124,00']);
+        expect(line?.[10]).toBe('yes');
+        expect(Number(new Date(line?.[2] ?? '')) - Number(new Date(line?.[1] ?? ''))).toBe(
+            7 * 86400000
+        );
+    });
 });
