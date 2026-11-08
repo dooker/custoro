@@ -11,6 +11,8 @@ Group=@USER@
 # The current release; it reads .env.production from here (a link to shared/)
 WorkingDirectory=@HOME@/current/api
 Environment=NODE_ENV=production
+# Only nginx on this machine reaches the API: no way past it to forge X-Forwarded-For
+Environment=SERVICE_HOST=127.0.0.1
 EnvironmentFile=-@HOME@/current/api/build-info.env
 ExecStart=@NODE@ dist/index.js
 Restart=on-failure

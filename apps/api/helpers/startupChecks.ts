@@ -46,3 +46,10 @@ export const mailKeyWarning = (key: string | undefined, production: boolean) =>
     production && !key?.trim()
         ? "MAIL_SETTINGS_KEY is not set: the mail server password saved on the settings page is stored as plain text in the storage folder and its backups. Set it (openssl rand -hex 32) and restart; a saved password is then encrypted."
         : null;
+
+/**
+ * The address the API listens on: SERVICE_HOST, or every interface when it is unset. Docker needs
+ * every interface (nginx reaches the API over the Docker network); a server without Docker sets
+ * 127.0.0.1 (deploy/server), so nobody reaches the API past nginx and forges X-Forwarded-For.
+ */
+export const serviceHost = (value: string | undefined) => value?.trim() || undefined;

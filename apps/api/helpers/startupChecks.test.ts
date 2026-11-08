@@ -3,6 +3,7 @@ import {
     jwtSecretProblem,
     mailKeyProblem,
     mailKeyWarning,
+    serviceHost,
     trustProxyWarning
 } from "./startupChecks";
 
@@ -68,5 +69,17 @@ describe("mailKeyWarning", () => {
     it("is quiet with a key, or in development", () => {
         expect(mailKeyWarning("a".repeat(64), true)).toBeNull();
         expect(mailKeyWarning(undefined, false)).toBeNull();
+    });
+});
+
+describe("serviceHost", () => {
+    it("listens where SERVICE_HOST says", () => {
+        expect(serviceHost("127.0.0.1")).toBe("127.0.0.1");
+        expect(serviceHost(" ::1 ")).toBe("::1");
+    });
+
+    it("listens on every address when it is unset, as Docker needs", () => {
+        expect(serviceHost(undefined)).toBeUndefined();
+        expect(serviceHost("")).toBeUndefined();
     });
 });

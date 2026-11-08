@@ -14,7 +14,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
   API, migrates, switches to the new release and checks that it answers with the new version, and
   goes back to the previous release by itself if it does not. `rollback`, `status`, `backup` and
   `create-admin` do what they say. The database can stay where it is (a hosted MariaDB), the app's
-  files and settings live in `/opt/custoro/shared`. Rehearsed on Debian with Node 24 against
+  files and settings live in `/opt/custoro/shared`. The API listens on 127.0.0.1 only there (new
+  setting `SERVICE_HOST`; Docker leaves it unset), so nobody reaches it past nginx. Rehearsed on Debian with Node 24 against
   MariaDB 11.4: a first install on an empty database, an update, a broken update, a rollback and
   a restore of the dump. Guide: `deploy/server/README.md`; `scripts/build-bundle.sh` builds the
   bundle from a checkout

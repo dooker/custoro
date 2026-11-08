@@ -47,6 +47,7 @@ import {
     jwtSecretProblem,
     mailKeyProblem,
     mailKeyWarning,
+    serviceHost,
     trustProxyWarning
 } from "./helpers/startupChecks";
 import { encryptSavedMailPassword } from "./services/settings";
@@ -198,9 +199,13 @@ Sentry.setupExpressErrorHandler(app);
 // Custom Error handler
 app.use(errorHandler);
 
-const server = app.listen(servicePort, () => {
-    console.log(`Server listening on port ${servicePort}`);
-});
+// SERVICE_HOST=127.0.0.1 without Docker: only nginx on the same machine reaches the API
+const host = serviceHost(process.env.SERVICE_HOST);
+const listening = () =>
+    console.log(`Server listening on ${host ?? "every address"}, port ${servicePort}`);
+const server = host
+    ? app.listen(Number(servicePort), host, listening)
+    : app.listen(servicePort, listening);
 
 // A stop from Docker or Ctrl+C lets the running requests finish before the process ends
 const shutdown = createShutdown({
