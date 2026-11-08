@@ -102,11 +102,17 @@ Every update dumps the database first. For a daily dump, as root (`sudo crontab 
 0 3 * * * /opt/custoro/current/deploy/custoro.sh backup >/dev/null
 ```
 
-Copy `/opt/custoro/backups/` and `/opt/custoro/shared/` (pictures, invoice PDFs, mail settings)
-somewhere else regularly: a backup on the same disk is lost with it. They hold customer data and
-password hashes: keep them private. `.env.production` holds the secrets, `MAIL_SETTINGS_KEY` among
-them: keep a copy too, but not next to the backups (with the key set, the mail password in
-`shared/storage` is encrypted, and a backup without the key cannot reveal it).
+Copy the database dumps (`/opt/custoro/backups/`) and the app's files (`/opt/custoro/shared/uploads`
+and `/opt/custoro/shared/storage`: pictures, invoice PDFs, mail settings) somewhere else regularly: a
+backup on the same disk is lost with it. They hold customer data and password hashes: keep them
+private. **Leave `shared/.env.production` out of that copy**: it holds the secrets, `MAIL_SETTINGS_KEY`
+among them, and the mail password in `shared/storage` is only safe in a backup that does not also
+hold its key. Keep a copy of `.env.production` somewhere else (a password manager, for example).
+
+```bash
+# for example, to another machine; never the whole shared/ folder
+rsync -a /opt/custoro/backups /opt/custoro/shared/uploads /opt/custoro/shared/storage backup-host:custoro/
+```
 
 To restore a dump (stop the API first; everything written since the dump is lost):
 
