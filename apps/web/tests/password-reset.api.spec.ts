@@ -187,4 +187,19 @@ test.describe('password links', () => {
             success: true,
         });
     });
+
+    test('an email with an apostrophe or & logs in and gets reset links', async ({ request }) => {
+        for (const email of [`o'brien-${tag()}@example.test`, `sales&co-${tag()}@example.test`]) {
+            await userWithPassword(request, email, 'quote password 1');
+
+            expect((await login(request, email, 'quote password 1')).success, email).toBe(true);
+
+            const { token } = await nextPasswordLink(request, email, () => forgot(request, email));
+
+            expect(
+                await json(put(request, '/login/token', { token, password: 'quote pass 2' }))
+            ).toEqual({ success: true });
+            expect((await login(request, email, 'quote pass 2')).success, email).toBe(true);
+        }
+    });
 });

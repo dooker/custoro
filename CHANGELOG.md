@@ -263,6 +263,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- A user whose email has an apostrophe or an ampersand (`o'brien@…`, `sales&co@…`) could never
+  log in or get a reset email: the login and the forgot-password form escaped the address
+  before looking it up (`o\'brien@…`), so no account matched. The address is now looked up as
+  typed, only without surrounding spaces
 - Invoice PDFs downloaded their font from Google (`fonts.gstatic.com`) whenever the API started,
   so a server that cannot reach Google, or a day the address moved, made no invoice PDF at all
   ("PDF generation failed") and no invoice could be emailed. The two Roboto files are now part of

@@ -7,7 +7,7 @@ import {
     getToken as getUserToken,
     putToken as putUserToken
 } from "../services/profile";
-import { sanitize } from "../helper";
+import { loginName } from "../helpers/credentials";
 
 const router = Router();
 
@@ -30,7 +30,7 @@ router.post("/logout", authenticate, authorize(["admin", "user"]), async (req, r
 
 // reset password email submit
 router.post("/forgot", async (req, res) => {
-    res.json(await forgotUser(String(sanitize(req.body?.username)), req));
+    res.json(await forgotUser(loginName(req.body?.username), req));
 });
 
 // check if token exists

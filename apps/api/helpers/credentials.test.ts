@@ -10,6 +10,7 @@ import {
     isValidNewPassword,
     verifyPassword,
     loginFailedMessage,
+    loginName,
     missingInfoMessage,
     type CredentialsDepsIF,
     type LoginUserIF
@@ -155,12 +156,12 @@ describe("checkCredentials", () => {
         expect(unknown).toEqual(wrong);
     });
 
-    it("sanitizes the username before the lookup", async () => {
+    it("looks the username up as typed, only trimmed", async () => {
         const deps = fakeDeps();
 
-        await checkCredentials("<b>user</b>@example.test", "secret", deps);
+        await checkCredentials("  o'brien&co@example.test ", "secret", deps);
 
-        expect(deps.findUser).toHaveBeenCalledWith("&lt;b&gt;user&lt;/b&gt;@example.test");
+        expect(deps.findUser).toHaveBeenCalledWith("o'brien&co@example.test");
     });
 });
 
@@ -294,5 +295,18 @@ describe("resolveSession", () => {
 
         expect(await resolveSession(payload, findUser)).toBeNull();
         expect(findUser).not.toHaveBeenCalled();
+    });
+});
+
+describe("loginName", () => {
+    it("trims a string and leaves quotes and & alone", () => {
+        expect(loginName(" o'brien@example.test ")).toBe("o'brien@example.test");
+        expect(loginName('a"b&c<d>@example.test')).toBe('a"b&c<d>@example.test');
+    });
+
+    it("gives an empty name for anything that is not text", () => {
+        expect(loginName(undefined)).toBe("");
+        expect(loginName({ $ne: "" })).toBe("");
+        expect(loginName(["a@example.test"])).toBe("");
     });
 });

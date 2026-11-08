@@ -3,7 +3,6 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { sanitize } from "../helper";
 import { tooManyAttemptsMessage } from "./rateLimit";
 
 export interface LoginUserIF {
@@ -115,19 +114,25 @@ export const resolveSession = async (
 // starts, from random bytes that are never stored, so no typed password can match it.
 const timingHash = bcrypt.hash(crypto.randomBytes(32).toString("hex"), saltRounds);
 
+/** The login email as typed: trimmed, never escaped (users.username ignores case itself) */
+export const loginName = (value: unknown): string =>
+    typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
+
 export const checkCredentials = async (
     rawUsername: string | number | undefined,
     rawPassword: string | number | undefined,
     deps: CredentialsDepsIF
 ): Promise<LoginResultIF> => {
-    const username = sanitize(rawUsername ?? "");
+    // As typed, only trimmed: it reaches SQL as a parameter, and escaping it (as before) turned
+    // o'brien@example.com into o\'brien@example.com, which no account has
+    const username = loginName(rawUsername);
     const password = rawPassword === undefined ? "" : String(rawPassword);
 
     if (!username || !password) {
         return { success: false, message: missingInfoMessage };
     }
 
-    const { success, user } = await deps.findUser(String(username));
+    const { success, user } = await deps.findUser(username);
     const retryAfter = deps.retryAfterSeconds?.(success ? user : undefined) ?? 0;
 
     if (retryAfter > 0) {
