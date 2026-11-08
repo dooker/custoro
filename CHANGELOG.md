@@ -234,6 +234,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- Invoice PDFs downloaded their font from Google (`fonts.gstatic.com`) whenever the API started,
+  so a server that cannot reach Google, or a day the address moved, made no invoice PDF at all
+  ("PDF generation failed") and no invoice could be emailed. The two Roboto files are now part of
+  the API image (`apps/api/assets/fonts`, Apache License 2.0) and nothing is downloaded. **Rebuild
+  the API image**
 - A paid (locked) invoice could still be changed through the API: lines added, removed or given
   another quantity, and its number, date and customer changed. The API refuses that now ("This
   invoice is paid and locked"), checked with the invoice row locked so it cannot be marked as paid

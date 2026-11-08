@@ -1,5 +1,7 @@
+import path from "node:path";
 import React from "react";
 import { Font, View } from "@react-pdf/renderer";
+import { fontDir } from "../../config/paths";
 import Footer from "./Footer";
 import Total from "./Total";
 import Items from "./Items";
@@ -8,16 +10,13 @@ import type { InvoiceTemplateProps } from "../../types/pdf";
 import { styles } from "./Styles";
 import { isForeignVatNumber } from "../../helpers/foreignVatNumber";
 
+// From the image, never from the internet: a download at runtime meant no PDF at all on a server
+// that cannot reach Google (assets/fonts/README.md)
 Font.register({
     family: "Roboto",
     fonts: [
-        {
-            src: "https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf"
-        },
-        {
-            src: "https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf",
-            fontWeight: "bold"
-        }
+        { src: path.join(fontDir, "Roboto-Regular.ttf") },
+        { src: path.join(fontDir, "Roboto-Bold.ttf"), fontWeight: "bold" }
     ]
 });
 
