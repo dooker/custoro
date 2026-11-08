@@ -19,6 +19,11 @@ version number, kept in each app's `package.json`. The web app shows this file o
   VAT for a foreign VAT number, the customer as billed for a paid invoice); offers are left out.
   Semicolons and a decimal comma, as a spreadsheet set to Estonian expects; a customer name that
   starts like a formula (`=`, `+`, `-`, `@`) is written so that the spreadsheet does not run it
+- A browser test of the main journey (`apps/web/tests/journey.spec.ts`): a new customer on the
+  customer form, a worksheet for them, the worksheet billed on a new invoice, the totals on the
+  screen, the PDF and its public link, marking it as paid, and the accountant's export. CI now
+  runs it with the other Chromium tests (login, products, VAT) in a new `browser-tests` job; until
+  now no browser test ran in CI
 - Every image knows which build it is. `scripts/docker-build.sh` (`npm run docker:build`, also used
   by `npm run docker:prod`) builds the production images with the git commit and the build time:
   `GET /api/` answers `{version, build, builtAt}`, the sidebar shows "v 5.0.0-rc.1 · 38bdbcb" (the

@@ -28,7 +28,7 @@ The repo is `dooker/custoro`, default branch `main`, PRs are squash-merged (the 
 | `web`    | in `apps/web`: `npm ci`, `npx prettier --check "src/**/*.{ts,tsx,css,md}"`, `npm run lint`, `npm run type-check`, `npx vitest run`, `npm run build`    |
 | `docker` | `docker compose -f docker-compose.prod.yml build` with `DB_ROOT_PASSWORD`, `DB_USERNAME`, `DB_PASSWORD`, `APP_ORIGIN`, `JWT_SECRET`, `TRUST_PROXY` set |
 
-Playwright is not run in CI; run the `api` project yourself. Run the checks in containers on this machine (host Node 22): see `custoro-dev-stack` (`references/containers.md`). The web lint has about 30 old warnings and must have 0 errors.
+CI also runs the Playwright `api` and `chromium` projects (jobs `api-tests`, `browser-tests`); run them yourself before pushing. Run the checks in containers on this machine (host Node 22): see `custoro-dev-stack` (`references/containers.md`). The web lint has about 30 old warnings and must have 0 errors.
 
 **The docker job needs every variable the prod compose file requires.** `docker-compose.prod.yml` uses `${VAR:?message}` for variables with no safe default; CI sets dummy values under `env:` of the `docker` job. A new required variable that is missing there fails the job (PR 5 broke it with `TRUST_PROXY`). When you add one to the compose file, add it to `ci.yml` in the same commit. Reproduce without building:
 

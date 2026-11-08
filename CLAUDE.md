@@ -53,10 +53,12 @@ npx prettier --check . && npx eslint . && npm run type-check && npx vitest run &
 npx prettier --check "src/**/*.{ts,tsx,css,md}" && npm run lint && npm run type-check && npx vitest run && npm run build
 ```
 
-Playwright `api` project (no browser; needs the dev stack and `apps/web/.env`, see the dev-stack skill):
+Playwright, both in CI (jobs `api-tests` and `browser-tests`); they need the dev stack (`web` too for
+Chromium) and `apps/web/.env`, see the dev-stack skill. They create data: dev database only.
 
 ```bash
-cd apps/web && npx playwright test --project=api --workers=1
+cd apps/web && npx playwright test --project=api --workers=1        # no browser
+cd apps/web && npx playwright test --project=chromium --workers=1   # incl. journey.spec.ts
 ```
 
 ## Skills (`.claude/skills/`)
