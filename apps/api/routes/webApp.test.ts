@@ -126,6 +126,24 @@ describe("webApp", () => {
         expect(answer.headers.get("strict-transport-security")).toBeNull();
     });
 
+    it("serves the app from an install under a dot folder (~/.apps/custoro)", async () => {
+        const dotted = path.join(webDir, ".apps", "web");
+        fs.mkdirSync(dotted, { recursive: true });
+        fs.writeFileSync(path.join(dotted, "index.html"), "<title>Dotted</title>");
+        const app = express();
+        app.use(webApp(dotted, { hsts: false }));
+        const listening = await new Promise<Server>((resolve) => {
+            const started = app.listen(0, "127.0.0.1", () => resolve(started));
+        });
+        const { port } = listening.address() as AddressInfo;
+        const answer = await fetch(`http://127.0.0.1:${port}/invoices/12`);
+        const text = await answer.text();
+        await new Promise((resolve) => listening.close(resolve));
+
+        expect(answer.status).toBe(200);
+        expect(text).toContain("Dotted");
+    });
+
     it("refuses to start without a built app", () => {
         expect(() => webApp(path.join(webDir, "missing"), { hsts: true })).toThrow(/index\.html/);
     });

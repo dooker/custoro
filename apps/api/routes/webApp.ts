@@ -84,7 +84,9 @@ export const webApp = (webDir: string, { hsts }: { hsts: boolean }): RequestHand
             }
 
             setAppHeaders(res, revalidate);
-            res.sendFile(indexFile, { cacheControl: false }, (err) => {
+            // Relative to the build: an absolute path would be refused when any folder above it
+            // starts with a dot (an install in ~/.apps/custoro)
+            res.sendFile("index.html", { root: webDir, cacheControl: false }, (err) => {
                 if (err && !res.headersSent) res.sendStatus(500);
             });
         });
