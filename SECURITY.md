@@ -2,8 +2,10 @@
 
 ## Status
 
-Custoro is **not production ready**. It has known, unresolved security issues that are being fixed in the open.
-Do not deploy it with real data until the warning in the [README](README.md) has been removed.
+Custoro 5.0.0 is in **release candidates** (`5.0.0-rc.N`) before its first production use. The
+findings of the 2026 security reviews are fixed; no security issue is known to be open. What is open
+by design (for example, logging out ends the sessions on every device) is listed with the review
+skill in `.claude/skills/custoro-security-review/references/known-open.md`.
 
 ## Reporting a vulnerability
 
@@ -17,4 +19,5 @@ You can expect an acknowledgement within a few days.
 
 ## Supported versions
 
-Only the latest `main` branch receives fixes.
+Fixes go to `main` and into the next release; only the newest release (or release candidate)
+receives them.

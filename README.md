@@ -2,9 +2,10 @@
 
 Self-hostable invoicing and worksheet app: customers, products, worksheets, invoices with PDF generation and email sending.
 
-> [!WARNING]
-> **Not production ready.** The codebase has known, unresolved security issues and is being hardened in the open.
-> Do not deploy it or use it with real data until this notice is removed.
+> [!NOTE]
+> **Release candidate.** Custoro 5.0.0 is in release candidates (`5.0.0-rc.N`) before its first
+> production use. The security reviews of 2026 are fixed and none is known to be open
+> ([SECURITY.md](SECURITY.md)). Take backups, and report problems as described there.
 
 ## Repository layout
 
