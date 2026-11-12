@@ -115,6 +115,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Security
 
+- `@sentry/node` and `@sentry/profiling-node` 11.12: the API no longer ships `glob` 13 and
+  `minimatch` 10 (GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249, both medium; Sentry used them with its
+  own patterns, not with request input). The `minimatch` 10 left is in eslint, typescript-eslint
+  and nodemon, development tools only
 - The mail server password saved on the admin settings page can be stored encrypted. It was plain
   text in `storage/mail-settings.json`, so every backup of the storage folder held it. With the
   new setting `MAIL_SETTINGS_KEY` (`openssl rand -hex 32`, in `.env` or `.env.production`) it is
