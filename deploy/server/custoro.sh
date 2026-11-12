@@ -554,7 +554,8 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
             ;;
         create-admin) create_admin "$@" ;;
         *)
-            sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+            # The header up to its Layout part: what the script does and its commands
+            sed -n '2,/^# Layout/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'
             exit 1
             ;;
     esac
