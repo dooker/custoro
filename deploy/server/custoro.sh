@@ -1,29 +1,50 @@
 #!/usr/bin/env bash
 # Installs and updates Custoro on a Linux server without Docker (see README.md next to this file).
-# Run as root. It needs Node 24 (node and npm), systemd, curl and tar, nginx in front, and the
-# MariaDB (or MySQL) client for the database backup and a first install.
+# It needs Node 24 (node and npm), curl and tar, and the MariaDB (or MySQL) client for the
+# database backup and a first install. Two ways to run the API:
+#   systemd (as root): a systemd service, nginx in front, in /opt/custoro
+#   pm2 (as the hosting account, no root): a PM2 app that serves the web app too, in ~/custoro,
+#     for a web host that forwards the domain to one port (Zone.ee); chosen when not run as root
+#     and pm2 is installed, or with CUSTORO_RUNNER=pm2
 #
-#   custoro.sh deploy <version | bundle.tar.gz> [--no-backup]   install or update: deploy 5.0.0
+#   custoro.sh deploy <latest | version | bundle.tar.gz> [--no-backup]   install or update
 #   custoro.sh rollback                    back to the release before the current one
 #   custoro.sh status                      which release runs, and does it answer
-#   custoro.sh backup                      dump the database into /opt/custoro/backups
+#   custoro.sh backup                      dump the database into backups/
 #   custoro.sh create-admin <email> [--reset] [--name "Full Name"]   the first admin, or back in
 #
-# Layout (CUSTORO_HOME, default /opt/custoro):
+# Layout (CUSTORO_HOME, default /opt/custoro, or ~/custoro with pm2):
 #   releases/<version>/{api,web,db,deploy}   one folder per release, owned by root
 #   current -> releases/<version>            what runs; previous -> the one before
 #   shared/.env.production                   the settings (secrets), kept across releases
 #   shared/uploads, shared/storage           pictures, invoice PDFs, mail settings
 #   backups/                                 database dumps taken before each update
+#   pm2.json                                 pm2 only: the PM2 app, rewritten by every deploy
 #
 # An update: unpack, npm ci, dump the database, stop the API, migrate, switch `current`, start,
 # check that GET / answers the new version. If it does not, `current` goes back and the old API
 # starts again; the dump is the way back for the database (the command is shown).
 set -euo pipefail
 
-home=${CUSTORO_HOME:-/opt/custoro}
+runner=${CUSTORO_RUNNER:-}
+if [ -z "$runner" ]; then
+    if [ "$(id -u)" != 0 ] && command -v pm2 >/dev/null; then runner=pm2; else runner=systemd; fi
+fi
+case "$runner" in
+    systemd)
+        home=${CUSTORO_HOME:-/opt/custoro}
+        service=${CUSTORO_SERVICE:-custoro-api}
+        ;;
+    pm2)
+        home=${CUSTORO_HOME:-$HOME/custoro}
+        service=${CUSTORO_SERVICE:-custoro}
+        ;;
+    *)
+        printf 'custoro: CUSTORO_RUNNER is systemd or pm2, not %s\n' "$runner" >&2
+        exit 1
+        ;;
+esac
 repo=${CUSTORO_REPO:-dooker/custoro}
-service=${CUSTORO_SERVICE:-custoro-api}
 run_user=${CUSTORO_USER:-custoro}
 keep_releases=3
 tmp=""
@@ -33,7 +54,15 @@ trap 'rm -rf "$tmp"; [ -z "$options" ] || rm -f "$options"' EXIT
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 fail() { printf 'custoro: %s\n' "$*" >&2; exit 1; }
 
-need_root() { [ "$(id -u)" = 0 ] || fail "run this as root: sudo $0 $*"; }
+# systemd needs root; with pm2 everything belongs to the account that runs it
+need_root() {
+    [ "$runner" = pm2 ] || [ "$(id -u)" = 0 ] || fail "run this as root: sudo $0 $*"
+}
+
+# Where the API's log is
+log_hint() {
+    if [ "$runner" = pm2 ]; then echo "pm2 logs $service --lines 50"; else echo "journalctl -u $service -n 50"; fi
+}
 
 need_node() {
     command -v node >/dev/null && command -v npm >/dev/null ||
@@ -54,6 +83,20 @@ api_port() {
     local port
     port=$(setting "$1" SERVICE_PORT)
     echo "${port:-3999}"
+}
+
+# The address the API answers on: systemd sets 127.0.0.1; a web host may give the account its own
+# loopback address (Zone.ee: SERVICE_HOST in .env.production)
+api_url() {
+    local host="127.0.0.1"
+    if [ "$runner" = pm2 ]; then
+        host=$(setting "$1" SERVICE_HOST)
+        host=${host:-127.0.0.1}
+        # With pm2 the API serves the web app at / and itself under /api (routes/webApp.ts)
+        echo "http://$host:$(api_port "$1")/api/"
+    else
+        echo "http://$host:$(api_port "$1")/"
+    fi
 }
 
 client() { command -v "$1" 2>/dev/null || command -v "$2" 2>/dev/null || true; }
@@ -85,6 +128,10 @@ write_client_options() {
 
 setup_once() {
     local bundle=$1
+    if [ "$runner" = pm2 ]; then
+        setup_once_pm2 "$bundle"
+        return
+    fi
     id "$run_user" >/dev/null 2>&1 ||
         useradd --system --home-dir "$home" --no-create-home --shell /usr/sbin/nologin "$run_user"
     mkdir -p "$home/releases" "$home/backups" "$home/shared/uploads" "$home/shared/storage/pdf"
@@ -112,6 +159,79 @@ setup_once() {
         systemctl daemon-reload
         systemctl enable "$service" >/dev/null 2>&1 || true
     fi
+}
+
+# pm2: the account that runs this owns everything; only it may read the settings and the dumps
+setup_once_pm2() {
+    local bundle=$1
+    mkdir -p "$home/releases" "$home/backups" "$home/shared/uploads" "$home/shared/storage/pdf"
+    chmod 700 "$home/backups" "$home/shared/storage"
+
+    if [ ! -f "$home/shared/.env.production" ]; then
+        (umask 077 && cp "$bundle/deploy/env.production.example" "$home/shared/.env.production")
+        say "Created $home/shared/.env.production"
+        echo "Fill it in (README.md, Zone.ee): the database, APP_ORIGIN (https://your.domain),"
+        echo "JWT_SECRET and MAIL_SETTINGS_KEY (openssl rand -hex 32), TRUST_PROXY=1, SERVICE_HOST"
+        echo "(the loopback IP of the hosting account) and SERVICE_PORT (the domain's backend port)."
+        echo "Then run the same command again."
+        exit 2
+    fi
+    chmod 600 "$home/shared/.env.production"
+}
+
+# pm2: the app's settings, rewritten by every deploy with the release's build. PM2 reads it when
+# the app starts or restarts through it, and a host's control panel can name it (Zone.ee)
+write_pm2_config() {
+    local release=$1
+    node -e '
+        const fs = require("fs");
+        const [file, home, name, node, buildInfo] = process.argv.slice(1);
+        const build = Object.fromEntries(
+            fs.readFileSync(buildInfo, "utf8").split("\n").filter((line) => line.includes("="))
+                .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)])
+        );
+        const app = {
+            name,
+            script: `${home}/current/api/dist/index.js`,
+            cwd: `${home}/current/api`,
+            interpreter: node,
+            // The API finishes running requests for up to 25 s when it is told to stop
+            kill_timeout: 30000,
+            max_memory_restart: "500M",
+            env: { NODE_ENV: "production", WEB_DIR: `${home}/current/web`, ...build }
+        };
+        fs.writeFileSync(`${file}.new`, JSON.stringify({ apps: [app] }, null, 4) + "\n");
+        fs.renameSync(`${file}.new`, file);
+    ' "$home/pm2.json" "$home" "$service" "$(command -v node)" "$release/api/build-info.env"
+}
+
+# Whether PM2 runs the app now
+pm2_known() { pm2 pid "$service" 2>/dev/null | grep -q '^[1-9]'; }
+
+stop_api() {
+    if [ "$runner" = pm2 ]; then
+        # Nothing to stop on a first install
+        pm2 describe "$service" >/dev/null 2>&1 || return 0
+        pm2 stop "$service" >/dev/null
+    else
+        systemctl stop "$service"
+    fi
+}
+
+# Starts the release `current` points at
+restart_api() {
+    if [ "$runner" = pm2 ]; then
+        write_pm2_config "$(readlink -f "$home/current")" || return 1
+        pm2 delete "$service" >/dev/null 2>&1 || true
+        pm2 start "$home/pm2.json" >/dev/null || return 1
+        pm2 save >/dev/null 2>&1 || true
+    else
+        systemctl restart "$service"
+    fi
+}
+
+api_running() {
+    if [ "$runner" = pm2 ]; then pm2_known; else systemctl is-active --quiet "$service"; fi
 }
 
 check_settings() {
@@ -189,9 +309,9 @@ load_schema() {
 }
 
 healthy() {
-    local port=$1 version=$2
+    local url=$1 version=$2
     for _ in $(seq 1 30); do
-        curl -fsS "http://127.0.0.1:$port/" 2>/dev/null | grep -q "\"version\":\"$version\"" && return 0
+        curl -fsS "$url" 2>/dev/null | grep -q "\"version\":\"$version\"" && return 0
         sleep 1
     done
     return 1
@@ -205,15 +325,16 @@ point() {
 # The new release in place and running: each step is checked here, because a function called
 # in an `if` runs without `set -e`
 switch_to_release() {
-    local release=$1 version=$2 port
+    local release=$1 version=$2 url
     (cd "$release/api" && npm prune --omit=dev --omit=optional --no-audit --no-fund --loglevel=error) ||
         return 1
-    chown -R root:root "$release" && chmod -R go-w "$release" || return 1
+    if [ "$runner" = systemd ]; then chown -R root:root "$release" || return 1; fi
+    chmod -R go-w "$release" || return 1
     point current "$release" || return 1
-    systemctl restart "$service" || return 1
-    port=$(api_port "$release/api") || return 1
-    healthy "$port" "$version" || {
-        echo "$version does not answer on port $port; its log: journalctl -u $service -n 50" >&2
+    restart_api || return 1
+    url=$(api_url "$release/api") || return 1
+    healthy "$url" "$version" || {
+        echo "$version does not answer at $url; its log: $(log_hint)" >&2
         return 1
     }
 }
@@ -227,13 +348,40 @@ back_to() {
         return
     fi
     point current "$current" || true
-    systemctl restart "$service" || true
-    if healthy "$(api_port "$current/api")" "$(cat "$current/VERSION")"; then
+    restart_api || true
+    if healthy "$(api_url "$current/api")" "$(cat "$current/VERSION")"; then
         echo "Back on $(cat "$current/VERSION"), which answers again." >&2
     else
-        echo "$(cat "$current/VERSION") does not answer either: journalctl -u $service -n 50" >&2
+        echo "$(cat "$current/VERSION") does not answer either: $(log_hint)" >&2
     fi
     [ -z "$dump" ] || echo "If the database was migrated and the old release misbehaves, restore $dump (README.md)." >&2
+}
+
+# The newest release on GitHub that has a server bundle, pre-releases included
+latest_version() {
+    node -e '
+        const repo = process.argv[1];
+        fetch(`https://api.github.com/repos/${repo}/releases?per_page=20`, {
+            headers: { Accept: "application/vnd.github+json", "User-Agent": "custoro-deploy" }
+        })
+            .then((answer) => {
+                if (!answer.ok) throw new Error(`GitHub answered ${answer.status}`);
+                return answer.json();
+            })
+            .then((releases) => {
+                const found = releases.find(
+                    (release) =>
+                        !release.draft &&
+                        release.assets.some((asset) => /^custoro-.+\.tar\.gz$/.test(asset.name))
+                );
+                if (!found) throw new Error("no release has a server bundle yet");
+                process.stdout.write(found.tag_name.replace(/^v/, ""));
+            })
+            .catch((error) => {
+                console.error(`custoro: latest: ${error.message}`);
+                process.exit(1);
+            });
+    ' "$repo" || exit 1
 }
 
 deploy() {
@@ -248,7 +396,13 @@ deploy() {
     done
     need_root deploy "$wanted"
     need_node
-    command -v systemctl >/dev/null || fail "systemd is needed to run the API (systemctl)"
+    if [ "$runner" = systemd ]; then
+        command -v systemctl >/dev/null || fail "systemd is needed to run the API (systemctl)"
+    fi
+    if [ "$wanted" = latest ]; then
+        wanted=$(latest_version) || exit 1
+        say "The latest release with a server bundle is $wanted"
+    fi
 
     tmp=$(mktemp -d)
     fetch_bundle "$wanted"
@@ -260,7 +414,10 @@ deploy() {
 
     local release="$home/releases/$version" current=""
     [ -L "$home/current" ] && current=$(readlink -f "$home/current")
-    [ "$current" != "$release" ] || fail "$version is the release that runs now"
+    if [ "$current" = "$release" ]; then
+        say "$version runs already; nothing to do"
+        return 0
+    fi
 
     setup_once "$bundle"
 
@@ -295,7 +452,7 @@ deploy() {
     # The migrations only run on a stopped API: the old one must not write while the schema
     # changes. From here on every failure goes back to the previous release
     say "Stopping the API and migrating the database"
-    if ! systemctl stop "$service"; then
+    if ! stop_api; then
         back_to "$current" "" "the API did not stop, so nothing was migrated"
         exit 1
     fi
@@ -318,9 +475,14 @@ deploy() {
     done
 
     say "Custoro $version runs"
-    curl -fsS "http://127.0.0.1:$(api_port "$api")/"
+    curl -fsS "$(api_url "$api")"
     echo
-    if command -v nginx >/dev/null && ! grep -rqs "$home/current/web" /etc/nginx/; then
+    if [ "$runner" = pm2 ]; then
+        echo
+        echo "PM2 runs it from $home/pm2.json. For a host whose control panel starts the PM2 apps"
+        echo "(Zone.ee: Webhosting > PM2 and Node.js), name that file there once, so it starts again"
+        echo "after a server restart; the domain's backend port is SERVICE_PORT ($(api_port "$api"))."
+    elif command -v nginx >/dev/null && ! grep -rqs "$home/current/web" /etc/nginx/; then
         echo
         echo "nginx does not serve Custoro yet. Add the site (README.md has the TLS step):"
         echo "  cp $home/current/deploy/nginx/custoro-site.conf /etc/nginx/sites-available/custoro"
@@ -339,9 +501,9 @@ rollback() {
     version=$(cat "$previous/VERSION")
     point current "$previous"
     point previous "$current"
-    systemctl restart "$service"
-    healthy "$(api_port "$previous/api")" "$version" ||
-        fail "$version does not answer: journalctl -u $service -n 50"
+    restart_api
+    healthy "$(api_url "$previous/api")" "$version" ||
+        fail "$version does not answer: $(log_hint)"
     say "Back on $version"
     echo "If $(cat "$current/VERSION") had migrations (its changelog says so), restore the dump taken"
     echo "before it as well: ls -t $home/backups (README.md, Restore)"
@@ -353,21 +515,25 @@ status() {
     current=$(readlink -f "$home/current")
     echo "current:  $(cat "$current/VERSION")  ($current)"
     [ ! -L "$home/previous" ] || echo "previous: $(cat "$(readlink -f "$home/previous")/VERSION")"
-    if systemctl is-active --quiet "$service"; then echo "service:  running"; else echo "service:  stopped"; fi
-    local port answer=""
-    port=$(api_port "$current/api")
+    if api_running; then echo "service:  running ($runner)"; else echo "service:  stopped ($runner)"; fi
+    local url answer=""
+    url=$(api_url "$current/api")
     for _ in 1 2 3 4 5; do
-        answer=$(curl -fsS "http://127.0.0.1:$port/" 2>/dev/null) && break
+        answer=$(curl -fsS "$url" 2>/dev/null) && break
         sleep 1
     done
-    echo "api:      ${answer:-does not answer on port $port}"
+    echo "api:      ${answer:-does not answer at $url}"
 }
 
 create_admin() {
     need_root create-admin
     [ -L "$home/current" ] || fail "install Custoro first"
     cd "$home/current/api"
-    runuser -u "$run_user" -- env NODE_ENV=production node dist/scripts/createAdmin.js "$@"
+    if [ "$runner" = pm2 ]; then
+        NODE_ENV=production node dist/scripts/createAdmin.js "$@"
+    else
+        runuser -u "$run_user" -- env NODE_ENV=production node dist/scripts/createAdmin.js "$@"
+    fi
 }
 
 command=${1:-}

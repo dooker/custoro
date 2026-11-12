@@ -73,6 +73,11 @@ way back) and rolls it back. The database can stay where it is, a hosted MariaDB
 [deploy/server/README.md](deploy/server/README.md). `scripts/build-bundle.sh` builds the bundle
 from a checkout (with Docker, so it needs no Node 24 on that machine).
 
+Web hosting without root, such as Zone.ee, works too: there `custoro.sh` runs the API with PM2 in
+`~/custoro`, and the API serves the web app itself (`WEB_DIR`), since the host forwards the whole
+domain to one port. An update over SSH is one command, `~/custoro/current/deploy/custoro.sh deploy
+latest`. See the Zone.ee section of the same guide.
+
 ## Production (Docker)
 
 ```bash

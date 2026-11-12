@@ -10,6 +10,9 @@ browser ──https──> nginx ──/api──> Custoro API (Node 24, systemd
                      └── the web app's files (/opt/custoro/current/web)
 ```
 
+On web hosting without root (Zone.ee), the same script runs the API with PM2 instead and the API
+serves the web app itself: see [Zone.ee web hosting](#zoneee-web-hosting) at the end.
+
 ## 1. Prepare the server (once)
 
 Debian or Ubuntu, with SSH and sudo, and a domain name that points at it:
@@ -80,8 +83,10 @@ It asks for the password. `--reset` gives an existing user a new password and th
 ## Updating
 
 ```bash
-sudo /opt/custoro/current/deploy/custoro.sh deploy 5.0.1
+sudo /opt/custoro/current/deploy/custoro.sh deploy latest    # or a version: deploy 5.0.1
 ```
+
+`latest` is the newest release on GitHub that has a server bundle, release candidates included.
 
 It downloads the bundle and checks its checksum, installs it next to the running one, dumps the
 database into `/opt/custoro/backups/`, stops the API, runs the migrations, switches over and checks
@@ -123,3 +128,83 @@ sudo systemctl start custoro-api
 ```
 
 A dump of a MariaDB server loads into MariaDB, not MySQL (and the other way round).
+
+## Zone.ee web hosting
+
+Zone.ee web hosting has SSH but no root, systemd or nginx of your own: Zone's web server takes
+HTTPS and forwards the whole (sub)domain to one port, and PM2 keeps Node apps running. `custoro.sh`
+sees that it runs without root with `pm2` installed and works in its PM2 mode:
+
+```
+browser ──https──> Zone's web server ──> Custoro (Node 24, PM2, <loopback IP>:<port>) ──> Zone MariaDB
+                                           ├── /api/...  the API
+                                           └── the rest  the web app's files, with the nginx headers
+```
+
+Everything lives in `~/custoro` (same layout as above), owned by the hosting account.
+
+### Once, in My Zone
+
+1. A (sub)domain for Custoro, for example `arved.example.ee`, with HTTPS (Let's Encrypt) on.
+2. **Databases > MySQL/MariaDB**: a database and a user with all rights on it. Note the database
+   name, the user, the password and the server address (shown there).
+3. **Webhosting > System information**: note the **Loopback IP**. The API must listen on it, not on
+   127.0.0.1.
+4. Choose a free port between 1024 and 65535 (for example 3999). In **Webhosting > Main domain
+   settings** (or **Subdomains**) > **Modify**, set it as the **mod_proxy backend port** of the
+   Custoro domain.
+5. Your SSH key, if SSH does not work yet.
+
+### Once, over SSH
+
+```bash
+# Node 24 for this account (Zone's guide: "Changing the Node.js version")
+nvm install 24 && nvm alias default 24
+node -v && pm2 -v           # v24.x, and PM2 (npm install -g pm2 if it is missing)
+
+curl -fsSLO https://raw.githubusercontent.com/dooker/custoro/main/deploy/server/custoro.sh
+bash custoro.sh deploy latest
+```
+
+The first run creates `~/custoro/shared/.env.production` and stops. Fill it in
+(`nano ~/custoro/shared/.env.production`) as in the table under 2. Install, plus:
+
+| Setting        | Value                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------- |
+| `SERVICE_HOST` | the loopback IP from step 3                                                            |
+| `SERVICE_PORT` | the backend port from step 4                                                           |
+| `TRUST_PROXY`  | `1`: Zone's web server is the one proxy in front                                       |
+| `APP_ORIGIN`   | `https://arved.example.ee`                                                             |
+| `DB_SSL`       | leave it unset (`verify`); `off` only if the migrations say Zone's database has no TLS |
+
+Run `bash custoro.sh deploy latest` again. It installs the release, loads the schema into the
+empty database, runs the migrations and starts Custoro with PM2 from `~/custoro/pm2.json`.
+
+Then, once:
+
+- **My Zone > Webhosting > PM2 and Node.js > Add application**: name `custoro`, script
+  `~/custoro/pm2.json` written out in full (`echo ~/custoro/pm2.json` prints it), maximum memory
+  512 MB. Zone then starts it again after a server restart.
+- The first admin: `~/custoro/current/deploy/custoro.sh create-admin you@example.com --name "Your Name"`
+- **My Zone > Webhosting > Crontab**, a daily database dump:
+  `0 3 * * * ~/custoro/current/deploy/custoro.sh backup >/dev/null`
+
+### Updating
+
+```bash
+ssh <account>@<server>
+~/custoro/current/deploy/custoro.sh deploy latest
+```
+
+`latest` is the newest release on GitHub that has a server bundle; a version number (`deploy
+5.0.1`) or a bundle file works too. The rest is as under [Updating](#updating): checksum, database
+dump, migrations, switch, health check, and back to the previous release if the new one does not
+answer. `status`, `rollback` and `backup` work the same; the log is `pm2 logs custoro`.
+
+### What is different from nginx
+
+- The API serves the web app with the same headers as the nginx setup (content security policy,
+  caching), from `apps/api/routes/webApp.ts`.
+- Zone's web server writes its own access log, which Custoro cannot reach: unlike the nginx setup,
+  it keeps password-reset links (`/restore/<token>`) and invoice links (`/pdf/<hash>`) whole. Reset
+  links work once and expire; invoice links stay valid, so keep the hosting account's logs private.
