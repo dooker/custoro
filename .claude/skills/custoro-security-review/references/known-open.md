@@ -2,10 +2,11 @@
 
 Taken from the "Not in this PR" lists and notes of the 2026-10-16 to 2026-10-21 reviews (PRs 4 to 7). They were open then. **Check each against the current code before repeating it** and mark it "still open, confirmed at `<commit>`" or drop it.
 
-| Area       | Item                                                                                                                                                                                           | Source                   |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| Web        | a network error or a 5xx on the login screens replaces the app with the server-error page, by design                                                                                           | web review 2026-11-03    |
-| Rate limit | reset emails: one client address can no longer block an account's owner, but requests spread over 4 or more addresses still use up the account's 10 per hour (by design, against mail bombing) | open findings 2026-11-07 |
+| Area       | Item                                                                                                                                                                                                                    | Source                   |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Web        | a network error or a 5xx on the login screens replaces the app with the server-error page, by design                                                                                                                    | web review 2026-11-03    |
+| Deploy     | PM2 mode on Zone.ee: Zone's web server writes its own access log, which keeps `/restore/<token>` and `/pdf/<hash>` whole (the nginx setup masks them); outside the app's reach, documented in `deploy/server/README.md` | Zone deploy 2026-11-12   |
+| Rate limit | reset emails: one client address can no longer block an account's owner, but requests spread over 4 or more addresses still use up the account's 10 per hour (by design, against mail bombing)                          | open findings 2026-11-07 |
 
 Decisions, not findings: logging out ends every session of the account on every device (`token_version`, there is no list of single tokens); a paid invoice's email still goes to the customer's current address (delivery, not the record of what was billed).
 

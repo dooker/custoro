@@ -1,15 +1,19 @@
 // What leaves the API for Sentry, without Sentry's own types, so it can be unit tested.
 // Request bodies carry passwords and reset tokens, the Authorization header carries the login
-// token, and the public PDF link /pdf/<hash> is the only credential of an invoice, so none of
-// them are sent.
+// token, the public PDF link /pdf/<hash> is the only credential of an invoice, and the page
+// /restore/<token> carries a password-reset or account-setup token, so none of them are sent.
+// The restore page reaches the API in the Referer of its own calls, and as a request of its own
+// when the API serves the web app (WEB_DIR); case and doubled slashes as nginx's log rule.
 
 const pdfHash = /(\/pdf\/)[0-9a-f]{16,}/gi;
+const restoreToken = /(\/+restore\/+)[^/?#\s"']+/gi;
 
-const scrubText = (text: string) => text.replace(pdfHash, "$1[hash]");
+const scrubText = (text: string) =>
+    text.replace(pdfHash, "$1[hash]").replace(restoreToken, "$1[token]");
 
 const maxDepth = 12;
 
-// Replaces the hash in every string of the event: the request URL, a transaction's name, its
+// Replaces the hash and the token in every string of the event: the request URL, a transaction's name, its
 // spans and their data, breadcrumbs and anything else a SDK put there
 const scrubDeep = (value: unknown, seen: WeakSet<object>, depth: number): unknown => {
     if (typeof value === "string") return scrubText(value);

@@ -2,9 +2,10 @@
 
 Self-hostable invoicing and worksheet app: customers, products, worksheets, invoices with PDF generation and email sending.
 
-> [!WARNING]
-> **Not production ready.** The codebase has known, unresolved security issues and is being hardened in the open.
-> Do not deploy it or use it with real data until this notice is removed.
+> [!NOTE]
+> **Release candidate.** Custoro 5.0.0 is in release candidates (`5.0.0-rc.N`) before its first
+> production use. The security reviews of 2026 are fixed and none is known to be open
+> ([SECURITY.md](SECURITY.md)). Take backups, and report problems as described there.
 
 ## Repository layout
 
@@ -72,6 +73,11 @@ bundle (`custoro-<version>.tar.gz`, the built API and web app with the migration
 way back) and rolls it back. The database can stay where it is, a hosted MariaDB for example. See
 [deploy/server/README.md](deploy/server/README.md). `scripts/build-bundle.sh` builds the bundle
 from a checkout (with Docker, so it needs no Node 24 on that machine).
+
+Web hosting without root, such as Zone.ee, works too: there `custoro.sh` runs the API with PM2 in
+`~/custoro`, and the API serves the web app itself (`WEB_DIR`), since the host forwards the whole
+domain to one port. An update over SSH is one command, `~/custoro/current/deploy/custoro.sh deploy
+latest`. See the Zone.ee section of the same guide.
 
 ## Production (Docker)
 

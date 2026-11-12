@@ -7,6 +7,16 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Added
 
+- Web hosting without root, such as Zone.ee: `custoro.sh` has a second mode for an account
+  without root, systemd or nginx of its own. It runs the API with PM2 from `~/custoro`, and the API
+  serves the web app itself (new setting `WEB_DIR`, set by the script) with the same security
+  headers and caching as the nginx setup, the API under `/api`. The host forwards the domain to
+  `SERVICE_PORT` on `SERVICE_HOST` (Zone: the account's loopback IP). `custoro.sh deploy latest`
+  installs the newest GitHub release that has a server bundle, so an update over SSH is
+  `~/custoro/current/deploy/custoro.sh deploy latest`; the same backup, migration, health check
+  and automatic way back as with systemd. Rehearsed in containers (Debian, Node 24, PM2 6, MariaDB
+  11.4): install, login, update, broken update, rollback, backup; the systemd mode again with it.
+  Guide: "Zone.ee web hosting" in `deploy/server/README.md`
 - Production without Docker: every release now also has `custoro-<version>.tar.gz` (the built API
   and web app, the migrations, the schema for an empty database, an nginx site and a systemd unit)
   and `custoro.sh`. On a Linux server with Node 24 and nginx, `sudo bash custoro.sh deploy <version>`
@@ -105,6 +115,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Security
 
+- `@sentry/node` and `@sentry/profiling-node` 11.12: the API no longer ships `glob` 13 and
+  `minimatch` 10 (GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249, both medium; Sentry used them with its
+  own patterns, not with request input). The `minimatch` 10 left is in eslint, typescript-eslint
+  and nodemon, development tools only
 - The mail server password saved on the admin settings page can be stored encrypted. It was plain
   text in `storage/mail-settings.json`, so every backup of the storage folder held it. With the
   new setting `MAIL_SETTINGS_KEY` (`openssl rand -hex 32`, in `.env` or `.env.production`) it is

@@ -38,6 +38,7 @@ import cors from "cors";
 import path from "path";
 import fs from "fs";
 import login from "./routes/login";
+import { webApp } from "./routes/webApp";
 import setupCustoroRoutes from "./config/importer";
 import { dbConfig } from "./config/dbConfig";
 import { config } from "./config/config";
@@ -116,6 +117,15 @@ const parseTrustProxy = (value: string | undefined) => {
 
 app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
 app.disable("x-powered-by");
+
+// WEB_DIR: no nginx in front (a web host that forwards the domain to this process, such as
+// Zone.ee), so this process serves the web app too, and the API under /api (routes/webApp.ts)
+const webDir = process.env.WEB_DIR?.trim();
+
+if (webDir) {
+    app.use(webApp(path.resolve(webDir), { hsts: getAppOrigin().startsWith("https://") }));
+    console.log(`Serving the web app from ${path.resolve(webDir)}`);
+}
 
 app.use(
     cors({
