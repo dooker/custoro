@@ -39,7 +39,7 @@ It lists method, path, allowed roles and checks; exit 1 for a public route that 
 11. **Errors:** `helpers/errorResponse.ts` answers 4xx with the standard text only and 500 with a generic one; `query()` returns the key `error` and logs details server-side; `helpers/sentryScrub.ts` removes bodies, the Authorization header and PDF hashes.
 12. **CORS and Origin:** allowed are no Origin, `http://localhost:*` and `APP_ORIGIN`; the database is never chosen from a header.
 13. **Mail:** SMTP login only over TLS (`EMAIL_REQUIRE_TLS=false` only in dev); invoice link from `APP_ORIGIN`.
-14. **Production config:** `docker-compose.prod.yml` requires `TRUST_PROXY`, `JWT_SECRET`, `APP_ORIGIN`; nginx security headers (`apps/web/nginx/`).
+14. **Production config:** `docker-compose.prod.yml` requires `TRUST_PROXY`, `JWT_SECRET`, `APP_ORIGIN`; nginx security headers (`apps/web/nginx/`). Without nginx (PM2 mode, `WEB_DIR` set) `routes/webApp.ts` serves the web app with the same headers: only `/api/...` reaches the API, other paths are build files or `index.html`, dot files and paths outside the build are never served, its CSP must equal `apps/web/nginx/app-headers.conf` (`webApp.test.ts`).
 
 Earlier findings that may still be open are in [references/known-open.md](references/known-open.md). Check them against the code before repeating one.
 
