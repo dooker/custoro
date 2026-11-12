@@ -92,6 +92,8 @@ api_url() {
     if [ "$runner" = pm2 ]; then
         host=$(setting "$1" SERVICE_HOST)
         host=${host:-127.0.0.1}
+        # An IPv6 address goes in brackets in a URL (http://[::1]:3999/)
+        case "$host" in \[*) ;; *:*) host="[$host]" ;; esac
         # With pm2 the API serves the web app at / and itself under /api (routes/webApp.ts)
         echo "http://$host:$(api_port "$1")/api/"
     else
@@ -311,7 +313,7 @@ load_schema() {
 healthy() {
     local url=$1 version=$2
     for _ in $(seq 1 30); do
-        curl -fsS "$url" 2>/dev/null | grep -q "\"version\":\"$version\"" && return 0
+        curl -gfsS "$url" 2>/dev/null | grep -q "\"version\":\"$version\"" && return 0
         sleep 1
     done
     return 1
@@ -475,7 +477,7 @@ deploy() {
     done
 
     say "Custoro $version runs"
-    curl -fsS "$(api_url "$api")"
+    curl -gfsS "$(api_url "$api")"
     echo
     if [ "$runner" = pm2 ]; then
         echo
@@ -519,7 +521,7 @@ status() {
     local url answer=""
     url=$(api_url "$current/api")
     for _ in 1 2 3 4 5; do
-        answer=$(curl -fsS "$url" 2>/dev/null) && break
+        answer=$(curl -gfsS "$url" 2>/dev/null) && break
         sleep 1
     done
     echo "api:      ${answer:-does not answer at $url}"
@@ -536,21 +538,24 @@ create_admin() {
     fi
 }
 
-command=${1:-}
-[ $# -eq 0 ] || shift
-case "$command" in
-    deploy) deploy "$@" ;;
-    rollback) rollback ;;
-    status) status ;;
-    backup)
-        need_root backup
-        [ -L "$home/current" ] || fail "install Custoro first"
-        backup "$home/current/api"
-        echo "$backup_file"
-        ;;
-    create-admin) create_admin "$@" ;;
-    *)
-        sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
-        exit 1
-        ;;
-esac
+# Sourced (the tests in scripts/deploy-server.test.mjs), it only defines the functions
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    command=${1:-}
+    [ $# -eq 0 ] || shift
+    case "$command" in
+        deploy) deploy "$@" ;;
+        rollback) rollback ;;
+        status) status ;;
+        backup)
+            need_root backup
+            [ -L "$home/current" ] || fail "install Custoro first"
+            backup "$home/current/api"
+            echo "$backup_file"
+            ;;
+        create-admin) create_admin "$@" ;;
+        *)
+            sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
+            exit 1
+            ;;
+    esac
+fi
