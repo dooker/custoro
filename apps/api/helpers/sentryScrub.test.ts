@@ -54,6 +54,28 @@ describe("scrubSentryEvent", () => {
         expect(event.spans[1].description).toBe("SELECT filename FROM invoices");
     });
 
+    it("hides reset and account-setup tokens: the page URL, the Referer, traces", () => {
+        const token = "a".repeat(32) + "b".repeat(32);
+        const event = scrubSentryEvent({
+            // With WEB_DIR the API serves /restore/<token> itself, so it gets traced
+            transaction: `GET /restore/${token}`,
+            request: {
+                url: `https://app.example.test/restore/${token}`,
+                // The restore page's own calls carry its address in the Referer
+                headers: { referer: `https://app.example.test//RESTORE/${token}?x=1` }
+            },
+            spans: [{ description: `GET /restore/${token}` }],
+            breadcrumbs: [{ category: "navigation", data: { to: `/api/restore/${token}#top` } }]
+        });
+
+        expect(JSON.stringify(event)).not.toContain(token);
+        expect(event.transaction).toBe("GET /restore/[token]");
+        expect(event.request?.headers?.referer).toBe(
+            "https://app.example.test//RESTORE/[token]?x=1"
+        );
+        expect(event.breadcrumbs[0].data.to).toBe("/api/restore/[token]#top");
+    });
+
     it("leaves other text and the route pattern alone", () => {
         const event = scrubSentryEvent({
             transaction: "GET /pdf/:hash",
