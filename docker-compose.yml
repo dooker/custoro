@@ -78,7 +78,7 @@ services:
 
     # Catches every email the API sends; nothing leaves this machine (scripts/mail-catcher.mjs)
     mail:
-        image: node:24-bookworm-slim
+        image: node:25-bookworm-slim
         command: ["node", "/app/mail-catcher.mjs"]
         volumes:
             - ./scripts/mail-catcher.mjs:/app/mail-catcher.mjs:ro
