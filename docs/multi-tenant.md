@@ -95,8 +95,10 @@ keeps the login it needs to send through it:
   a key derived from `MAIL_SETTINGS_KEY`. The key lives in `.env`, never in the database or a
   backup, so a stolen dump holds no usable password. The mail server needs the password itself to
   log in, so it cannot be hashed like a login password.
-- **`MAIL_SETTINGS_KEY` becomes required in production**: the API refuses to start without it
-  (today it only warns and stores the password as plain text). Zone has it set already.
+- **A password is never stored as plain text**: without `MAIL_SETTINGS_KEY` the settings page
+  refuses to save a mail password and says why (today it warns at start and stores it plain).
+  The API still starts without the key, so no install has to change anything to update; only
+  saving a mail password needs it. Zone has it set already.
 - The password never leaves the API: the settings page shows "a password is saved", and an empty
   field on save keeps it.
 - Invoice emails and password-reset emails use the mail server, sender and texts of the company
@@ -120,7 +122,8 @@ invoice row says which company's PDF and settings to use.
 
 ## Owner page
 
-For the owner only (`users.owner = 1`; set over SSH, never through the app):
+For the owner only (`users.owner = 1`). The migration makes the first admin of company 1 the
+owner (live: dooker@dooker.eu); `custoro set-owner <email>` over SSH changes it, never the app:
 
 - **Companies:** name, number of people and invoices, active or not, created
 - **New company:** name and the email of its first admin, who gets the "set your password" email
@@ -167,7 +170,7 @@ The migration makes the current data company 1, so the live install keeps workin
 3. Add `tenant_id` to the six company tables, fill it with 1, then drop the default.
 4. Replace the unique keys, indexes and foreign keys with the company ones.
 5. The deploy script moves the PDFs to `storage/pdf/1/` and the mail settings into company 1.
-6. The owner is set once over SSH: `custoro set-owner dooker@dooker.eu`.
+6. The first admin of company 1 (lowest id) becomes the owner (live: dooker@dooker.eu).
 
 Checked with the schema-drift script on MySQL 8.4 and MariaDB 11.4 (`custoro-db-migration`), on
 the demo data and on the 50k-invoice data, with timings before and after (`custoro-perf-check`).
@@ -204,9 +207,11 @@ same as today's "email in use". The last-admin guard works per company.
 9. Guards 2 and 4 (SQL test, cross-company suite), performance check
 10. Guide, CHANGELOG, security review, release
 
-About 2 to 3 days. Released as **6.0.0**: the migration changes every company table (backup
-first; the deploy script takes one), `MAIL_SETTINGS_KEY` becomes required, and the owner must be
-set once. Nobody is logged out.
+About 2 to 3 days. Released as **5.1.0** (minor): an existing install updates with
+`custoro deploy latest` and nothing else. The migration runs by itself (the deploy script backs up
+the database first), the live data becomes company 1, the owner is set by the migration, tokens
+stay (nobody is logged out), and the API starts with or without `MAIL_SETTINGS_KEY`. The
+CHANGELOG entries say so and carry no **Breaking**, so `version:suggest` agrees.
 
 ## Not in this plan
 
