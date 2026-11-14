@@ -67,3 +67,7 @@ updates:
           # major is a decision, not an update
           - dependency-name: mysql
             update-types: ["version-update:semver-major"]
+          # The dev stack's Node image follows .nvmrc and the Dockerfiles (Node 24), not the newest
+          # Node: Node 25 is not a long-term release
+          - dependency-name: node
+            update-types: ["version-update:semver-major"]

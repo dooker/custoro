@@ -509,6 +509,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Changed
 
+- Dependencies updated (Dependabot's PRs of 2026-11-13 in one): i18next 27 in the API and the web
+  app, react-i18next 18, jsdom 31, nodemailer 10.5, and the minor and patch updates of both apps
+  (Sentry, TanStack Query, Tiptap, Vite, Playwright and others). Nothing changes for users: both
+  apps already name their fallback language and have no empty texts, which is what i18next 27
+  changes. Rebuild both images. The dev stack stays on Node 24: Dependabot no longer proposes a
+  new Node major for `docker-compose.yml` (Node 25 is not a long-term release)
 - Error tracking in the browser can be switched on for the production web image: set
   `WEB_SENTRY_DSN` in `.env` (the DSN of a browser project in Sentry) and rebuild the web image.
   Before, the image had no way to take it, so browser errors were never reported. When it is on,
