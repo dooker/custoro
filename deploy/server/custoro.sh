@@ -442,8 +442,10 @@ deploy() {
     ln -sfn "$home/shared/uploads" "$api/uploads"
     ln -sfn "$home/shared/storage" "$api/storage"
 
-    # Everything, the migration tool included; what only builds and migrations need goes later
-    (cd "$api" && npm ci --no-audit --no-fund --loglevel=error)
+    # Everything, the migration tool included; what only builds and migrations need goes later.
+    # --include=dev: a host that sets NODE_ENV=production for its accounts (Zone.ee) otherwise
+    # leaves out db-migrate, a dev dependency, and the migrations cannot run
+    (cd "$api" && npm ci --include=dev --no-audit --no-fund --loglevel=error)
     check_settings "$api"
 
     # An existing database is dumped first, also on the first install here: it may come from an

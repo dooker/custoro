@@ -13,7 +13,8 @@ console.log(`🚀 Running '${action}' on: ${dbs.join(", ")}`);
 dbs.forEach((dbName) => {
     console.log(`\n--- Processing Database: ${dbName} ---`);
     try {
-        const cmd = `npx db-migrate ${action} --config config/database.js`;
+        // --no: the db-migrate of package-lock.json or none; never download another version
+        const cmd = `npx --no db-migrate ${action} --config config/database.js`;
 
         execSync(cmd, {
             stdio: "inherit",
