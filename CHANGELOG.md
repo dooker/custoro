@@ -5,6 +5,14 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+### Changed
+
+- The changelog page is readable. It showed this file as one run of plain lines: no headings,
+  no bullets, every paragraph in bold. Now each version is its own block with its date, the
+  newest open and the older ones a click away; Added, Security, Fixed and Changed have coloured
+  labels; every entry is a bullet with its first words in bold; and an empty "Unreleased" is not
+  shown
+
 ## 5.0.0 - 2026-11-14
 
 ### Added

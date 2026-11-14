@@ -1,8 +1,107 @@
 @use "src/assets/stylesheets/variables" as variables
 
 .changelog
-    p
-        font-weight: bold
+    color: variables.$midnight-blue
+    line-height: 1.6
 
-        ~ p
-            margin-top: variables.$grid-gutter*2
+    // Inline code in the entries: setting names, commands, paths
+    code
+        background: variables.$clouds
+        border-radius: 3px
+        font-size: 0.875em
+        padding: 1px 4px
+        overflow-wrap: anywhere
+
+    a
+        color: variables.$belize-hole
+        text-decoration: underline
+
+.intro
+    color: variables.$asbestos
+    max-width: 80ch
+    margin-bottom: variables.$grid-gutter*2
+
+.release
+    border-top: 1px solid variables.$clouds
+
+    &:last-child
+        border-bottom: 1px solid variables.$clouds
+
+.summary
+    display: flex
+    align-items: baseline
+    gap: variables.$grid-gutter
+    padding: variables.$grid-gutter 0
+    cursor: pointer
+    list-style: none
+
+    &::-webkit-details-marker
+        display: none
+
+    // The open/closed arrow, turned down when the release is open
+    &::before
+        content: "▸"
+        color: variables.$concrete
+        transition: transform 0.15s
+
+    .release[open] > &::before
+        transform: rotate(90deg)
+
+    &:hover .version
+        color: variables.$green-sea
+
+.version
+    font-size: 1.25rem
+    font-weight: bold
+
+.date
+    color: variables.$asbestos
+    font-size: 0.875rem
+
+.body
+    max-width: 80ch
+    padding: 0 0 variables.$grid-gutter*2 variables.$grid-gutter*2
+
+    ul
+        list-style: disc
+        padding-left: variables.$grid-gutter*2
+
+    li
+        margin-bottom: variables.$grid
+
+        &::marker
+            color: variables.$silver
+
+    p
+        margin-bottom: variables.$grid
+
+// Added, Security, Fixed, Changed: a small coloured label above its list
+.section
+    display: inline-block
+    margin: variables.$grid-gutter 0 variables.$grid
+    padding: 2px variables.$grid
+    border-radius: 3px
+    color: variables.$white
+    font-size: 0.75rem
+    font-weight: bold
+    letter-spacing: 0.05em
+    text-transform: uppercase
+
+.added
+    background: variables.$nephritis
+
+.security
+    background: variables.$pomegranate
+
+.fixed
+    background: variables.$belize-hole
+
+.changed
+    background: variables.$pumpkin
+
+.other
+    background: variables.$asbestos
+
+@media (max-width: variables.$breakpoint)
+    .body
+        padding-left: 0
