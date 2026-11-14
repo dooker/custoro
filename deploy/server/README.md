@@ -191,18 +191,18 @@ Then, once:
   `~/custoro/current/deploy/custoro.sh create-admin you@example.com --name "Your Name"`
 - **My Zone > Webhosting > Crontab**, a daily database dump at `0 3 * * *`, maximum execution
   time 15 minutes, the home folder written out in full (`echo ~`):
-  `PATH=/opt/zse/bin:/usr/bin:/bin bash /data01/<account>/custoro/current/deploy/custoro.sh backup >/dev/null`.
-  Cron starts with a short `PATH` that lacks `/opt/zse/bin`, where `pm2` and `mariadb-dump` are:
-  without it the script finds no PM2, takes the server for a root one and refuses to run.
-  **A server installed with 5.0.0-rc.2**: point the job at a downloaded `custoro.sh` of a later
-  version instead (`bash /data01/<account>/custoro.sh backup`); the copy inside the rc.2 bundle
-  cannot log in to Zone's database
+  `bash /data01/<account>/custoro/current/deploy/custoro.sh backup >/dev/null`. It always runs the
+  script of the running release. (Releases before 5.0.1 needed `PATH=/opt/zse/bin:/usr/bin:/bin`
+  in front: cron's short `PATH` lacks Zone's tools, and the script then refused to run.)
+
+Every deploy also links `~/bin/custoro` to the running release's script; `~/bin` is on the `PATH`
+on Zone, so `custoro status`, `custoro backup` and `custoro deploy latest` work from any folder.
 
 ### Updating
 
 ```bash
 ssh <account>@<server>
-~/custoro/current/deploy/custoro.sh deploy latest
+custoro deploy latest
 ```
 
 `latest` is the newest release on GitHub that has a server bundle; a version number (`deploy
