@@ -5,6 +5,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.0.0 - 2026-11-14
+
 ### Added
 
 - Web hosting without root, such as Zone.ee: `custoro.sh` has a second mode for an account
@@ -307,6 +309,16 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- `custoro.sh` could not log in to the database on Zone.ee: the hosting account's own `~/.my.cnf`
+  (the database host, an empty user and password) overrode the script's login, so the first
+  install stopped with "Access denied for user '<account>'@... (using password: NO)". The
+  database client now reads only the script's own login. A database the script cannot reach is
+  no longer taken for an empty one: it stops before loading the schema. On a host that sets
+  `NODE_ENV=production` for its accounts (Zone.ee does), the install left out the migration tool
+  (a dev dependency) and stopped at "No such driver found"; it now always installs it for the
+  migrations, and the migrations never download another version of it. **On a server installed
+  with 5.0.0-rc.2, run the next update with a freshly downloaded `custoro.sh`**, not
+  `~/custoro/current/deploy/custoro.sh`, since that copy still has the old login
 - An account whose email was saved on the users page with spaces around it (`" ann@…"`) could
   never log in or get a reset email: the login looks the address up without them. The users page
   now stores it without spaces, and a new migration trims the accounts saved before; it stops with
@@ -509,6 +521,12 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Changed
 
+- Dependencies updated (Dependabot's PRs of 2026-11-13 in one): i18next 27 in the API and the web
+  app, react-i18next 18, jsdom 31, nodemailer 10.5, and the minor and patch updates of both apps
+  (Sentry, TanStack Query, Tiptap, Vite, Playwright and others). Nothing changes for users: both
+  apps already name their fallback language and have no empty texts, which is what i18next 27
+  changes. Rebuild both images. The dev stack stays on Node 24: Dependabot no longer proposes a
+  new Node major for `docker-compose.yml` (Node 25 is not a long-term release)
 - Error tracking in the browser can be switched on for the production web image: set
   `WEB_SENTRY_DSN` in `.env` (the DSN of a browser project in Sentry) and rebuild the web image.
   Before, the image had no way to take it, so browser errors were never reported. When it is on,

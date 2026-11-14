@@ -1,6 +1,6 @@
 {
     "name": "custoro",
-    "version": "5.0.0-rc.2",
+    "version": "5.0.0",
     "private": true,
     "description": "Self-hostable invoicing and worksheet app (API + web)",
     "author": "Ingmar Ross <dooker@dooker.eu>",
@@ -32,6 +32,6 @@
         "test:scripts": "node --test \"scripts/*.test.mjs\""
     },
     "devDependencies": {
-        "concurrently": "^10.0.6"
+        "concurrently": "^10.0.7"
     }
 }
