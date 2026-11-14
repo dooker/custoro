@@ -5,6 +5,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.0.0 - 2026-11-14
+
 ### Added
 
 - Web hosting without root, such as Zone.ee: `custoro.sh` has a second mode for an account
