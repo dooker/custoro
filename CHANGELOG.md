@@ -311,7 +311,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   (the database host, an empty user and password) overrode the script's login, so the first
   install stopped with "Access denied for user '<account>'@... (using password: NO)". The
   database client now reads only the script's own login. A database the script cannot reach is
-  no longer taken for an empty one: it stops before loading the schema. **On a server installed
+  no longer taken for an empty one: it stops before loading the schema. On a host that sets
+  `NODE_ENV=production` for its accounts (Zone.ee does), the install left out the migration tool
+  (a dev dependency) and stopped at "No such driver found"; it now always installs it for the
+  migrations, and the migrations never download another version of it. **On a server installed
   with 5.0.0-rc.2, run the next update with a freshly downloaded `custoro.sh`**, not
   `~/custoro/current/deploy/custoro.sh`, since that copy still has the old login
 - An account whose email was saved on the users page with spaces around it (`" ann@…"`) could
