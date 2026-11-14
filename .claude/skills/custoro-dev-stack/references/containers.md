@@ -29,7 +29,7 @@ docker run --rm --network custoro-skills_default \
 
 - `E2E_API_URL=http://api:3999` reaches the API by its service name; variables already in the environment win over `apps/web/.env`.
 - `E2E_MAIL_URL=http://mail:8025` does the same for the mail catcher. Without it `password-reset.api.spec.ts` looks on the container's own `localhost` and all 10 of its tests fail.
-- Run the suite once per API start: the login limits live in the API's memory, so a second or third run in a row can fail `login-limits.api.spec.ts`. `docker compose restart api` clears them.
+- Run the suite once per API start: the login limits live in the API's memory, so a second or third run in a row can fail `login-limits.api.spec.ts`. `docker compose -p custoro-skills restart api` (the same project as the recipe) clears them.
 - `--reporter=line` matters: the default HTML reporter waits to serve its report after a failure and hangs in a container.
 - The `api` project needs no browser. The `chromium`, `firefox` and `webkit` projects do, see below.
 - Lint and type-check for the web app: `npx prettier --check "src/**/*.{ts,tsx,css,md}" && npm run lint && npm run type-check` in the same container.
