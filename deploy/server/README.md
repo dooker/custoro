@@ -158,9 +158,9 @@ Everything lives in `~/custoro` (same layout as above), owned by the hosting acc
 ### Once, over SSH
 
 ```bash
-# Node 24 for this account (Zone's guide: "Changing the Node.js version")
-nvm install 24 && nvm alias default 24
-node -v && pm2 -v           # v24.x, and PM2 (npm install -g pm2 if it is missing)
+# Zone has Node 24 (/usr/bin/node) and PM2 (/opt/zse/bin/pm2) for every account; no nvm.
+# Older than 24: Zone's guide "Changing the Node.js version"
+node -v && pm2 -v           # v24.x, and a PM2 version
 
 curl -fsSLO https://raw.githubusercontent.com/dooker/custoro/main/deploy/server/custoro.sh
 bash custoro.sh deploy latest
@@ -183,11 +183,20 @@ empty database, runs the migrations and starts Custoro with PM2 from `~/custoro/
 Then, once:
 
 - **My Zone > Webhosting > PM2 and Node.js > Add application**: name `custoro`, script
-  `~/custoro/pm2.json` written out in full (`echo ~/custoro/pm2.json` prints it), maximum memory
-  512 MB. Zone then starts it again after a server restart.
-- The first admin: `~/custoro/current/deploy/custoro.sh create-admin you@example.com --name "Your Name"`
-- **My Zone > Webhosting > Crontab**, a daily database dump:
-  `0 3 * * * ~/custoro/current/deploy/custoro.sh backup >/dev/null`
+  `~/custoro/pm2.json` written out in full (`echo ~/custoro/pm2.json` prints it). Zone then starts
+  it again after a server restart (it restarts the app once when you save). The panel may offer
+  at most 64 MB of memory: take that. PM2 keeps the app's own limit from `pm2.json` (500 MB); the
+  API uses about 150 MB, and Zone did not stop it for that.
+- The first admin, in your own SSH session (it asks for the password):
+  `~/custoro/current/deploy/custoro.sh create-admin you@example.com --name "Your Name"`
+- **My Zone > Webhosting > Crontab**, a daily database dump at `0 3 * * *`, maximum execution
+  time 15 minutes, the home folder written out in full (`echo ~`):
+  `PATH=/opt/zse/bin:/usr/bin:/bin bash /data01/<account>/custoro/current/deploy/custoro.sh backup >/dev/null`.
+  Cron starts with a short `PATH` that lacks `/opt/zse/bin`, where `pm2` and `mariadb-dump` are:
+  without it the script finds no PM2, takes the server for a root one and refuses to run.
+  **A server installed with 5.0.0-rc.2**: point the job at a downloaded `custoro.sh` of a later
+  version instead (`bash /data01/<account>/custoro.sh backup`); the copy inside the rc.2 bundle
+  cannot log in to Zone's database
 
 ### Updating
 
