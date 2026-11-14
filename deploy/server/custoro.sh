@@ -104,6 +104,9 @@ api_url() {
 client() { command -v "$1" 2>/dev/null || command -v "$2" 2>/dev/null || true; }
 
 # A private options file for the database client, so the password never reaches a command line.
+# The client gets it as --defaults-file, the one file it reads: with --defaults-extra-file it also
+# reads ~/.my.cnf afterwards, and a web host's own (Zone.ee: host, and an empty user and password)
+# replaced the login with an empty one ("Access denied for user '<account>'@..., password: NO")
 # TLS as the migrations do it: DB_SSL=off plain, anything else verified (see config/dbSsl.js).
 write_client_options() {
     local api=$1 program=$2 ssl ca port
@@ -278,7 +281,7 @@ backup() {
     [ -n "$dump" ] || fail "no mariadb-dump: apt install mariadb-client (or skip the backup with --no-backup)"
     write_client_options "$api" "$dump"
     file="$home/backups/db-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
-    if ! "$dump" --defaults-extra-file="$options" --single-transaction --no-tablespaces \
+    if ! "$dump" --defaults-file="$options" --single-transaction --no-tablespaces \
         "$(setting "$api" DB_NAME)" | gzip >"$file.partial"; then
         rm -f "$file.partial"
         fail "the database dump failed; nothing was changed"
@@ -296,7 +299,11 @@ database_is_empty() {
     mysql=$(client mariadb mysql)
     [ -n "$mysql" ] || fail "no mariadb client: apt install mariadb-client"
     write_client_options "$api" "$mysql"
-    [ -z "$("$mysql" --defaults-extra-file="$options" -N -e "SHOW TABLES LIKE 'config'" "$(setting "$api" DB_NAME)")" ]
+    local tables
+    # A database it cannot reach is not an empty one: stop before loading the schema into it
+    tables=$("$mysql" --defaults-file="$options" -N -e "SHOW TABLES LIKE 'config'" "$(setting "$api" DB_NAME)") ||
+        fail "cannot read the database $(setting "$api" DB_NAME) on $(setting "$api" DB_HOST) (see the error above); the database and the running app were not changed"
+    [ -z "$tables" ]
 }
 
 # The schema and the config seed for an empty database, as the Docker setup loads them on its
@@ -307,7 +314,7 @@ load_schema() {
     write_client_options "$api" "$mysql"
     say "The database is empty: loading the schema and the settings"
     cat "$release/db/01-schema.sql" "$release/db/02-seed.sql" |
-        "$mysql" --defaults-extra-file="$options" "$(setting "$api" DB_NAME)"
+        "$mysql" --defaults-file="$options" "$(setting "$api" DB_NAME)"
 }
 
 healthy() {

@@ -307,6 +307,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- `custoro.sh` could not log in to the database on Zone.ee: the hosting account's own `~/.my.cnf`
+  (the database host, an empty user and password) overrode the script's login, so the first
+  install stopped with "Access denied for user '<account>'@... (using password: NO)". The
+  database client now reads only the script's own login. A database the script cannot reach is
+  no longer taken for an empty one: it stops before loading the schema. **On a server installed
+  with 5.0.0-rc.2, run the next update with a freshly downloaded `custoro.sh`**, not
+  `~/custoro/current/deploy/custoro.sh`, since that copy still has the old login
 - An account whose email was saved on the users page with spaces around it (`" ann@…"`) could
   never log in or get a reset email: the login looks the address up without them. The users page
   now stores it without spaces, and a new migration trims the accounts saved before; it stops with
