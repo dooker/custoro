@@ -26,9 +26,23 @@
 # starts again; the dump is the way back for the database (the command is shown).
 set -euo pipefail
 
+# A web host's own tools (Zone.ee: pm2, mariadb and mariadb-dump in /opt/zse/bin). Cron starts with
+# a short PATH without them, and the backup job then found no PM2, took the server for a root one
+# and refused to run
+case ":$PATH:" in
+    *:/opt/zse/bin:*) ;;
+    *) [ ! -d /opt/zse/bin ] || PATH="$PATH:/opt/zse/bin" ;;
+esac
+
+# PM2 for an account without root that has PM2, or that already runs Custoro with it (pm2.json)
 runner=${CUSTORO_RUNNER:-}
 if [ -z "$runner" ]; then
-    if [ "$(id -u)" != 0 ] && command -v pm2 >/dev/null; then runner=pm2; else runner=systemd; fi
+    if [ "$(id -u)" != 0 ] && { command -v pm2 >/dev/null ||
+        [ -f "${CUSTORO_HOME:-${HOME:-/nonexistent}/custoro}/pm2.json" ]; }; then
+        runner=pm2
+    else
+        runner=systemd
+    fi
 fi
 case "$runner" in
     systemd)
@@ -488,6 +502,7 @@ deploy() {
     say "Custoro $version runs"
     curl -gfsS "$(api_url "$api")"
     echo
+    link_command
     if [ "$runner" = pm2 ]; then
         echo
         echo "PM2 runs it from $home/pm2.json. For a host whose control panel starts the PM2 apps"
@@ -500,6 +515,24 @@ deploy() {
         echo "  ln -s ../sites-available/custoro /etc/nginx/sites-enabled/custoro"
         echo "  nginx -t && systemctl reload nginx"
     fi
+}
+
+# `custoro deploy latest` from anywhere: a link to the running release's script, so it is always
+# the newest one. ~/bin for a PM2 account (on the PATH on Zone.ee), /usr/local/bin as root. A file
+# of that name that is not such a link is left alone.
+link_command() {
+    local dir=/usr/local/bin link
+    [ "$runner" = systemd ] || dir=${HOME:-}/bin
+    [ -n "$dir" ] && [ "$dir" != /bin ] || return 0
+    link="$dir/custoro"
+    if [ -e "$link" ] && [ ! -L "$link" ]; then
+        return 0
+    fi
+    mkdir -p "$dir" && ln -sfn "$home/current/deploy/custoro.sh" "$link" || return 0
+    case ":$PATH:" in
+        *":$dir:"*) echo "From now on: custoro deploy latest, custoro status, custoro backup" ;;
+        *) echo "From now on: $link deploy latest ($dir is not on the PATH)" ;;
+    esac
 }
 
 rollback() {

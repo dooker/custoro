@@ -9,6 +9,14 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ### Fixed
 
+- The nightly backup on Zone.ee needed `PATH=/opt/zse/bin:...` in front of the cron command:
+  cron's short `PATH` lacks Zone's tools, so `custoro.sh` found no PM2, took the server for a root
+  one and refused ("run this as root"). It now finds them itself and also knows an install by its
+  `pm2.json`, so the job is just `bash <home>/custoro/current/deploy/custoro.sh backup` and always
+  uses the running release's script. Every deploy also links the script as `custoro` (`~/bin` for
+  a PM2 account, `/usr/local/bin` as root): `custoro deploy latest`, `custoro status`, `custoro
+  backup`. **On Zone, after updating to 5.0.1, change the cron command** to the shorter one
+  (deploy/server/README.md, Zone.ee)
 - The changelog page is readable. It showed this file as one run of plain lines: no headings,
   no bullets, every paragraph in bold. Now each version is its own block with its date, the
   newest open and the older ones a click away; Added, Security, Fixed and Changed have coloured
