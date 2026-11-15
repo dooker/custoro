@@ -22,6 +22,7 @@ import { getAppOrigin } from "../helpers/appOrigin";
 import { isUsernameTaken } from "../helpers/users";
 import { getTokenSigner } from "./login";
 import { tenantOf } from "../helpers/tenant";
+import type { EmailConfigResult } from "../types/email";
 
 export const getSingle = async (request: Request) => {
     const { database } = request;
@@ -324,6 +325,21 @@ const saveResetToken = async (
     return success && affectedRows === 1;
 };
 
+// The password email when a company has not written its own (a new company, a fresh install): the
+// link must be in it, or the person cannot set a password at all
+export const defaultRestoreEmail = {
+    subject: "Set your password",
+    text: "Set your password here: [RESTORE_LINK]",
+    html: '<p>Set your password here: <a href="[RESTORE_LINK]">[RESTORE_LINK]</a></p>'
+};
+
+/** The company's password email, with the default for each part it left empty */
+export const withRestoreLink = (config: EmailConfigResult | undefined): EmailConfigResult => ({
+    subject: config?.subject || defaultRestoreEmail.subject,
+    text: config?.text || defaultRestoreEmail.text,
+    html: config?.html || defaultRestoreEmail.html
+});
+
 // The password email of the settings page (forgotSubject, forgotText, forgotHtml)
 const sendRestoreEmail = async (database: string, tenantId: number, to: string, link: string) => {
     const config = await getConfig({
@@ -341,7 +357,7 @@ const sendRestoreEmail = async (database: string, tenantId: number, to: string, 
         database,
         tenantId,
         email: to,
-        config: config.data,
+        config: withRestoreLink(config.data),
         replace: { "[RESTORE_LINK]": link }
     });
 };

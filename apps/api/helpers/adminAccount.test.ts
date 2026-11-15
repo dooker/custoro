@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultAdminName, parseAdminArgs } from "./adminAccount";
+import { defaultAdminName, parseAdminArgs, parseTenantArgs } from "./adminAccount";
 
 const ok = (email: string, name = defaultAdminName, reset = false, tenantId = 1) => ({
     ok: true,
@@ -66,5 +66,42 @@ describe("parseAdminArgs", () => {
         expect(parseAdminArgs(["boss@example.test", "--name", "x".repeat(101)])).toMatchObject({
             ok: false
         });
+    });
+});
+
+describe("parseTenantArgs", () => {
+    it("takes the company name, the admin's email and name", () => {
+        expect(
+            parseTenantArgs([
+                "East Side Customs OÜ",
+                "--admin",
+                "boss@example.test",
+                "--admin-name=Ann"
+            ])
+        ).toEqual({
+            ok: true,
+            args: {
+                name: "East Side Customs OÜ",
+                adminEmail: "boss@example.test",
+                adminName: "Ann"
+            }
+        });
+        expect(parseTenantArgs(["--admin=boss@example.test", "Acme"])).toEqual({
+            ok: true,
+            args: { name: "Acme", adminEmail: "boss@example.test", adminName: defaultAdminName }
+        });
+    });
+
+    it.each([
+        [["Acme"], /--admin/],
+        [["--admin", "boss@example.test"], /company name/],
+        [["Acme", "--admin", "not-an-email"], /--admin/],
+        [["Acme", "Corp", "--admin", "boss@example.test"], /quotes/],
+        [["Acme", "--admin", "boss@example.test", "--owner"], /Unknown option/]
+    ])("refuses %j", (argv, error) => {
+        const parsed = parseTenantArgs(argv);
+
+        expect(parsed.ok).toBe(false);
+        expect(parsed.ok ? "" : parsed.error).toMatch(error);
     });
 });

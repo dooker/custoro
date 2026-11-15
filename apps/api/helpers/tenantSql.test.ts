@@ -151,6 +151,9 @@ describe("SQL on company tables", () => {
             "services/profile.ts",
             "services/profile.ts",
             "services/profile.ts",
+            "services/tenants.ts",
+            "services/tenants.ts",
+            "services/tenants.ts",
             "services/user.ts"
         ]);
     });

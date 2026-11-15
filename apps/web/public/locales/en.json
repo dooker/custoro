@@ -221,6 +221,8 @@
         "user.exists": "User with this email already exists",
         "user.lastAdmin": "This is the last admin. Make another user an admin first",
         "user.owner": "The owner of the install cannot be deleted here",
+        "tenant.exists": "A company with this name exists already",
+        "tenant.ownCompany": "Your own company cannot be deactivated: you would lock yourself out",
         "user.passwordLinkSent": "User added. A link to set the password was emailed (valid for 7 days)",
         "user.passwordLinkFailed": "User added, but the email with the password link could not be sent. They can use \"Forgot password?\" once mail works",
         "passwordLength": "Password must be 8 to 72 characters long",

@@ -11,7 +11,9 @@
 #   custoro.sh rollback                    back to the release before the current one
 #   custoro.sh status                      which release runs, and does it answer
 #   custoro.sh backup                      dump the database into backups/
-#   custoro.sh create-admin <email> [--reset] [--name "Full Name"]   the first admin, or back in
+#   custoro.sh create-admin <email> [--reset] [--name "Full Name"] [--tenant <id>]   an admin, or back in
+#   custoro.sh create-tenant "<company name>" --admin <email> [--admin-name "Full Name"]   a new company
+#   custoro.sh set-owner <email>           the owner of the install (the owner page)
 #
 # Layout (CUSTORO_HOME, default /opt/custoro, or ~/custoro with pm2):
 #   releases/<version>/{api,web,db,deploy}   one folder per release, owned by root
@@ -569,16 +571,22 @@ status() {
     echo "api:      ${answer:-does not answer at $url}"
 }
 
-create_admin() {
-    need_root create-admin
+# One of the API's command line scripts (dist/scripts/<name>.js) on the running release, as the
+# user the API runs as
+run_script() {
+    local command=$1 script=$2
+    shift 2
+    need_root "$command"
     [ -L "$home/current" ] || fail "install Custoro first"
     cd "$home/current/api"
     if [ "$runner" = pm2 ]; then
-        NODE_ENV=production node dist/scripts/createAdmin.js "$@"
+        NODE_ENV=production node "dist/scripts/$script.js" "$@"
     else
-        runuser -u "$run_user" -- env NODE_ENV=production node dist/scripts/createAdmin.js "$@"
+        runuser -u "$run_user" -- env NODE_ENV=production node "dist/scripts/$script.js" "$@"
     fi
 }
+
+create_admin() { run_script create-admin createAdmin "$@"; }
 
 # Sourced (the tests in scripts/deploy-server.test.mjs), it only defines the functions
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
@@ -595,6 +603,8 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
             echo "$backup_file"
             ;;
         create-admin) create_admin "$@" ;;
+        create-tenant) run_script create-tenant createTenant "$@" ;;
+        set-owner) run_script set-owner setOwner "$@" ;;
         *)
             # The header up to its Layout part: what the script does and its commands
             sed -n '2,/^# Layout/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'

@@ -221,6 +221,8 @@
         "user.exists": "Well well well, there is already user with this email",
         "user.lastAdmin": "The last admin standing! Crown another one before this one leaves",
         "user.owner": "Nice try, but the big boss of this whole thing stays",
+        "tenant.exists": "That name is taken, pick another one",
+        "tenant.ownCompany": "Switching off your own company? You would be locked out, so no",
         "user.passwordLinkSent": "Recruit added. A pigeon flies off with their password link (good for 7 days)",
         "user.passwordLinkFailed": "Recruit added, but the pigeon with the password link never left. They can use \"Wait... password?\" once mail works",
         "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73.",

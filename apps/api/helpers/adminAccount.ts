@@ -80,3 +80,65 @@ export const parseAdminArgs = (argv: string[]): AdminArgsResult => {
 
     return { ok: true, args: { email, name, reset, tenantId } };
 };
+
+export interface TenantArgsIF {
+    name: string;
+    adminEmail: string;
+    adminName: string;
+}
+
+export const tenantUsage = `Usage: node dist/scripts/createTenant.js "<company name>" --admin <email> [--admin-name "Full Name"]
+
+  <company name>  the new company, shown on the owner page and as its company name
+  --admin         the login of its first admin, who gets the "set your password" email
+  --admin-name    the admin's name in the app (default: ${defaultAdminName})`;
+
+/** What scripts/createTenant.ts is asked for (custoro create-tenant) */
+export const parseTenantArgs = (
+    argv: string[]
+): { ok: true; args: TenantArgsIF } | { ok: false; error: string } => {
+    let name: string | undefined;
+    let adminEmail: string | undefined;
+    let adminName = defaultAdminName;
+
+    for (let index = 0; index < argv.length; index++) {
+        const arg = argv[index];
+        const valueOf = (option: string) =>
+            arg === option ? argv[++index] : arg.slice(option.length + 1);
+
+        if (arg === "--admin" || arg.startsWith("--admin=")) {
+            adminEmail = valueOf("--admin")?.trim();
+        } else if (arg === "--admin-name" || arg.startsWith("--admin-name=")) {
+            const value = valueOf("--admin-name")?.trim();
+
+            if (!value) {
+                return { ok: false, error: "--admin-name needs a value" };
+            }
+
+            adminName = value;
+        } else if (arg.startsWith("-")) {
+            return { ok: false, error: `Unknown option ${arg}` };
+        } else if (name === undefined) {
+            name = arg.trim();
+        } else {
+            return {
+                ok: false,
+                error: `Unexpected argument ${arg} (put the company name in quotes)`
+            };
+        }
+    }
+
+    if (!name || name.length > 150 || /[\r\n]/.test(name)) {
+        return { ok: false, error: "The company name is missing, or longer than 150 characters" };
+    }
+
+    if (!adminEmail || !isValidEmail(adminEmail)) {
+        return { ok: false, error: "--admin needs the email of the company's first admin" };
+    }
+
+    if (adminName.length > maxNameLength) {
+        return { ok: false, error: `The name can have up to ${maxNameLength} characters` };
+    }
+
+    return { ok: true, args: { name, adminEmail, adminName } };
+};
