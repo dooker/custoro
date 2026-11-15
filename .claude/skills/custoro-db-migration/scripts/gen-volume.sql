@@ -51,8 +51,43 @@ SET @l0 = (SELECT COALESCE(MAX(id), 0) FROM invoice_items);
 -- below would write "1.000000000000000000000000000000" as the invoice number
 SET @n0 = CAST((SELECT GREATEST(
                 COALESCE(MAX(CAST(number AS UNSIGNED)), 0),
-                COALESCE((SELECT CAST(value AS UNSIGNED) FROM config WHERE name = 'lastInvoiceId'), 0))
+                COALESCE((SELECT CAST(value AS UNSIGNED) FROM config WHERE name = 'lastInvoiceId'
+                          ORDER BY id LIMIT 1), 0))
            FROM invoices) AS UNSIGNED);
+
+-- Since several companies share the database (docs/multi-tenant.md) every company table has a
+-- tenant_id without a default. The rows made here are company 1's: the column gets the default 1
+-- for the load and loses it again at the end. On a schema from before companies nothing changes.
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE customers ALTER COLUMN tenant_id SET DEFAULT 1', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE products ALTER COLUMN tenant_id SET DEFAULT 1', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE invoices ALTER COLUMN tenant_id SET DEFAULT 1', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoices' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE worksheets ALTER COLUMN tenant_id SET DEFAULT 1', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'worksheets' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE invoice_items ALTER COLUMN tenant_id SET DEFAULT 1', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoice_items' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
 
 DROP TEMPORARY TABLE IF EXISTS vol_seq;
 CREATE TEMPORARY TABLE vol_seq (n INT UNSIGNED NOT NULL PRIMARY KEY);
@@ -141,9 +176,42 @@ SELECT @l0 + n,
 FROM vol_seq
 WHERE n <= @vol_lines;
 
-UPDATE config SET value = CAST(@n0 + @vol_invoices AS CHAR) WHERE name = 'lastInvoiceId';
+-- Company 1's counter (its row is the first): with several companies every one has its own
+UPDATE config SET value = CAST(@n0 + @vol_invoices AS CHAR) WHERE name = 'lastInvoiceId'
+ORDER BY id LIMIT 1;
 
 DROP TEMPORARY TABLE vol_seq;
+
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE customers ALTER COLUMN tenant_id DROP DEFAULT', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE products ALTER COLUMN tenant_id DROP DEFAULT', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE invoices ALTER COLUMN tenant_id DROP DEFAULT', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoices' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE worksheets ALTER COLUMN tenant_id DROP DEFAULT', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'worksheets' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
+SET @vol_sql = (SELECT IF(COUNT(*), 'ALTER TABLE invoice_items ALTER COLUMN tenant_id DROP DEFAULT', 'DO 0')
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoice_items' AND COLUMN_NAME = 'tenant_id');
+PREPARE vol_stmt FROM @vol_sql;
+EXECUTE vol_stmt;
+DEALLOCATE PREPARE vol_stmt;
 
 SELECT 'customers' AS `table`, COUNT(*) AS `rows` FROM customers
 UNION ALL SELECT 'products', COUNT(*) FROM products

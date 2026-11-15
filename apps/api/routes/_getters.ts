@@ -349,12 +349,16 @@ export const getWorksheets = ({ tenantId, keyword = null, customerId }: GetterIF
         `);
 
         // One row per customer, so this counts the rows of the list (it counted distinct names,
-        // which is fewer when two customers have the same name); a skip scan of the index: 114 ms
-        // became 1.4 ms
+        // which is fewer when two customers have the same name). Grouped by the index's first two
+        // columns so MySQL reads it with a loose index scan (one entry per customer): COUNT(DISTINCT
+        // customer_id) with the company filter read every worksheet of the company instead (50 000
+        // invoices: 42.6 ms; before companies, without the filter, 0.75 ms)
         totalSql.push(`
-            SELECT COUNT(DISTINCT customer_id) AS total
-            FROM worksheets
-            WHERE tenant_id = ?
+            SELECT COUNT(*) AS total
+            FROM (SELECT tenant_id, customer_id
+                  FROM worksheets
+                  WHERE tenant_id = ?
+                  GROUP BY tenant_id, customer_id) c
         `);
     }
 

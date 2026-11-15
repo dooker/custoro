@@ -385,7 +385,7 @@ describe("getWorksheets grouped by customer", () => {
 
     it("counts the customers that have worksheets, which is what the list has a row for", () => {
         expect(getWorksheets({ tenantId: 3 }).totalSql).toMatch(
-            /SELECT COUNT\(DISTINCT customer_id\) AS total\s+FROM worksheets\s+WHERE tenant_id = \?\s*$/
+            /SELECT COUNT\(\*\) AS total\s+FROM \(SELECT tenant_id, customer_id\s+FROM worksheets\s+WHERE tenant_id = \?\s+GROUP BY tenant_id, customer_id\) c\s*$/
         );
         expect(getWorksheets({ tenantId: 3, keyword: "ann" }).totalSql).toContain(
             "COUNT(DISTINCT worksheets.customer_id)"
