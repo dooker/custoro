@@ -48,12 +48,9 @@ describe("isPrivateAddress", () => {
         "::ffff:8.8.8.8",
         "::ffff:808:808",
         "64:ff9b::808:808"
-    ])(
-        "allows %s",
-        (address) => {
-            expect(isPrivateAddress(address)).toBe(false);
-        }
-    );
+    ])("allows %s", (address) => {
+        expect(isPrivateAddress(address)).toBe(false);
+    });
 });
 
 describe("checkCompanyMailHost", () => {
