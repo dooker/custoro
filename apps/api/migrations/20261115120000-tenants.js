@@ -192,11 +192,13 @@ exports.up = async (db) => {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // 2. Company 1 holds what is there, named after the company in the settings
+    // 2. Company 1 holds what is there, named after the company in the settings. The setting may
+    // hold 250 characters and the name 150: the name in the companies list is cut, the setting
+    // itself (on the invoices) stays whole (Copilot review of PR 40)
     await db.runSql(`
         INSERT INTO tenants (id, name)
         SELECT 1, COALESCE(
-            (SELECT NULLIF(TRIM(value), '') FROM config WHERE name = 'companyName' LIMIT 1),
+            (SELECT NULLIF(TRIM(LEFT(TRIM(value), 150)), '') FROM config WHERE name = 'companyName' LIMIT 1),
             'Company 1'
         )
         FROM DUAL
