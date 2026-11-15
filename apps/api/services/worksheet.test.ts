@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
+import { testCaller } from "../helper/testing/caller";
 
 const fake = createFakeDb();
 
@@ -11,7 +12,7 @@ const { deleteSingle } = await import("./worksheet");
 const { maxTransactionAttempts } = await import("../helper/transaction");
 
 const remove = (id = "9") =>
-    deleteSingle({ database: "shop", params: { id } } as unknown as Request);
+    deleteSingle({ database: "shop", user: testCaller, params: { id } } as unknown as Request);
 
 // What the database holds for worksheet 9: its `locked` flag and the invoices its lines are on
 const worksheet = (locked: "0" | "1", lines: { locked: number }[]) =>
@@ -39,7 +40,8 @@ describe("deleteSingle (worksheet)", () => {
         expect(
             deletes.map(({ sql }) => (/invoice_items/.test(sql) ? "lines" : "worksheet"))
         ).toEqual(["lines", "worksheet"]);
-        expect(deletes.every(({ params }) => params[0] === "9")).toBe(true);
+        // only the caller's company's rows
+        expect(deletes.every(({ params }) => params[0] === 1 && params[1] === "9")).toBe(true);
         expect(fake.connection.commit).toHaveBeenCalledOnce();
     });
 
@@ -66,10 +68,10 @@ describe("deleteSingle (worksheet)", () => {
         expect(fake.statements(/DELETE/)).toHaveLength(0);
     });
 
-    it("answers success for a worksheet that does not exist, as before, without deleting anything", async () => {
+    it("answers not found for a worksheet the company does not have, without deleting anything", async () => {
         fake.respondWith(() => []);
 
-        expect(await remove("404")).toEqual({ success: true });
+        expect(await remove("404")).toEqual({ success: false, message: "notFound" });
         expect(fake.statements(/DELETE/)).toHaveLength(0);
     });
 

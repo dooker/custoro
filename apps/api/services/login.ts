@@ -7,6 +7,7 @@ import {
     type LoginUserIF
 } from "../helpers/credentials";
 import { accountKey, getLoginThrottle, tooManyAttemptsMessage } from "../helpers/rateLimit";
+import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 
 export const getTokenSigner = () => {
@@ -46,12 +47,15 @@ export const postSingle = async (request: Request): Promise<LoginResultIF> => {
             const { success, data } = await query<LoginUserIF>({
                 database,
                 sql: `
-                    SELECT id,
-                           password,
-                           role,
-                           token_version
+                    /* every company: the account is found by its email before anyone is logged in */
+                    SELECT users.id,
+                           users.password,
+                           users.role,
+                           users.token_version,
+                           tenants.active AS tenant_active
                     FROM users
-                    WHERE username = ?`,
+                    JOIN tenants ON tenants.id = users.tenant_id
+                    WHERE users.username = ?`,
                 params: [name],
                 logger: "Get user details"
             });
@@ -94,8 +98,9 @@ export const logout = async (request: Request) => {
         database,
         sql: `UPDATE users
               SET token_version = token_version + 1
-              WHERE id = ?;`,
-        params: [id],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantOf(request), id],
         logger: "Log out"
     });
 

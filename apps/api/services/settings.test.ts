@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
+import { testCaller } from "../helper/testing/caller";
 
 // The invoice counter cannot be set below a number that an invoice already has: the next invoice
 // would get a number that is taken, and every invoice after it too. The check and the saving are
@@ -24,7 +25,14 @@ const { putAll } = await import("./settings");
 const { maxTransactionAttempts } = await import("../helper/transaction");
 
 const request = (body: object, file?: object) =>
-    ({ database: "shop", params: {}, query: {}, body, file }) as unknown as Request;
+    ({
+        database: "shop",
+        user: testCaller,
+        params: {},
+        query: {},
+        body,
+        file
+    }) as unknown as Request;
 
 // What the database answers inside the transaction: the counter row holds `counter`, the highest
 // invoice number is `highest` (null: that statement returns nothing), and `failing` throws on an
@@ -268,7 +276,9 @@ describe("PUT /settings with a new logo and no other setting", () => {
             .find(({ sql }) => /UPDATE config/.test(sql));
 
         // "IN (, ?)" is a syntax error: the list must hold the logo's name alone
-        expect(update?.sql).toMatch(/WHEN name = \? THEN \? END\s+WHERE name IN \(\?\);/);
-        expect(update?.params).toEqual(["logo", "logo-2.png", "logo"]);
+        expect(update?.sql).toMatch(
+            /WHEN name = \? THEN \? END\s+WHERE tenant_id = \?\s+AND name IN \(\?\);/
+        );
+        expect(update?.params).toEqual(["logo", "logo-2.png", "1", "logo"]);
     });
 });

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
+import { testCaller } from "../helper/testing/caller";
 
 // The export reads the invoices and their lines in one statement, so both come from one
 // snapshot: an invoice moved out of the period between two reads cannot show up without lines
@@ -15,6 +16,7 @@ const { getInvoicesCsv } = await import("./export");
 
 const request = {
     database: "shop",
+    user: testCaller,
     query: { from: "2026-10-01", to: "2026-10-31", language: "en" }
 } as unknown as Request;
 
@@ -50,7 +52,8 @@ describe("GET /export/invoices", () => {
 
         expect(queryMock).toHaveBeenCalledOnce();
         expect(queryMock.mock.calls[0][0].sql).toMatch(/LEFT JOIN invoice_items/);
-        expect(queryMock.mock.calls[0][0].params).toEqual(["2026-10-01", "2026-11-01"]);
+        expect(queryMock.mock.calls[0][0].sql).toContain("invoices.tenant_id = ?");
+        expect(queryMock.mock.calls[0][0].params).toEqual([1, "2026-10-01", "2026-11-01"]);
 
         const lines = (result.success ? result.csv : "").trimEnd().split("\r\n").slice(1);
 

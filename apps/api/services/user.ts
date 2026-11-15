@@ -10,6 +10,7 @@ import { isUsernameTaken } from "../helpers/users";
 import { parseInput } from "../helpers/bodyInput";
 import { userInput } from "../helpers/resourceInput";
 import { sendPasswordSetupLink } from "./profile";
+import { tenantOf } from "../helpers/tenant";
 
 // The login email is unique (users.username_UNIQUE), so two requests that both passed the
 // look-up are told apart by the database: the second one gets ER_DUP_ENTRY
@@ -22,16 +23,18 @@ const discardUpload = (file?: { filename?: string }) => {
     }
 };
 
-// Without an admin nobody can manage the users or the settings, and a production install can
-// only make a new one from the command line (scripts/createAdmin.ts). So the last admin cannot
-// be deleted or made a regular user. The admins' rows are locked while the caller checks, so two
+// Without an admin nobody can manage a company's people or settings, and a new one can only be
+// made from the command line (scripts/createAdmin.ts). So a company's last admin cannot be deleted
+// or made a regular user. The company's admins' rows are locked while the caller checks, so two
 // requests that each remove a different admin cannot both pass.
-const refuseLastAdmin = async (connection: PoolConnection, id: number) => {
+const refuseLastAdmin = async (connection: PoolConnection, tenantId: number, id: number) => {
     const [admins] = await connection.query<RowDataPacket[]>(
         `SELECT id
          FROM users
-         WHERE role = 'admin'
-         FOR UPDATE;`
+         WHERE tenant_id = ?
+           AND role = 'admin'
+         FOR UPDATE;`,
+        [tenantId]
     );
 
     if (admins.length === 1 && Number(admins[0].id) === id) {
@@ -55,8 +58,9 @@ export const getSingle = async (request: Request): Promise<QueryResult<UserIF>> 
                      avatar,
                      role
               FROM users
-              WHERE id = ?;`,
-        params: [id as string],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantOf(request), id as string],
         logger: type
     });
 
@@ -84,10 +88,14 @@ export const postSingle = async (request: Request) => {
     }
 
     const { name, username, discount, offer, role } = input.values;
+    const tenantId = tenantOf(request);
 
+    // Over all companies on purpose: an email logs in to one company, so it can be in one only.
+    // The answer is the same "email in use" as before, whichever company has it.
     const { success: userCheckSuccess, data } = await query<{ count: number }>({
         database,
-        sql: `SELECT COUNT(id) as count
+        sql: `/* every company: an email is unique over all companies */
+              SELECT COUNT(id) as count
               FROM users
               WHERE username = ?;`,
         params: [username],
@@ -106,12 +114,13 @@ export const postSingle = async (request: Request) => {
     const fileExists = file && file.filename;
     const avatar = fileExists ? sanitizeFilename(file.filename) : null;
     let sql = `INSERT INTO users
-               SET name            = ?,
+               SET tenant_id       = ?,
+                   name            = ?,
                    username        = ?,
                    discount        = ?,
                    offer           = ?,
                    role            = ?`;
-    const params: (string | number | null)[] = [name, username, discount, offer, role];
+    const params: (string | number | null)[] = [tenantId, name, username, discount, offer, role];
 
     if (fileExists && avatar) {
         sql += `, avatar = ?`;
@@ -141,7 +150,8 @@ export const postSingle = async (request: Request) => {
     // The new user has no password yet: mail them the link to set one, and tell the admin
     // whether it went out
     const insertId = "insertId" in created ? Number(created.insertId) : 0;
-    const linkSent = insertId > 0 && (await sendPasswordSetupLink(database, insertId, username));
+    const linkSent =
+        insertId > 0 && (await sendPasswordSetupLink(database, tenantId, insertId, username));
 
     return { ...created, message: linkSent ? "user.passwordLinkSent" : "user.passwordLinkFailed" };
 };
@@ -164,24 +174,28 @@ export const putSingle = async (request: Request) => {
     const { name, username, discount, offer, role } = input.values;
     const fileExists = file && file.filename;
     let avatar = fileExists ? sanitizeFilename(file.filename) : null;
+    const tenantId = tenantOf(request);
 
-    // The user is the one in the URL, not whatever id the body says
+    // The user is the one in the URL, not whatever id the body says, and one of the caller's
+    // company: another company's id is not found
     const { success: currentSuccess, data: currentData } = await query<UserIF>({
         database,
         sql: `SELECT avatar
               FROM users
-              WHERE id = ?;`,
-        params: [Number(id)],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantId, Number(id)],
         logger: "Get user for update"
     });
     const current = currentData?.[0];
 
+    // A failed look-up is an error; no row is a user the caller's company does not have
     if (!currentSuccess || !current) {
         discardUpload(file);
 
         return {
             success: false,
-            message: "get.user"
+            message: currentSuccess ? "notFound" : "get.user"
         };
     }
 
@@ -200,7 +214,7 @@ export const putSingle = async (request: Request) => {
     // assignments left to right, so the comparisons still see the old username. They compare
     // byte for byte: the column's collation ignores accents and case, but ana@ and ána@ are
     // two mailboxes.
-    let sql = `UPDATE users
+    const sql = `UPDATE users
                SET token_version        = token_version + IF(username COLLATE utf8mb4_bin <=> ?, 0, 1),
                    forgot_token         = IF(username COLLATE utf8mb4_bin <=> ?, forgot_token, NULL),
                    forgot_token_expires = IF(username COLLATE utf8mb4_bin <=> ?, forgot_token_expires, NULL),
@@ -208,7 +222,9 @@ export const putSingle = async (request: Request) => {
                    username             = ?,
                    discount             = ?,
                    offer                = ?,
-                   role                 = ?`;
+                   role                 = ?${fileExists && avatar ? ", avatar = ?" : ""}
+               WHERE tenant_id = ?
+                 AND id = ?;`;
     const params: (string | number | null)[] = [
         username,
         username,
@@ -221,12 +237,10 @@ export const putSingle = async (request: Request) => {
     ];
 
     if (fileExists && avatar) {
-        sql += `, avatar = ?`;
         params.push(avatar);
     }
 
-    sql += ` WHERE id = ?;`;
-    params.push(Number(id));
+    params.push(tenantId, Number(id));
 
     const saved = await withTransaction(
         database,
@@ -235,7 +249,7 @@ export const putSingle = async (request: Request) => {
         async (connection) => {
             // Only making an admin a regular user can take the last admin away
             if (role !== "admin") {
-                await refuseLastAdmin(connection, Number(id));
+                await refuseLastAdmin(connection, tenantId, Number(id));
             }
 
             await connection.query(sql, params);
@@ -266,13 +280,18 @@ export const deleteSingle = async (request: Request) => {
         params: { id },
         database
     } = request;
+    const tenantId = tenantOf(request);
 
-    const { success: getAvatarSuccess, data } = await query<{ avatar: string | null }>({
+    const { success: getAvatarSuccess, data } = await query<{
+        avatar: string | null;
+        owner: number;
+    }>({
         database,
-        sql: `SELECT avatar
+        sql: `SELECT avatar, owner
               FROM users
-              WHERE id = ?;`,
-        params: [id as string],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantId, id as string],
         logger: "Get customer avatar"
     });
 
@@ -283,11 +302,20 @@ export const deleteSingle = async (request: Request) => {
         };
     }
 
-    // There is no such user
+    // There is no such user in the caller's company
     if (!data?.[0]) {
         return {
             success: false,
-            message: "get.user"
+            message: "notFound"
+        };
+    }
+
+    // The owner of the install manages the companies; without one only the command line could
+    // make a new one (custoro set-owner), so the app never deletes them
+    if (Number(data[0].owner) === 1) {
+        return {
+            success: false,
+            message: "user.owner"
         };
     }
 
@@ -298,12 +326,13 @@ export const deleteSingle = async (request: Request) => {
         `Delete single ${type}`,
         "error",
         async (connection) => {
-            await refuseLastAdmin(connection, Number(id));
+            await refuseLastAdmin(connection, tenantId, Number(id));
             await connection.query(
                 `DELETE
                  FROM users
-                 WHERE id = ?;`,
-                [Number(id)]
+                 WHERE tenant_id = ?
+                   AND id = ?;`,
+                [tenantId, Number(id)]
             );
         }
     );

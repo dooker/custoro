@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
+import { testCaller } from "../helper/testing/caller";
 
 // The write routes refuse a body whose values are not text, numbers or enum values, before any SQL
 // is built: {"a":1} as a customer name was stored as "[object Object]" and [["x"]] as a product code
@@ -28,7 +29,14 @@ const user = await import("./user");
 const refused = { success: false, message: "invalidInput" };
 
 const request = (parts: { params?: object; body?: unknown; file?: object; query?: object }) =>
-    ({ database: "shop", params: {}, body: {}, query: {}, ...parts }) as unknown as Request;
+    ({
+        database: "shop",
+        user: testCaller,
+        params: {},
+        body: {},
+        query: {},
+        ...parts
+    }) as unknown as Request;
 
 const sqlStatements = () => queryMock.mock.calls.map(([call]) => call);
 
@@ -73,6 +81,7 @@ describe("customer", () => {
         const [insert] = sqlStatements();
 
         expect(insert.params).toEqual([
+            1,
             "Acme",
             "Ann",
             null,
@@ -95,8 +104,9 @@ describe("customer", () => {
 
         const [update] = sqlStatements();
 
-        expect(update.params).toHaveLength(15);
-        expect(update.params.at(-1)).toBe(12);
+        expect(update.params).toHaveLength(16);
+        // the caller's company and the customer in the URL
+        expect(update.params.slice(-2)).toEqual([1, 12]);
     });
 });
 
@@ -128,7 +138,7 @@ describe("product", () => {
     it("gets its prices as numbers, in a new product too", async () => {
         await product.postSingle(request({ body }));
 
-        expect(sqlStatements()[0].params).toEqual(["P-1", "Cable", 19.99, 0, "pc", ""]);
+        expect(sqlStatements()[0].params).toEqual([1, "P-1", "Cable", 19.99, 0, "pc", ""]);
     });
 
     it("looks a code up only when it is text", async () => {
@@ -178,7 +188,7 @@ describe("worksheet", () => {
             request({ body: { customer: "3", product_id: "4", quantity: "2,5" } })
         );
 
-        expect(sqlStatements()[0].params).toEqual([3, 4, 0, 2.5]);
+        expect(sqlStatements()[0].params).toEqual([1, 3, 4, 0, 2.5]);
 
         queryMock.mockClear();
 
@@ -189,7 +199,7 @@ describe("worksheet", () => {
             })
         );
 
-        expect(sqlStatements()[0].params).toEqual([3, 4, 0, 2, 9]);
+        expect(sqlStatements()[0].params).toEqual([3, 4, 0, 2, 1, 9]);
     });
 });
 
@@ -257,6 +267,7 @@ describe("user", () => {
             1,
             0,
             "user",
+            1,
             2
         ]);
     });

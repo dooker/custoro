@@ -19,35 +19,139 @@
 const { getColumn, hasIndex, hasForeignKey } = require("../config/migrationHelpers");
 
 // The company tables, in the order their keys depend on each other
-const companyTables = ["config", "customers", "products", "invoices", "worksheets", "invoice_items"];
+const companyTables = [
+    "config",
+    "customers",
+    "products",
+    "invoices",
+    "worksheets",
+    "invoice_items"
+];
 
 // Unique keys and indexes that change: [table, old name or null, new name, new definition]
 const keys = [
     ["config", "name_UNIQUE", "uq_config_name", "UNIQUE KEY uq_config_name (tenant_id, name)"],
-    ["customers", null, "uq_customers_tenant_id", "UNIQUE KEY uq_customers_tenant_id (tenant_id, id)"],
+    [
+        "customers",
+        null,
+        "uq_customers_tenant_id",
+        "UNIQUE KEY uq_customers_tenant_id (tenant_id, id)"
+    ],
     ["products", null, "uq_products_tenant_id", "UNIQUE KEY uq_products_tenant_id (tenant_id, id)"],
-    ["products", "code_UNIQUE", "uq_products_code", "UNIQUE KEY uq_products_code (tenant_id, code)"],
+    [
+        "products",
+        "code_UNIQUE",
+        "uq_products_code",
+        "UNIQUE KEY uq_products_code (tenant_id, code)"
+    ],
     ["invoices", null, "uq_invoices_tenant_id", "UNIQUE KEY uq_invoices_tenant_id (tenant_id, id)"],
-    ["invoices", "number_UNIQUE", "uq_invoices_number", "UNIQUE KEY uq_invoices_number (tenant_id, number)"],
-    ["invoices", "idx_invoices_customer", "idx_invoices_customer", "KEY idx_invoices_customer (tenant_id, customer_id)"],
-    ["invoices", "idx_invoices_number_sort", "idx_invoices_number_sort", "KEY idx_invoices_number_sort (tenant_id, number_sort)"],
-    ["worksheets", null, "uq_worksheets_tenant_id", "UNIQUE KEY uq_worksheets_tenant_id (tenant_id, id)"],
-    ["worksheets", "idx_worksheets_customer", "idx_worksheets_customer", "KEY idx_worksheets_customer (tenant_id, customer_id, id)"],
-    ["worksheets", "idx_worksheets_invoice", "idx_worksheets_invoice", "KEY idx_worksheets_invoice (tenant_id, invoice)"],
-    ["worksheets", "idx_worksheets_product", "idx_worksheets_product", "KEY idx_worksheets_product (tenant_id, product_id)"],
-    ["invoice_items", "idx_items_invoice", "idx_items_invoice", "KEY idx_items_invoice (tenant_id, invoice_id)"],
-    ["invoice_items", "idx_items_worksheet", "idx_items_worksheet", "KEY idx_items_worksheet (tenant_id, worksheet_id)"],
+    [
+        "invoices",
+        "number_UNIQUE",
+        "uq_invoices_number",
+        "UNIQUE KEY uq_invoices_number (tenant_id, number)"
+    ],
+    [
+        "invoices",
+        "idx_invoices_customer",
+        "idx_invoices_customer",
+        "KEY idx_invoices_customer (tenant_id, customer_id)"
+    ],
+    [
+        "invoices",
+        "idx_invoices_number_sort",
+        "idx_invoices_number_sort",
+        "KEY idx_invoices_number_sort (tenant_id, number_sort)"
+    ],
+    [
+        "worksheets",
+        null,
+        "uq_worksheets_tenant_id",
+        "UNIQUE KEY uq_worksheets_tenant_id (tenant_id, id)"
+    ],
+    [
+        "worksheets",
+        "idx_worksheets_customer",
+        "idx_worksheets_customer",
+        "KEY idx_worksheets_customer (tenant_id, customer_id, id)"
+    ],
+    [
+        "worksheets",
+        "idx_worksheets_invoice",
+        "idx_worksheets_invoice",
+        "KEY idx_worksheets_invoice (tenant_id, invoice)"
+    ],
+    [
+        "worksheets",
+        "idx_worksheets_product",
+        "idx_worksheets_product",
+        "KEY idx_worksheets_product (tenant_id, product_id)"
+    ],
+    [
+        "invoice_items",
+        "idx_items_invoice",
+        "idx_items_invoice",
+        "KEY idx_items_invoice (tenant_id, invoice_id)"
+    ],
+    [
+        "invoice_items",
+        "idx_items_worksheet",
+        "idx_items_worksheet",
+        "KEY idx_items_worksheet (tenant_id, worksheet_id)"
+    ],
     ["users", null, "idx_users_tenant", "KEY idx_users_tenant (tenant_id)"]
 ];
 
 // References that now include the company: [table, name, columns, parent, parent columns, on delete]
 const references = [
-    ["invoices", "fk_invoices_customer", "tenant_id, customer_id", "customers", "tenant_id, id", "RESTRICT"],
-    ["worksheets", "fk_worksheets_customer", "tenant_id, customer_id", "customers", "tenant_id, id", "RESTRICT"],
-    ["worksheets", "fk_worksheets_product", "tenant_id, product_id", "products", "tenant_id, id", "RESTRICT"],
-    ["worksheets", "fk_worksheets_invoice", "tenant_id, invoice", "invoices", "tenant_id, id", "RESTRICT"],
-    ["invoice_items", "fk_items_invoice", "tenant_id, invoice_id", "invoices", "tenant_id, id", "RESTRICT"],
-    ["invoice_items", "fk_items_worksheet", "tenant_id, worksheet_id", "worksheets", "tenant_id, id", "RESTRICT"]
+    [
+        "invoices",
+        "fk_invoices_customer",
+        "tenant_id, customer_id",
+        "customers",
+        "tenant_id, id",
+        "RESTRICT"
+    ],
+    [
+        "worksheets",
+        "fk_worksheets_customer",
+        "tenant_id, customer_id",
+        "customers",
+        "tenant_id, id",
+        "RESTRICT"
+    ],
+    [
+        "worksheets",
+        "fk_worksheets_product",
+        "tenant_id, product_id",
+        "products",
+        "tenant_id, id",
+        "RESTRICT"
+    ],
+    [
+        "worksheets",
+        "fk_worksheets_invoice",
+        "tenant_id, invoice",
+        "invoices",
+        "tenant_id, id",
+        "RESTRICT"
+    ],
+    [
+        "invoice_items",
+        "fk_items_invoice",
+        "tenant_id, invoice_id",
+        "invoices",
+        "tenant_id, id",
+        "RESTRICT"
+    ],
+    [
+        "invoice_items",
+        "fk_items_worksheet",
+        "tenant_id, worksheet_id",
+        "worksheets",
+        "tenant_id, id",
+        "RESTRICT"
+    ]
 ];
 
 // Whether a foreign key already covers the given columns (a second run, or a fresh install)
@@ -103,14 +207,18 @@ exports.up = async (db) => {
     // a default
     for (const table of [...companyTables, "users"]) {
         if (!(await getColumn(db, table, "tenant_id"))) {
-            await db.runSql(`ALTER TABLE ${table} ADD COLUMN tenant_id int NOT NULL DEFAULT 1 AFTER id;`);
+            await db.runSql(
+                `ALTER TABLE ${table} ADD COLUMN tenant_id int NOT NULL DEFAULT 1 AFTER id;`
+            );
         }
         await db.runSql(`ALTER TABLE ${table} ALTER COLUMN tenant_id DROP DEFAULT;`);
     }
 
     // 4. The owner of the install: the first admin of company 1
     if (!(await getColumn(db, "users", "owner"))) {
-        await db.runSql(`ALTER TABLE users ADD COLUMN owner tinyint(1) NOT NULL DEFAULT 0 AFTER role;`);
+        await db.runSql(
+            `ALTER TABLE users ADD COLUMN owner tinyint(1) NOT NULL DEFAULT 0 AFTER role;`
+        );
     }
     await db.runSql(`
         UPDATE users

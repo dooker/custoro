@@ -42,6 +42,7 @@ describe("createInvoiceWithNextNumber", () => {
 
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: 5,
             vat: 24,
             lines: [line(11), line(12, 4), line(null, 5)]
@@ -56,27 +57,31 @@ describe("createInvoiceWithNextNumber", () => {
         const [billed] = fake.statements(/UPDATE worksheets/);
 
         expect(counter.sql).toContain("lastInvoiceId");
-        expect(invoice.params).toEqual(["42", 5, 24]);
-        expect(bump.params).toEqual(["42"]);
+        expect(invoice.sql).toContain("tenant_id");
+        expect(invoice.params).toEqual([1, "42", 5, 24]);
+        expect(bump.sql).toContain("tenant_id = ?");
+        expect(bump.params).toEqual(["42", 1]);
 
-        // every line is stored with the new invoice's id, in a single statement
+        // every line is stored with the company and the new invoice's id, in a single statement
         const rows = (lines.params[0] as unknown[][]).map((row) => [
             row[0],
             row[1],
             row[2],
-            row[3]
+            row[3],
+            row[4]
         ]);
 
         expect(rows).toEqual([
-            [11, 3, 7, 2],
-            [12, 4, 7, 2],
-            [null, 5, 7, 2]
+            [1, 11, 3, 7, 2],
+            [1, 12, 4, 7, 2],
+            [1, null, 5, 7, 2]
         ]);
         expect(fake.statements(/INSERT INTO invoice_items/)).toHaveLength(1);
 
         // the worksheets are marked as billed on this invoice, each once, only while still open
         expect(billed.sql).toContain("invoice IS NULL");
-        expect(billed.params).toEqual([7, [11, 12]]);
+        expect(billed.sql).toContain("tenant_id = ?");
+        expect(billed.params).toEqual([7, 1, [11, 12]]);
 
         expect(fake.connection.commit).toHaveBeenCalledOnce();
         expect(fake.connection.rollback).not.toHaveBeenCalled();
@@ -88,6 +93,7 @@ describe("createInvoiceWithNextNumber", () => {
 
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: null,
             vat: "24"
         });
@@ -95,7 +101,7 @@ describe("createInvoiceWithNextNumber", () => {
         expect(result).toEqual({ ok: true, value: { id: 7, number: 42 } });
         expect(fake.statements(/INSERT INTO invoice_items/)).toHaveLength(0);
         expect(fake.statements(/UPDATE worksheets/)).toHaveLength(0);
-        expect(fake.statements(/INSERT INTO invoices/)[0].params).toEqual(["42", null, "24"]);
+        expect(fake.statements(/INSERT INTO invoices/)[0].params).toEqual([1, "42", null, "24"]);
     });
 
     it("refuses and rolls back everything when a worksheet is already on an invoice", async () => {
@@ -104,6 +110,7 @@ describe("createInvoiceWithNextNumber", () => {
 
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: 5,
             vat: 24,
             lines: [line(11), line(12)]
@@ -130,6 +137,7 @@ describe("createInvoiceWithNextNumber", () => {
 
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: 5,
             vat: 24,
             lines: [line(null)]
@@ -150,41 +158,62 @@ describe("createInvoiceWithNextNumber", () => {
 
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: 5,
             vat: 24
         });
 
         expect(result).toEqual({ ok: true, value: { id: 7, number: 42 } });
-        expect(fake.statements(/INSERT INTO invoices/)[0].params).toEqual(["42", 5, 24]);
+        expect(fake.statements(/INSERT INTO invoices/)[0].params).toEqual([1, "42", 5, 24]);
         // and the counter is corrected with it
-        expect(fake.statements(/UPDATE config/)[0].params).toEqual(["42"]);
+        expect(fake.statements(/UPDATE config/)[0].params).toEqual(["42", 1]);
     });
 
     it("keeps to the counter when it is the larger, and when there are no invoices", async () => {
         fake.respondWith(databaseAnswers(0, "100", "41"));
-        await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 });
+        await createInvoiceWithNextNumber({
+            database: "shop",
+            tenantId: 1,
+            customerId: 5,
+            vat: 24
+        });
 
-        expect(fake.statements(/INSERT INTO invoices/)[0].params[0]).toBe("101");
+        expect(fake.statements(/INSERT INTO invoices/)[0].params[1]).toBe("101");
 
         fake.reset();
         fake.respondWith(databaseAnswers(0, "0", "0"));
-        await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 });
+        await createInvoiceWithNextNumber({
+            database: "shop",
+            tenantId: 1,
+            customerId: 5,
+            vat: 24
+        });
 
-        expect(fake.statements(/INSERT INTO invoices/)[0].params[0]).toBe("1");
+        expect(fake.statements(/INSERT INTO invoices/)[0].params[1]).toBe("1");
     });
 
     it("counts numbers longer than JavaScript can add one to", async () => {
         fake.respondWith(databaseAnswers(0, "41", "123456789012345678"));
 
-        await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 });
+        await createInvoiceWithNextNumber({
+            database: "shop",
+            tenantId: 1,
+            customerId: 5,
+            vat: 24
+        });
 
-        expect(fake.statements(/INSERT INTO invoices/)[0].params[0]).toBe("123456789012345679");
+        expect(fake.statements(/INSERT INTO invoices/)[0].params[1]).toBe("123456789012345679");
     });
 
     it("reads the highest number after it has locked the counter, from the invoice index", async () => {
         fake.respondWith(databaseAnswers(0));
 
-        await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 });
+        await createInvoiceWithNextNumber({
+            database: "shop",
+            tenantId: 1,
+            customerId: 5,
+            vat: 24
+        });
 
         const order = fake.calls.map(({ sql }) =>
             /FOR UPDATE/.test(sql) ? "lock" : /MAX\(number_sort\)/.test(sql) ? "max" : "other"
@@ -221,7 +250,7 @@ describe("createInvoiceWithNextNumber", () => {
                         .trimEnd();
 
                 if (
-                    state.numbers.some((number) => folded(number) === folded(params[0] as string))
+                    state.numbers.some((number) => folded(number) === folded(params[1] as string))
                 ) {
                     throw Object.assign(
                         new Error("Duplicate entry for key 'invoices.number_UNIQUE'"),
@@ -231,7 +260,7 @@ describe("createInvoiceWithNextNumber", () => {
                     );
                 }
 
-                state.numbers.push(params[0] as string);
+                state.numbers.push(params[1] as string);
 
                 return { insertId: state.numbers.length, affectedRows: 1 };
             }
@@ -252,12 +281,13 @@ describe("createInvoiceWithNextNumber", () => {
         for (let index = 0; index < times; index++) {
             const result = await createInvoiceWithNextNumber({
                 database: "shop",
+                tenantId: 1,
                 customerId: 5,
                 vat: 24
             });
 
             expect(result.ok, `number ${index + 1}`).toBe(true);
-            numbers.push(String(fake.statements(/INSERT INTO invoices/).at(-1)?.params[0]));
+            numbers.push(String(fake.statements(/INSERT INTO invoices/).at(-1)?.params[1]));
         }
 
         return numbers;
@@ -287,6 +317,7 @@ describe("createInvoiceWithNextNumber", () => {
         // the next number would have 19 digits, and the highest number could no longer be found
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: 5,
             vat: 24
         });
@@ -342,6 +373,7 @@ describe("createInvoiceWithNextNumber", () => {
 
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: 5,
             vat: 24
         });
@@ -371,6 +403,7 @@ describe("createInvoiceWithNextNumber", () => {
 
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: 5,
             vat: 24
         });
@@ -391,7 +424,14 @@ describe("createInvoiceWithNextNumber", () => {
         fake.respondWith(databaseAnswers(0, " 41 ", "41"));
 
         expect(
-            (await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 })).ok
+            (
+                await createInvoiceWithNextNumber({
+                    database: "shop",
+                    tenantId: 1,
+                    customerId: 5,
+                    vat: 24
+                })
+            ).ok
         ).toBe(true);
 
         for (const counter of ["-5", "4 1", "0x10", "1e3", ""]) {
@@ -399,8 +439,14 @@ describe("createInvoiceWithNextNumber", () => {
             fake.respondWith(databaseAnswers(0, counter, "0"));
 
             expect(
-                (await createInvoiceWithNextNumber({ database: "shop", customerId: 5, vat: 24 }))
-                    .ok,
+                (
+                    await createInvoiceWithNextNumber({
+                        database: "shop",
+                        tenantId: 1,
+                        customerId: 5,
+                        vat: 24
+                    })
+                ).ok,
                 counter
             ).toBe(false);
         }
@@ -412,6 +458,7 @@ describe("createInvoiceWithNextNumber", () => {
 
         const result = await createInvoiceWithNextNumber({
             database: "shop",
+            tenantId: 1,
             customerId: 5,
             vat: 24
         });
@@ -429,6 +476,7 @@ describe("createInvoiceWithNextNumber", () => {
 
             const result = await createInvoiceWithNextNumber({
                 database: "shop",
+                tenantId: 1,
                 customerId: 5,
                 vat: 24
             });
@@ -440,11 +488,37 @@ describe("createInvoiceWithNextNumber", () => {
     });
 });
 
+describe("numbering per company", () => {
+    it("locks, reads and bumps only the company's own counter and numbers", async () => {
+        fake.respondWith(databaseAnswers(0, "5", "3"));
+
+        const result = await createInvoiceWithNextNumber({
+            database: "shop",
+            tenantId: 2,
+            customerId: 9,
+            vat: 24
+        });
+
+        expect(result).toEqual({ ok: true, value: { id: 7, number: 6 } });
+        const [counter] = fake.statements(/FOR UPDATE/);
+        const [highest] = fake.statements(/MAX\(number_sort\)/);
+        const [invoice] = fake.statements(/INSERT INTO invoices/);
+        const [bump] = fake.statements(/UPDATE config/);
+
+        expect(counter.sql).toContain("tenant_id = ?");
+        expect(counter.params).toEqual([2]);
+        expect(highest.sql).toContain("tenant_id = ?");
+        expect(highest.params).toEqual([2]);
+        expect(invoice.params).toEqual([2, "6", 9, 24]);
+        expect(bump.params).toEqual(["6", 2]);
+    });
+});
+
 describe("getHighestNumber", () => {
     const highestIs = async (...rows: object[]) => {
         fake.respondWith(() => rows);
 
-        return getHighestNumber(fake.connection as never);
+        return getHighestNumber(fake.connection as never, 1);
     };
 
     it("is the highest number number_sort holds, and 0 when there are no invoices", async () => {

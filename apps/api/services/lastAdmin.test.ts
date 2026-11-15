@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
+import { testCaller } from "../helper/testing/caller";
 
 // Without an admin nobody can manage users or settings, and a production install can only make a
 // new admin from the command line. So the last admin can be neither deleted nor made a regular user.
@@ -22,7 +23,14 @@ vi.mock("./_helpers", async (importOriginal) => ({
 const user = await import("./user");
 
 const request = (parts: { params?: object; body?: unknown }) =>
-    ({ database: "shop", params: {}, body: {}, query: {}, ...parts }) as unknown as Request;
+    ({
+        database: "shop",
+        user: testCaller,
+        params: {},
+        body: {},
+        query: {},
+        ...parts
+    }) as unknown as Request;
 
 const body = (role: string) => ({
     name: "Ann",
@@ -67,7 +75,9 @@ describe("DELETE /user/:id", () => {
         expect(await user.deleteSingle(request({ params: { id: "2" } }))).toEqual({
             success: true
         });
-        expect(fake.statements(/DELETE\s+FROM users/).map(({ params }) => params)).toEqual([[2]]);
+        expect(fake.statements(/DELETE\s+FROM users/).map(({ params }) => params)).toEqual([
+            [1, 2]
+        ]);
         expect(deleteImageFile).toHaveBeenCalledWith("ann.png");
     });
 

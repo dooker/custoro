@@ -17,6 +17,9 @@ export interface PostGeneralSingleIF {
 
 export interface GetConfigIF {
     database: string;
+    // The company whose settings these are; the password email has no logged-in caller, so the
+    // company is given, not read from a request
+    tenantId: number;
     fields: string[];
     mapper: string[];
 }

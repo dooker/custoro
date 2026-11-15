@@ -14,25 +14,35 @@ import {
     quantityInput
 } from "../helpers/resourceInput";
 import type { ProductIF } from "../types/product";
+import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 // A paid invoice is locked: its lines, quantities, number, date and customer stay as they were
 // billed. Every change to an invoice starts here, inside its transaction, and the row lock keeps
-// it from being marked as paid while the change is being saved. An invoice that does not exist is
-// left to the statements that follow, which refuse it with their own message.
+// it from being marked as paid while the change is being saved. An invoice the caller's company
+// does not have (one that never existed, or another company's) is refused as not found.
 export const lockedInvoiceMessage = "invoice.locked";
 
-const refuseLockedInvoice = async (connection: PoolConnection, invoiceId: unknown) => {
+const refuseLockedInvoice = async (
+    connection: PoolConnection,
+    tenantId: number,
+    invoiceId: unknown
+) => {
     const [rows] = await connection.query<RowDataPacket[]>(
         `SELECT locked
          FROM invoices
-         WHERE id = ?
+         WHERE tenant_id = ?
+           AND id = ?
              FOR UPDATE;`,
-        [invoiceId]
+        [tenantId, invoiceId]
     );
 
-    if (Array.isArray(rows) && rows.some((row) => Number(row.locked) === 1)) {
+    if (!Array.isArray(rows) || !rows.length) {
+        throw new TransactionRefusal("notFound");
+    }
+
+    if (rows.some((row) => Number(row.locked) === 1)) {
         throw new TransactionRefusal(lockedInvoiceMessage);
     }
 };
@@ -44,8 +54,9 @@ export const getLast = async (request: Request) => {
         database,
         sql: `SELECT value AS lastId
               FROM config
-              WHERE name = 'lastInvoiceId';`,
-        params: [],
+              WHERE tenant_id = ?
+                AND name = 'lastInvoiceId';`,
+        params: [tenantOf(request)],
         logger: "Get last invoice ID"
     });
 
@@ -94,10 +105,11 @@ export const getMultiplePerCustomer = async (request: Request) => {
         database,
         sql: `SELECT id, number
               FROM invoices
-              WHERE invoices.customer_id = ?
+              WHERE invoices.tenant_id = ?
+                AND invoices.customer_id = ?
                 AND locked = '0'
               ORDER BY number + 0 DESC;`,
-        params: [String(customer)],
+        params: [tenantOf(request), String(customer)],
         logger: "Get invoices for customer"
     });
 
@@ -114,7 +126,9 @@ export const getMultiplePerCustomer = async (request: Request) => {
     };
 };
 
-const getProductsMap = async (database: string, productIds: number[]) => {
+// Only the company's own products: a line can never copy another company's product (the
+// product reference of invoice_items is the one without tenant_id, see the schema)
+const getProductsMap = async (database: string, tenantId: number, productIds: number[]) => {
     const ids = [...new Set(productIds)];
 
     if (ids.length === 0) {
@@ -128,9 +142,10 @@ const getProductsMap = async (database: string, productIds: number[]) => {
         sql: `
             SELECT id, code, name, price, discount_price AS discountPrice, unit, comment
             FROM products
-            WHERE id IN (${placeholders});
+            WHERE tenant_id = ?
+              AND id IN (${placeholders});
         `,
-        params: ids,
+        params: [tenantId, ...ids],
         logger: "Batch fetch products"
     });
 
@@ -142,6 +157,7 @@ const getProductsMap = async (database: string, productIds: number[]) => {
 // product's data), or the key of the message to show when something does not add up.
 export const buildInvoiceLines = async (
     database: string,
+    tenantId: number,
     items: unknown
 ): Promise<{ lines: InvoiceLineIF[] } | { message: string }> => {
     if (items === undefined || items === null) {
@@ -166,6 +182,7 @@ export const buildInvoiceLines = async (
 
     const products = await getProductsMap(
         database,
+        tenantId,
         requested.map((item) => item.productId)
     );
     const lines: InvoiceLineIF[] = [];
@@ -202,12 +219,14 @@ export const postSingle = async (request: Request) => {
     }
 
     const { customerId } = input.values;
+    const tenantId = tenantOf(request);
     const { success: vatSuccess, data: vatData } = await query<{ value: number }>({
         database,
         sql: `SELECT value
               FROM config
-              WHERE name = 'vat';`,
-        params: [],
+              WHERE tenant_id = ?
+                AND name = 'vat';`,
+        params: [tenantId],
         logger: "Get VAT"
     });
     const vat = vatData?.[0]?.value;
@@ -220,7 +239,7 @@ export const postSingle = async (request: Request) => {
     }
 
     // Everything that can be checked is checked before the number is taken
-    const built = await buildInvoiceLines(database, body.items);
+    const built = await buildInvoiceLines(database, tenantId, body.items);
 
     if ("message" in built) {
         return {
@@ -229,8 +248,10 @@ export const postSingle = async (request: Request) => {
         };
     }
 
+    // The customer must be the company's own: the foreign key includes tenant_id
     const created = await createInvoiceWithNextNumber({
         database,
+        tenantId,
         customerId,
         vat,
         lines: built.lines
@@ -258,9 +279,10 @@ export const putSingle = async (request: Request) => {
     }
 
     const { invoiceId } = input.values;
+    const tenantId = tenantOf(request);
     // Only the first line is added, the web app sends one at a time
     const first = Array.isArray(body.items) ? body.items[0] : undefined;
-    const built = await buildInvoiceLines(database, first ? [first] : []);
+    const built = await buildInvoiceLines(database, tenantId, first ? [first] : []);
 
     if ("message" in built || !built.lines.length) {
         return {
@@ -275,13 +297,14 @@ export const putSingle = async (request: Request) => {
         "Add item to invoice",
         "post.item.invoice",
         async (connection) => {
-            await refuseLockedInvoice(connection, invoiceId);
-            await addInvoiceLines(connection, invoiceId, built.lines);
+            await refuseLockedInvoice(connection, tenantId, invoiceId);
+            await addInvoiceLines(connection, tenantId, invoiceId, built.lines);
             await connection.query(
                 `UPDATE invoices
                  SET change_date = NOW()
-                 WHERE id = ?;`,
-                [invoiceId]
+                 WHERE tenant_id = ?
+                   AND id = ?;`,
+                [tenantId, invoiceId]
             );
         }
     );
@@ -357,6 +380,7 @@ export const putSingleData = async (request: Request) => {
     }
 
     const { id, customerId, invoiceDate, paymentType, invoiceType, number } = input.values;
+    const tenantId = tenantOf(request);
 
     // An invoice takes its payment period from its customer; it keeps its own when it has no
     // customer, or when the customer has no period. A customer that cannot be read is an error:
@@ -385,7 +409,7 @@ export const putSingleData = async (request: Request) => {
         "Update invoice data",
         "put.invoice",
         async (connection) => {
-            await refuseLockedInvoice(connection, id);
+            await refuseLockedInvoice(connection, tenantId, id);
             await connection.query(
                 `UPDATE invoices
                  SET invoice_date   = ?,
@@ -395,8 +419,18 @@ export const putSingleData = async (request: Request) => {
                      invoice_type   = ?,
                      change_date    = NOW(),
                      payment_period = COALESCE(?, payment_period)
-                 WHERE id = ?;`,
-                [invoiceDate, customerId, number, paymentType, invoiceType, paymentPeriod, id]
+                 WHERE tenant_id = ?
+                   AND id = ?;`,
+                [
+                    invoiceDate,
+                    customerId,
+                    number,
+                    paymentType,
+                    invoiceType,
+                    paymentPeriod,
+                    tenantId,
+                    id
+                ]
             );
 
             // Worksheets on the invoice follow its customer
@@ -404,9 +438,10 @@ export const putSingleData = async (request: Request) => {
                 await connection.query(
                     `UPDATE worksheets
                      SET customer_id = ?
-                     WHERE invoice = ?
+                     WHERE tenant_id = ?
+                       AND invoice = ?
                        AND customer_id <> ?;`,
-                    [customerId, id, customerId]
+                    [customerId, tenantId, id, customerId]
                 );
             }
         }
@@ -452,6 +487,7 @@ export const putSingleItem = async (request: Request) => {
     }
 
     const { value } = input.values;
+    const tenantId = tenantOf(request);
 
     // The quantity and the invoice's change date are saved together. The item must belong to
     // the invoice in the URL, and it is that invoice whose change date is set.
@@ -460,14 +496,15 @@ export const putSingleItem = async (request: Request) => {
         "Update invoice item quantity",
         "put.invoice.items",
         async (connection) => {
-            await refuseLockedInvoice(connection, invoiceId);
+            await refuseLockedInvoice(connection, tenantId, invoiceId);
 
             const [updated] = await connection.query<ResultSetHeader>(
                 `UPDATE invoice_items
                  SET quantity = ?
-                 WHERE id = ?
+                 WHERE tenant_id = ?
+                   AND id = ?
                    AND invoice_id = ?;`,
-                [value, id, invoiceId]
+                [value, tenantId, id, invoiceId]
             );
 
             if (!updated.affectedRows) {
@@ -477,8 +514,9 @@ export const putSingleItem = async (request: Request) => {
             await connection.query(
                 `UPDATE invoices
                  SET change_date = NOW()
-                 WHERE id = ?;`,
-                [invoiceId]
+                 WHERE tenant_id = ?
+                   AND id = ?;`,
+                [tenantId, invoiceId]
             );
         }
     );
@@ -501,6 +539,7 @@ export const deleteSingleItem = async (request: Request) => {
         params: { invoiceId, id },
         database
     } = request;
+    const tenantId = tenantOf(request);
 
     // The line goes, its worksheet becomes open again and the invoice's change date is set, or
     // none of it happens
@@ -509,15 +548,16 @@ export const deleteSingleItem = async (request: Request) => {
         "Delete invoice item",
         "delete.invoice.item",
         async (connection) => {
-            await refuseLockedInvoice(connection, invoiceId);
+            await refuseLockedInvoice(connection, tenantId, invoiceId);
 
             const [rows] = await connection.query<RowDataPacket[]>(
                 `SELECT worksheet_id
                  FROM invoice_items
-                 WHERE id = ?
+                 WHERE tenant_id = ?
+                   AND id = ?
                    AND invoice_id = ?
                      FOR UPDATE;`,
-                [id, invoiceId]
+                [tenantId, id, invoiceId]
             );
 
             if (!rows.length) {
@@ -527,25 +567,28 @@ export const deleteSingleItem = async (request: Request) => {
             await connection.query(
                 `DELETE
                  FROM invoice_items
-                 WHERE id = ?;`,
-                [id]
+                 WHERE tenant_id = ?
+                   AND id = ?;`,
+                [tenantId, id]
             );
 
             if (rows[0].worksheet_id) {
                 await connection.query(
                     `UPDATE worksheets
                      SET invoice = NULL
-                     WHERE id = ?
+                     WHERE tenant_id = ?
+                       AND id = ?
                        AND invoice = ?;`,
-                    [rows[0].worksheet_id, invoiceId]
+                    [tenantId, rows[0].worksheet_id, invoiceId]
                 );
             }
 
             await connection.query(
                 `UPDATE invoices
                  SET change_date = NOW()
-                 WHERE id = ?;`,
-                [invoiceId]
+                 WHERE tenant_id = ?
+                   AND id = ?;`,
+                [tenantId, invoiceId]
             );
         }
     );
@@ -590,6 +633,7 @@ export const markAsPaid = async (request: Request) => {
         };
     }
 
+    const tenantId = tenantOf(request);
     const locked = await withTransaction(
         database,
         "Lock invoice",
@@ -598,13 +642,14 @@ export const markAsPaid = async (request: Request) => {
             const [rows] = await connection.query<RowDataPacket[]>(
                 `SELECT locked
                  FROM invoices
-                 WHERE id = ?
+                 WHERE tenant_id = ?
+                   AND id = ?
                      FOR UPDATE;`,
-                [String(id)]
+                [tenantId, String(id)]
             );
 
             if (!rows.length) {
-                throw new TransactionRefusal("put.invoice.lock");
+                throw new TransactionRefusal("notFound");
             }
 
             if (Number(rows[0].locked) === 1) {
@@ -613,17 +658,20 @@ export const markAsPaid = async (request: Request) => {
 
             await connection.query(
                 `UPDATE invoices
-                     LEFT JOIN customers ON customers.id = invoices.customer_id
+                     LEFT JOIN customers ON customers.tenant_id = invoices.tenant_id
+                         AND customers.id = invoices.customer_id
                  SET invoices.locked = 1,
                      ${customerCopy.map(([column, source]) => `invoices.${column} = customers.${source}`).join(",\n                     ")}
-                 WHERE invoices.id = ?;`,
-                [String(id)]
+                 WHERE invoices.tenant_id = ?
+                   AND invoices.id = ?;`,
+                [tenantId, String(id)]
             );
             await connection.query(
                 `UPDATE worksheets
                  SET locked = '1'
-                 WHERE invoice = ?;`,
-                [String(id)]
+                 WHERE tenant_id = ?
+                   AND invoice = ?;`,
+                [tenantId, String(id)]
             );
         }
     );

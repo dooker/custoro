@@ -24,18 +24,23 @@ describe("logout", () => {
     it("moves the caller's token version on, and nobody else's", async () => {
         queryMock.mockResolvedValue({ success: true, data: [] });
 
-        expect(await logout(request({ id: 7, role: "user", tv: 3 }))).toEqual({ success: true });
+        expect(
+            await logout(request({ id: 7, role: "user", tv: 3, tenantId: 2, owner: false }))
+        ).toEqual({ success: true });
 
         const [{ sql, params }] = queryMock.mock.calls.map(([call]) => call);
 
         expect(sql).toContain("SET token_version = token_version + 1");
-        expect(params).toEqual([7]);
+        expect(sql).toContain("tenant_id = ?");
+        expect(params).toEqual([2, 7]);
     });
 
     it("says so when the database cannot save it", async () => {
         queryMock.mockResolvedValue({ success: false });
 
-        expect(await logout(request({ id: 7, role: "user", tv: 3 }))).toEqual({
+        expect(
+            await logout(request({ id: 7, role: "user", tv: 3, tenantId: 2, owner: false }))
+        ).toEqual({
             success: false,
             message: "logoutFailed"
         });

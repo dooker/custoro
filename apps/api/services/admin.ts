@@ -6,6 +6,8 @@ export type SaveAdminResult = { ok: true; created: boolean } | { ok: false; mess
 
 interface SaveAdminIF {
     database: string;
+    // The company a new admin belongs to (company 1 on a fresh install)
+    tenantId: number;
     username: string;
     name: string;
     password: string;
@@ -18,6 +20,7 @@ interface SaveAdminIF {
 // the command line (scripts/createAdmin.ts). It also gets a locked-out admin back in.
 export const saveAdmin = async ({
     database,
+    tenantId,
     username,
     name,
     password,
@@ -35,8 +38,10 @@ export const saveAdmin = async ({
         "error",
         async (connection) => {
             // Usernames compare case-insensitively, the same as the unique key
+            // Over all companies: an email belongs to one company only
             const [found] = await connection.query<RowDataPacket[]>(
-                `SELECT id
+                `/* every company: an email is unique over all companies */
+                 SELECT id
                  FROM users
                  WHERE username = ?
                  FOR UPDATE;`,
@@ -55,7 +60,8 @@ export const saveAdmin = async ({
             if (existing) {
                 // A new password ends the user's other sessions and any pending reset link
                 await connection.query(
-                    `UPDATE users
+                    `/* every company: the account found by its email above, in its own company */
+                     UPDATE users
                      SET password             = ?,
                          role                 = 'admin',
                          forgot_token         = NULL,
@@ -68,13 +74,35 @@ export const saveAdmin = async ({
                 return false;
             }
 
+            const [companies] = await connection.query<RowDataPacket[]>(
+                `SELECT id
+                 FROM tenants
+                 WHERE id = ?;`,
+                [tenantId]
+            );
+
+            if (!companies.length) {
+                throw new TransactionRefusal("tenant.missing");
+            }
+
+            // The first admin of an install without an owner (a fresh install) is its owner
+            const [owners] = await connection.query<RowDataPacket[]>(
+                `/* every company: is there an owner of the install at all */
+                 SELECT id
+                 FROM users
+                 WHERE owner = 1
+                 FOR UPDATE;`
+            );
+
             await connection.query(
                 `INSERT INTO users
-                 SET username = ?,
-                     name     = ?,
-                     password = ?,
-                     role     = 'admin';`,
-                [username, name, passwordHash]
+                 SET tenant_id = ?,
+                     username  = ?,
+                     name      = ?,
+                     password  = ?,
+                     role      = 'admin',
+                     owner     = ?;`,
+                [tenantId, username, name, passwordHash, owners.length ? 0 : 1]
             );
 
             return true;

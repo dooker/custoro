@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
+import { testCaller } from "../helper/testing/caller";
 
 // The login email is unique. A look-up before the insert cannot stop two requests that run at the
 // same time, so the database's own refusal (ER_DUP_ENTRY) has to give the same answer as the look-up
@@ -34,7 +35,14 @@ const ann = {
 const file = { filename: "avatar-1.png" };
 
 const request = (parts: { params?: object; body?: unknown; file?: object; user?: object }) =>
-    ({ database: "shop", params: {}, body: {}, query: {}, ...parts }) as unknown as Request;
+    ({
+        database: "shop",
+        user: testCaller,
+        params: {},
+        body: {},
+        query: {},
+        ...parts
+    }) as unknown as Request;
 
 const duplicate = { success: false, data: [], code: "ER_DUP_ENTRY", message: "error" };
 const deadlock = { success: false, data: [], code: "ER_LOCK_DEADLOCK", message: "error" };
@@ -132,7 +140,7 @@ describe("PUT /user/:id with an email that another request took first", () => {
 
 describe("PUT /profile with an email that another request took first", () => {
     // The caller keeps their email, so no password is needed to get as far as the UPDATE
-    const own = { id: 2, role: "user", tv: 0 };
+    const own = { id: 2, role: "user", tv: 0, tenantId: 1, owner: false };
     const body = { name: "Ann", email: "ann@example.test" };
 
     beforeEach(() => {

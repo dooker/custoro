@@ -1,5 +1,6 @@
 import { getCustomers, getFromTo } from "../routes/_getters";
 import { getGeneralMultiple } from "./_helpers";
+import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 
 export const getMultiple = async (request: Request) => {
@@ -7,6 +8,7 @@ export const getMultiple = async (request: Request) => {
         query: { page, order, direction, limit }
     } = request;
     const { sql, totalSql, params } = getCustomers({
+        tenantId: tenantOf(request),
         order: String(order),
         direction: String(direction)
     });

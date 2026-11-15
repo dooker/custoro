@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { pdfDir } from "../config/paths";
+import { testCaller } from "../helper/testing/caller";
 
 // Emailing an invoice: an invoice without a customer is refused instead of crashing, and the
 // invoice records when it was sent, only once the mail server took the email.
@@ -26,7 +27,7 @@ vi.mock("./_helpers", async (importOriginal) => ({
 const { postSingle } = await import("./email");
 
 const filename = "emailtest_1001.pdf";
-const request = { database: "shop", body: { id: 7 } } as unknown as Request;
+const request = { database: "shop", user: testCaller, body: { id: 7 } } as unknown as Request;
 const customer = {
     name: "Õnne OÜ",
     email: "a@example.test",
@@ -73,7 +74,7 @@ describe("POST /email", () => {
         expect(result).toEqual({ success: true, sentDate: expect.any(String) });
         expect(updates()).toHaveLength(1);
         expect(updates()[0].sql).toMatch(/SET sent_date = NOW\(\)/);
-        expect(updates()[0].params).toEqual([7]);
+        expect(updates()[0].params).toEqual([1, 7]);
     });
 
     it("records nothing when the email failed", async () => {

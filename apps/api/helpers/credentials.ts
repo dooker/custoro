@@ -10,6 +10,8 @@ export interface LoginUserIF {
     password: string | null;
     role: string;
     token_version: number;
+    // Whether the person's company is active; a deactivated company's people cannot log in
+    tenant_active: number | boolean;
 }
 
 // What a login token carries. The role is not in it: it is read from the database on every
@@ -82,12 +84,20 @@ export interface SessionUserIF {
     id: number;
     role: string;
     token_version: number;
+    tenant_id: number;
+    owner: number | boolean;
+    tenant_active: number | boolean;
 }
 
+// The caller of a request. tenantId is the person's company, read from the database on every
+// request (never from the token or the request), so moving a person or deactivating a company
+// applies at once.
 export interface SessionIF {
     id: number;
     role: string;
     tv: number;
+    tenantId: number;
+    owner: boolean;
 }
 
 // The caller behind a verified token payload, or null when the account no longer exists or
@@ -106,7 +116,16 @@ export const resolveSession = async (
 
     if (!user || Number(user.token_version) !== tv) return null;
 
-    return { id: user.id, role: user.role, tv: Number(user.token_version) };
+    // A deactivated company ends its people's sessions at once
+    if (!Number(user.tenant_active) || !Number.isInteger(Number(user.tenant_id))) return null;
+
+    return {
+        id: user.id,
+        role: user.role,
+        tv: Number(user.token_version),
+        tenantId: Number(user.tenant_id),
+        owner: Number(user.owner) === 1
+    };
 };
 
 // An unknown username is checked against this hash too, so both answers take as long and the
@@ -139,7 +158,9 @@ export const checkCredentials = async (
         return { success: false, message: tooManyAttemptsMessage, retryAfter };
     }
 
-    if (!success || !user || !user.password) {
+    // A deactivated company is refused like a wrong password: the same answer, after the same
+    // bcrypt work, so it does not show which accounts exist
+    if (!success || !user || !user.password || !Number(user.tenant_active)) {
         await deps.comparePassword(password, await timingHash);
         console.error("5.2 - failed login due no user with such username or no password set");
 

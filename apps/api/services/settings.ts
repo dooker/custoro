@@ -20,16 +20,19 @@ import {
     parseSettingsInput,
     type MailField
 } from "../helpers/settingsInput";
+import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 
 const emailEnvFields: string[] = [...mailFields];
 
-const getLogoFilename = async (database: string) => {
+const getLogoFilename = async (database: string, tenantId: number) => {
     const { success, data } = await query<ConfigLogoIF>({
         database,
         sql: `SELECT value
               FROM config
-              WHERE name = 'logo';`,
+              WHERE tenant_id = ?
+                AND name = 'logo';`,
+        params: [tenantId],
         logger: "Get logo filename"
     });
 
@@ -55,9 +58,10 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
         : null;
     const sql = `
         SELECT *
-        FROM config ${placeholders ? `WHERE name IN (${placeholders})` : ""};
+        FROM config
+        WHERE tenant_id = ? ${placeholders ? `AND name IN (${placeholders})` : ""};
     `;
-    const params = fields ? fields.split(",").map((item) => item) : [];
+    const params = [tenantOf(request), ...(fields ? fields.split(",").map((item) => item) : [])];
 
     const { success, data: rows } = await query<SettingsIF>({
         database,
@@ -104,6 +108,7 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
 export const putAll = async (request: Request) => {
     const { body, file: rawFile, database } = request as FrontRequestIF;
     const file = rawFile as UploadFileIF;
+    const tenantId = tenantOf(request);
 
     // Only the setting keys the app knows are accepted, and a few of them only in a valid format
     const parsed = parseSettingsInput(body);
@@ -165,7 +170,7 @@ export const putAll = async (request: Request) => {
             shortInParams.push("logo");
             filename = file.filename;
         } else {
-            const { success, data, message } = await getLogoFilename(database);
+            const { success, data, message } = await getLogoFilename(database, tenantId);
 
             if (!success) {
                 return {
@@ -185,9 +190,10 @@ export const putAll = async (request: Request) => {
                 sql: `
                 UPDATE config
                 SET value = CASE ${shortCases} END
-                WHERE name IN (${shortNames});
+                WHERE tenant_id = ?
+                  AND name IN (${shortNames});
             `,
-                params: [...shortCaseParams, ...shortInParams],
+                params: [...shortCaseParams, String(tenantId), ...shortInParams],
                 logger: "Update settings - short values",
                 message: "put.settings.short"
             });
@@ -198,9 +204,10 @@ export const putAll = async (request: Request) => {
                 sql: `
                 UPDATE config
                 SET long_value = CASE ${longCases} END
-                WHERE name IN (${longNames});
+                WHERE tenant_id = ?
+                  AND name IN (${longNames});
             `,
-                params: [...longCaseParams, ...longInParams],
+                params: [...longCaseParams, String(tenantId), ...longInParams],
                 logger: "Update settings - long values",
                 message: "put.settings.long"
             });
@@ -221,12 +228,19 @@ export const putAll = async (request: Request) => {
                     await connection.query(
                         `SELECT value
                          FROM config
-                         WHERE name = 'lastInvoiceId'
-                         FOR UPDATE;`
+                         WHERE tenant_id = ?
+                           AND name = 'lastInvoiceId'
+                         FOR UPDATE;`,
+                        [tenantId]
                     );
 
                     // Read after the lock, so it counts every invoice committed before it
-                    if (isBelowUsedNumber(lastInvoiceId, await getHighestNumber(connection))) {
+                    if (
+                        isBelowUsedNumber(
+                            lastInvoiceId,
+                            await getHighestNumber(connection, tenantId)
+                        )
+                    ) {
                         throw new TransactionRefusal(lastInvoiceIdTooLowMessage);
                     }
 
@@ -335,8 +349,13 @@ export const encryptSavedMailPassword = () => {
 
 export const deleteLogo = async (request: Request) => {
     const { database } = request;
+    const tenantId = tenantOf(request);
 
-    const { success: getFilenameSuccess, data, message } = await getLogoFilename(database);
+    const {
+        success: getFilenameSuccess,
+        data,
+        message
+    } = await getLogoFilename(database, tenantId);
     const filename = data?.value;
 
     if (!getFilenameSuccess) {
@@ -350,8 +369,9 @@ export const deleteLogo = async (request: Request) => {
         database,
         sql: `UPDATE config
               SET value=''
-              WHERE name = ?`,
-        params: ["logo"],
+              WHERE tenant_id = ?
+                AND name = ?`,
+        params: [tenantId, "logo"],
         logger: "Reset logo value"
     });
 

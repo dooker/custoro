@@ -220,6 +220,7 @@
         "missingInfo": "Missing some info to send email",
         "user.exists": "User with this email already exists",
         "user.lastAdmin": "This is the last admin. Make another user an admin first",
+        "user.owner": "The owner of the install cannot be deleted here",
         "user.passwordLinkSent": "User added. A link to set the password was emailed (valid for 7 days)",
         "user.passwordLinkFailed": "User added, but the email with the password link could not be sent. They can use \"Forgot password?\" once mail works",
         "passwordLength": "Password must be 8 to 72 characters long",
@@ -237,6 +238,7 @@
         "invoice.locked": "This invoice is paid and locked, it cannot be changed",
         "worksheet.invoiced": "This worksheet is already on an invoice",
         "invalidInput": "Some values are not valid (too long, or not the right kind of value), nothing was saved",
+        "notFound": "Not found: it does not exist, or it belongs to another company",
         "lastInvoiceIdTooLow": "The last invoice ID cannot be lower than an invoice number that is already in use, nothing was saved. Reload the page if invoices were added meanwhile",
         "export.rangeTooLong": "The period can be at most a year"
     },

@@ -4,6 +4,7 @@ import { parseInput } from "../helpers/bodyInput";
 import { newWorksheetInput, worksheetInput } from "../helpers/resourceInput";
 import type { RowDataPacket } from "mysql2/promise";
 import type { ProductIF } from "../types/product";
+import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 
 const type = "worksheet";
@@ -24,8 +25,9 @@ export const getSingle = async (request: Request) => {
                      invoice,
                      locked
               FROM worksheets
-              WHERE id = ?;`,
-        params: [id as string],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantOf(request), id as string],
         logger: `Get single ${type}`
     });
 
@@ -54,12 +56,15 @@ export const postSingle = async (request: Request) => {
 
     const { success, insertId } = await query({
         database,
+        // The customer and the product must be the company's own: the foreign keys include
+        // tenant_id, so another company's ids are refused
         sql: `INSERT INTO worksheets
-              SET customer_id = ?,
+              SET tenant_id   = ?,
+                  customer_id = ?,
                   product_id  = ?,
                   order_id    = ?,
                   quantity    = ?;`,
-        params: [customer, productId, orderId, quantity],
+        params: [tenantOf(request), customer, productId, orderId, quantity],
         logger: `Add new ${type}`
     });
 
@@ -96,17 +101,26 @@ export const putSingle = async (request: Request) => {
     } = input.values;
 
     // The worksheet is the one in the URL, not whatever id the body says
-    const { success } = await query({
+    const { success, affectedRows } = await query({
         database,
         sql: `UPDATE worksheets
               SET customer_id = ?,
                   product_id  = ?,
                   order_id    = ?,
                   quantity    = ?
-              WHERE id = ?;`,
-        params: [customerId, productId, orderId, quantity, Number(id)],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [customerId, productId, orderId, quantity, tenantOf(request), Number(id)],
         logger: `Update single ${type}`
     });
+
+    // No worksheet of the caller's company has that id
+    if (success && affectedRows === 0) {
+        return {
+            success: false,
+            message: "notFound"
+        };
+    }
 
     if (!success) {
         return {
@@ -125,6 +139,7 @@ export const deleteSingle = async (request: Request) => {
         params: { id },
         database
     } = request;
+    const tenantId = tenantOf(request);
 
     const deleted = await withTransaction(
         database,
@@ -134,22 +149,25 @@ export const deleteSingle = async (request: Request) => {
             const [worksheets] = await connection.query<RowDataPacket[]>(
                 `SELECT locked
                  FROM worksheets
-                 WHERE id = ?
+                 WHERE tenant_id = ?
+                   AND id = ?
                    FOR UPDATE;`,
-                [id]
+                [tenantId, id]
             );
 
+            // None of the caller's company has that id: the same answer as one that never existed
             if (!worksheets.length) {
-                return;
+                throw new TransactionRefusal("notFound");
             }
 
             const [lines] = await connection.query<RowDataPacket[]>(
                 `SELECT invoices.locked
                  FROM invoice_items
                           INNER JOIN invoices ON invoices.id = invoice_items.invoice_id
-                 WHERE invoice_items.worksheet_id = ?
+                 WHERE invoice_items.tenant_id = ?
+                   AND invoice_items.worksheet_id = ?
                    FOR UPDATE;`,
-                [id]
+                [tenantId, id]
             );
 
             // A paid worksheet, or one whose line is on a locked invoice, is part of an issued
@@ -163,15 +181,17 @@ export const deleteSingle = async (request: Request) => {
             await connection.query(
                 `DELETE
                  FROM invoice_items
-                 WHERE worksheet_id = ?;`,
-                [id]
+                 WHERE tenant_id = ?
+                   AND worksheet_id = ?;`,
+                [tenantId, id]
             );
 
             await connection.query(
                 `DELETE
                  FROM worksheets
-                 WHERE id = ?;`,
-                [id]
+                 WHERE tenant_id = ?
+                   AND id = ?;`,
+                [tenantId, id]
             );
         }
     );

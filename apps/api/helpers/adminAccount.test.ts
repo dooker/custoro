@@ -1,14 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { defaultAdminName, parseAdminArgs } from "./adminAccount";
 
-const ok = (email: string, name = defaultAdminName, reset = false) => ({
+const ok = (email: string, name = defaultAdminName, reset = false, tenantId = 1) => ({
     ok: true,
-    args: { email, name, reset }
+    args: { email, name, reset, tenantId }
 });
 
 describe("parseAdminArgs", () => {
     it("takes the email and names the admin Admin by default", () => {
         expect(parseAdminArgs(["boss@example.test"])).toEqual(ok("boss@example.test"));
+    });
+
+    it("takes the company of a new admin, company 1 by default", () => {
+        expect(parseAdminArgs(["boss@example.test", "--tenant", "3"])).toEqual(
+            ok("boss@example.test", defaultAdminName, false, 3)
+        );
+        expect(parseAdminArgs(["--tenant=12", "boss@example.test"])).toEqual(
+            ok("boss@example.test", defaultAdminName, false, 12)
+        );
+    });
+
+    it.each([["0"], ["-1"], ["two"], ["1.5"], [""]])("refuses --tenant %s", (value) => {
+        expect(parseAdminArgs(["boss@example.test", "--tenant", value])).toEqual({
+            ok: false,
+            error: "--tenant needs a company id (a whole number)"
+        });
     });
 
     it("takes a name, with a space or an equals sign, and the reset flag", () => {

@@ -11,6 +11,7 @@ import { getTotal } from "../helper";
 import { adjustProduct } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
 import { query } from "../helper/query";
+import { tenantOf } from "../helpers/tenant";
 import type { ProductIF } from "../types/product";
 import type { GetterIF } from "../types/getter";
 import type { Request } from "express";
@@ -53,6 +54,7 @@ export const getMultiple = async (request: Request) => {
     }
 
     const result = handler({
+        tenantId: tenantOf(request),
         keyword: String(keyword),
         customerId: Number(customer)
     });

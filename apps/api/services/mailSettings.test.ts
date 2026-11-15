@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
+import { testCaller } from "../helper/testing/caller";
 
 // The mail server settings the admin saves on the settings page are kept in the storage volume
 // as JSON, so they survive a new container, are in the backup and hold any password as typed
@@ -32,7 +33,13 @@ const { putAll, encryptSavedMailPassword } = await import("./settings");
 const { getMailSettings, readSavedMailSettings } = await import("../helper");
 
 const put = (body: object) =>
-    putAll({ database: "shop", params: {}, query: {}, body } as unknown as Request);
+    putAll({
+        database: "shop",
+        user: testCaller,
+        params: {},
+        query: {},
+        body
+    } as unknown as Request);
 
 // MAIL_SETTINGS_KEY too: unset here (a password stored as typed), set by the tests of encryption
 const emailEnv = [

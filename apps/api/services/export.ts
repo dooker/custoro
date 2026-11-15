@@ -8,6 +8,7 @@ import {
 } from "../helpers/invoiceExport";
 import type { InvoiceLineAmounts } from "../helpers/invoiceTotals";
 import { pdfTranslator } from "./pdf";
+import { tenantOf } from "../helpers/tenant";
 
 // Invoices only, never offers. What the PDF prints (helpers/billedCustomer.ts): a paid invoice
 // its own copy of the customer, an empty field of the copy included, and an open one the
@@ -30,9 +31,12 @@ const invoicesSql = `
            invoice_items.price AS linePrice,
            invoice_items.quantity AS lineQuantity
     FROM invoices
-             LEFT JOIN customers ON customers.id = invoices.customer_id
-             LEFT JOIN invoice_items ON invoice_items.invoice_id = invoices.id
-    WHERE invoices.invoice_type = 'invoice'
+             LEFT JOIN customers ON customers.tenant_id = invoices.tenant_id
+                 AND customers.id = invoices.customer_id
+             LEFT JOIN invoice_items ON invoice_items.tenant_id = invoices.tenant_id
+                 AND invoice_items.invoice_id = invoices.id
+    WHERE invoices.tenant_id = ?
+      AND invoices.invoice_type = 'invoice'
       AND invoices.invoice_date >= ?
       AND invoices.invoice_date < ?
     ORDER BY invoices.invoice_date, invoices.number_sort, invoices.id, invoice_items.id`;
@@ -57,7 +61,7 @@ export const getInvoicesCsv = async (request: Request) => {
     const read = await query<ExportRow>({
         database,
         sql: invoicesSql,
-        params: [range.from, range.before],
+        params: [tenantOf(request), range.from, range.before],
         logger: "Export invoices"
     });
 

@@ -2,9 +2,10 @@ import { query } from "../helper/query";
 import { email, getConfig } from "./_helpers";
 import { EmailCustomerIF } from "../types/email";
 import fs from "fs";
+import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 import { pdfDir } from "../config/paths";
-import { resolveInside } from "../helpers/pdfFiles";
+import { pdfCandidates } from "../helpers/pdfFiles";
 import { getAppOrigin } from "../helpers/appOrigin";
 
 export const postSingle = async (request: Request) => {
@@ -12,15 +13,18 @@ export const postSingle = async (request: Request) => {
         database,
         body: { id }
     } = request;
+    const tenantId = tenantOf(request);
 
     const { success: customerSuccess, data: customerData } = await query<EmailCustomerIF>({
         database,
         sql: `SELECT customers.name, customers.email as email, customers.invoice_email as invoiceEmail, invoices.filename, invoices.hash
               FROM customers
                        INNER JOIN invoices
-                                  ON invoices.customer_id = customers.id
-              WHERE invoices.id = ?;`,
-        params: [id],
+                                  ON invoices.tenant_id = customers.tenant_id
+                                      AND invoices.customer_id = customers.id
+              WHERE invoices.tenant_id = ?
+                AND invoices.id = ?;`,
+        params: [tenantId, id],
         logger: "Get user details for email"
     });
 
@@ -49,6 +53,7 @@ export const postSingle = async (request: Request) => {
         message
     } = await getConfig({
         database,
+        tenantId,
         fields: ["invoiceSubject", "invoiceText", "invoiceHtml"],
         mapper: ["subject", "text", "html"]
     });
@@ -60,14 +65,17 @@ export const postSingle = async (request: Request) => {
         };
     }
 
-    // The file name comes from the database; only a file directly inside pdfDir is attached
-    const pdfPath = resolveInside(pdfDir, filename);
+    // The file name comes from the database; only a file directly inside the company's folder
+    // (or, for company 1, the folder from before companies) is attached
+    const pdfPath = pdfCandidates(pdfDir, tenantId, filename).find((candidate) =>
+        fs.existsSync(candidate)
+    );
     const attachments = {
         filename: filename,
         path: pdfPath ?? ""
     };
 
-    if (!pdfPath || !fs.existsSync(pdfPath)) {
+    if (!pdfPath) {
         return {
             success: false,
             message: "missing.pdf"
@@ -95,8 +103,9 @@ export const postSingle = async (request: Request) => {
         database,
         sql: `UPDATE invoices
               SET sent_date = NOW()
-              WHERE id = ?;`,
-        params: [Number(id)],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantId, Number(id)],
         logger: "Record invoice sent date"
     });
 

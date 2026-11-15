@@ -5,6 +5,8 @@ import { withTransaction } from "./transaction";
 
 interface CreateInvoiceIF {
     database: string;
+    // The company whose numbering this is: every company counts its own invoices
+    tenantId: number;
     customerId: number | null;
     vat: number | string;
     lines?: InvoiceLineIF[];
@@ -20,14 +22,16 @@ const maxSkippedNumbers = 20;
 // the number as a number and has an index, so this reads one row of it. A number the app hands out
 // always has one (see config.maxInvoiceNumberDigits); numbers that are not plain digits, or that
 // are longer, have 0 there and are not counted: they can never be the same as a number handed out.
+// One company's numbers only: the index (tenant_id, number_sort) serves it.
 export const highestNumberSql = `SELECT CAST(COALESCE(MAX(number_sort), 0) AS CHAR) AS highest
-                                 FROM invoices`;
+                                 FROM invoices
+                                 WHERE tenant_id = ?`;
 
 // The highest number on an invoice (0 when there are none), as a number that cannot be rounded.
 // Called on a connection that holds the counter row's lock, so it counts every invoice committed
 // before the lock.
-export const getHighestNumber = async (connection: PoolConnection) => {
-    const [rows] = await connection.query<RowDataPacket[]>(highestNumberSql);
+export const getHighestNumber = async (connection: PoolConnection, tenantId: number) => {
+    const [rows] = await connection.query<RowDataPacket[]>(highestNumberSql, [tenantId]);
     const highest = String(rows[0]?.highest);
 
     if (!/^\d+$/.test(highest)) {
@@ -48,6 +52,7 @@ export const getHighestNumber = async (connection: PoolConnection) => {
 // invoices.number also has a unique index as a last line of defence.
 export const createInvoiceWithNextNumber = ({
     database,
+    tenantId,
     customerId,
     vat,
     lines = []
@@ -60,8 +65,10 @@ export const createInvoiceWithNextNumber = ({
             const [rows] = await connection.query<RowDataPacket[]>(
                 `SELECT value
                  FROM config
-                 WHERE name = 'lastInvoiceId'
-                 FOR UPDATE;`
+                 WHERE tenant_id = ?
+                   AND name = 'lastInvoiceId'
+                 FOR UPDATE;`,
+                [tenantId]
             );
             // The counter is read as the text it is, not through Number(), which rounds a number
             // of more than 15 digits to one that another invoice may already have
@@ -75,7 +82,7 @@ export const createInvoiceWithNextNumber = ({
 
             // Read after the counter row is locked, so an invoice the previous request just
             // created is counted
-            const highest = await getHighestNumber(connection);
+            const highest = await getHighestNumber(connection, tenantId);
             const last = BigInt(lastText);
             let number = (last > highest ? last : highest) + 1n;
             let insert: ResultSetHeader | undefined;
@@ -91,13 +98,14 @@ export const createInvoiceWithNextNumber = ({
                 try {
                     [insert] = await connection.query<ResultSetHeader>(
                         `INSERT INTO invoices
-                         SET number       = ?,
+                         SET tenant_id    = ?,
+                             number       = ?,
                              customer_id  = ?,
                              create_date  = NOW(),
                              change_date  = NOW(),
                              invoice_date = NOW(),
                              vat          = ?;`,
-                        [String(number), customerId, vat]
+                        [tenantId, String(number), customerId, vat]
                     );
                 } catch (error) {
                     // The unique key compares numbers by the column's collation, which can call a
@@ -120,11 +128,12 @@ export const createInvoiceWithNextNumber = ({
             await connection.query(
                 `UPDATE config
                  SET value = ?
-                 WHERE name = 'lastInvoiceId';`,
-                [String(number)]
+                 WHERE tenant_id = ?
+                   AND name = 'lastInvoiceId';`,
+                [String(number), tenantId]
             );
 
-            await addInvoiceLines(connection, insert.insertId, lines);
+            await addInvoiceLines(connection, tenantId, insert.insertId, lines);
 
             return { id: insert.insertId, number: Number(number) };
         }

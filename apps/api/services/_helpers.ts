@@ -2,6 +2,7 @@ import { getMailSettings, normalizeDate } from "../helper";
 import fs from "node:fs";
 import nodemailer, { type TransportOptions } from "nodemailer";
 import { query, queryErrorMessage } from "../helper/query";
+import { tenantOf } from "../helpers/tenant";
 import type { QueryIF, TotalRow } from "../types";
 import type { InvoiceIF, InvoiceItemIF } from "../types/invoice";
 import type { AllowedEmailKey, EmailConfigIF, EmailConfigResult, EmailIF } from "../types/email";
@@ -49,6 +50,7 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
         database,
         params: { page, id: rawId }
     } = request;
+    const tenantId = tenantOf(request);
     const pageId = Array.isArray(page) ? page[0] : page;
     const idId = Array.isArray(rawId) ? rawId[0] : rawId;
     const id = idId || pageId;
@@ -80,8 +82,9 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
                      customer_department,
                      customer_payment_period
               FROM invoices
-              WHERE id = ?;`,
-        params: [id],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantId, id],
         logger: "Get single invoice"
     });
 
@@ -106,8 +109,9 @@ export const getInvoice = async (request: Request): Promise<QueryResult<InvoiceI
                      invoice_items.unit,
                      invoice_items.comment
               FROM invoice_items
-              WHERE invoice_id = ?;`,
-        params: [invoice.id],
+              WHERE tenant_id = ?
+                AND invoice_id = ?;`,
+        params: [tenantId, invoice.id],
         logger: "Get single invoice items"
     });
 
@@ -242,6 +246,15 @@ export const putGeneralSingle = async ({ database, sql, params, logger: type }: 
     try {
         const response = await query({ database, sql, params, logger: `Update single ${type}` });
 
+        // No row of the caller's company has that id (every UPDATE filters by tenant_id): the same
+        // answer for a row of another company as for one that never existed
+        if (response.success && response.affectedRows === 0) {
+            return {
+                success: false,
+                message: "notFound"
+            };
+        }
+
         if (!response.success) {
             // code lets the caller tell cases apart (e.g. ER_DUP_ENTRY); the text stays in the log
             return {
@@ -267,6 +280,7 @@ export const putGeneralSingle = async ({ database, sql, params, logger: type }: 
 
 export const getConfig = async ({
     database,
+    tenantId,
     fields,
     mapper
 }: GetConfigIF): Promise<{
@@ -279,16 +293,17 @@ export const getConfig = async ({
     let sql = `
         SELECT name, value, long_value AS longValue
         FROM config
+        WHERE tenant_id = ?
     `;
 
     if (fields && fields.length) {
-        sql += ` WHERE name IN (${fields.map(() => "?").join(", ")});`;
+        sql += ` AND name IN (${fields.map(() => "?").join(", ")});`;
     }
 
     const { success, data } = await query<EmailConfigIF>({
         database,
         sql,
-        params: fields ?? [],
+        params: [tenantId, ...(fields ?? [])],
         logger: "Get settings for email"
     });
 
@@ -402,13 +417,16 @@ export const deleteImage = async (request: Request, userId?: number | string) =>
     // Express 5 leaves req.body undefined when a request has no body, as the web app's DELETE
     // requests do, so it must not be destructured
     const id = userId ?? request.body?.id ?? paramId;
+    // Only a person of the caller's company: another company's id is "no such user"
+    const tenantId = tenantOf(request);
 
     const { success: getAvatarSuccess, data } = await query<UserIF>({
         database,
         sql: `SELECT avatar
               FROM users
-              WHERE id = ?;`,
-        params: [String(id)],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantId, String(id)],
         logger: "Get avatar filename"
     });
     const user = data?.[0];
@@ -431,8 +449,9 @@ export const deleteImage = async (request: Request, userId?: number | string) =>
         database,
         sql: `UPDATE users
               SET avatar= ''
-              WHERE id = ?;`,
-        params: [String(id)],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantId, String(id)],
         logger: "Set empty avatar"
     });
 

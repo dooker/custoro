@@ -221,6 +221,7 @@
         "missingInfo": "E-kirja saatmine ebaõnnestus",
         "user.exists": "Sellise e-postiga kasutaja on juba olemas",
         "user.lastAdmin": "See on viimane administraator. Tee esmalt keegi teine administraatoriks",
+        "user.owner": "Paigalduse omanikku ei saa siin kustutada",
         "user.passwordLinkSent": "Kasutaja lisatud. Parooli määramise link saadeti e-postiga (kehtib 7 päeva)",
         "user.passwordLinkFailed": "Kasutaja lisatud, aga parooli lingiga e-kirja ei õnnestunud saata. Kui e-post töötab, saab ta kasutada linki \"Unustasid parooli?\"",
         "passwordLength": "Parool peab olema 8 kuni 72 märki pikk",
@@ -238,6 +239,7 @@
         "invoice.locked": "See arve on makstud ja lukustatud, seda ei saa muuta",
         "worksheet.invoiced": "Tööleht on juba arvele lisatud",
         "invalidInput": "Mõni väärtus pole kehtiv (liiga pikk või vale tüüpi), midagi ei salvestatud",
+        "notFound": "Ei leitud: seda pole olemas või see kuulub teisele ettevõttele",
         "lastInvoiceIdTooLow": "Viimane arve ID ei tohi olla väiksem kui juba kasutusel olev arve number, midagi ei salvestatud. Kui vahepeal lisati arveid, laadi leht uuesti",
         "export.rangeTooLong": "Periood saab olla kõige rohkem aasta"
     },

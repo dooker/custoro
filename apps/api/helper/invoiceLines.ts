@@ -22,6 +22,7 @@ export interface InvoiceLineIF {
  */
 export const addInvoiceLines = async (
     connection: PoolConnection,
+    tenantId: number,
     invoiceId: number,
     lines: InvoiceLineIF[]
 ) => {
@@ -30,11 +31,12 @@ export const addInvoiceLines = async (
     }
 
     await connection.query(
-        `INSERT INTO invoice_items (worksheet_id, product_id, invoice_id, quantity, code, name, price,
-                                    discount_price, unit, comment)
+        `INSERT INTO invoice_items (tenant_id, worksheet_id, product_id, invoice_id, quantity, code,
+                                    name, price, discount_price, unit, comment)
          VALUES ?;`,
         [
             lines.map((line) => [
+                tenantId,
                 line.worksheetId,
                 line.productId,
                 invoiceId,
@@ -60,9 +62,10 @@ export const addInvoiceLines = async (
     const [billed] = await connection.query<ResultSetHeader>(
         `UPDATE worksheets
          SET invoice = ?
-         WHERE id IN (?)
+         WHERE tenant_id = ?
+           AND id IN (?)
            AND invoice IS NULL;`,
-        [invoiceId, worksheetIds]
+        [invoiceId, tenantId, worksheetIds]
     );
 
     if (billed.affectedRows !== worksheetIds.length) {

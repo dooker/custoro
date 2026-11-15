@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
+import { testCaller } from "../helper/testing/caller";
 
 const fake = createFakeDb();
 const queryMock = vi.fn();
@@ -23,7 +24,7 @@ const {
 } = await import("./invoice");
 
 const request = (parts: { params?: object; body?: object }) =>
-    ({ database: "shop", params: {}, body: {}, ...parts }) as unknown as Request;
+    ({ database: "shop", user: testCaller, params: {}, body: {}, ...parts }) as unknown as Request;
 
 const cable = {
     id: 3,
@@ -43,15 +44,29 @@ const databaseHas = (products: object[]) =>
             : { success: true, data: [{ value: "24" }] }
     );
 
+// The invoice lock (SELECT locked ... FOR UPDATE) finds an open invoice of the caller's company
+// unless a test answers it with rows of its own: a real database answers a SELECT with rows, and
+// an invoice the company does not have is refused as not found
+const respondWith = (respond: (sql: string, params: unknown[]) => unknown) =>
+    fake.respondWith((sql, params) => {
+        const answer = respond(sql, params);
+
+        return /SELECT locked\s+FROM invoices/.test(sql) && !Array.isArray(answer)
+            ? [{ locked: 0 }]
+            : answer;
+    });
+
 beforeEach(() => {
     fake.reset();
+    // by default the invoice exists and is open, and other statements answer nothing
+    respondWith(() => ({}));
     queryMock.mockReset();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 describe("putSingleItem (quantity of a line)", () => {
     it("sets the quantity of the line on that invoice and the change date of that same invoice", async () => {
-        fake.respondWith(() => ({ affectedRows: 1 }));
+        respondWith(() => ({ affectedRows: 1 }));
 
         const result = await putSingleItem(
             request({ params: { invoiceId: "12", id: "99" }, body: { value: 5 } })
@@ -62,14 +77,14 @@ describe("putSingleItem (quantity of a line)", () => {
         const [line] = fake.statements(/UPDATE invoice_items/);
         const [invoice] = fake.statements(/UPDATE invoices/);
 
-        expect(line.params).toEqual([5, "99", "12"]);
+        expect(line.params).toEqual([5, 1, "99", "12"]);
         // it used to be given [quantity, line id], so the invoice with the id 5 got the new date
-        expect(invoice.params).toEqual(["12"]);
+        expect(invoice.params).toEqual([1, "12"]);
         expect(fake.connection.commit).toHaveBeenCalledOnce();
     });
 
     it("refuses a line that is not on the invoice in the URL and changes nothing", async () => {
-        fake.respondWith(() => ({ affectedRows: 0 }));
+        respondWith(() => ({ affectedRows: 0 }));
 
         const result = await putSingleItem(
             request({ params: { invoiceId: "12", id: "99" }, body: { value: 5 } })
@@ -96,7 +111,7 @@ describe("putSingleItem (quantity of a line)", () => {
     });
 
     it("takes the quantity as text, with a comma, and an empty one as 0", async () => {
-        fake.respondWith(() => ({ affectedRows: 1 }));
+        respondWith(() => ({ affectedRows: 1 }));
 
         await putSingleItem(
             request({ params: { invoiceId: "12", id: "99" }, body: { value: "2,5" } })
@@ -113,26 +128,24 @@ describe("putSingleItem (quantity of a line)", () => {
 
 describe("deleteSingleItem", () => {
     it("removes the line, opens its worksheet again and sets the invoice's change date", async () => {
-        fake.respondWith((sql) => (/SELECT worksheet_id/.test(sql) ? [{ worksheet_id: 11 }] : {}));
+        respondWith((sql) => (/SELECT worksheet_id/.test(sql) ? [{ worksheet_id: 11 }] : {}));
 
         const result = await deleteSingleItem(request({ params: { invoiceId: "12", id: "99" } }));
 
         expect(result).toEqual({ success: true });
-        expect(fake.statements(/DELETE/)[0].params).toEqual(["99"]);
+        expect(fake.statements(/DELETE/)[0].params).toEqual([1, "99"]);
 
         const [worksheet] = fake.statements(/UPDATE worksheets/);
 
         // "no invoice" is NULL (the foreign key needs it), and only if the worksheet is on this invoice
         expect(worksheet.sql).toContain("SET invoice = NULL");
-        expect(worksheet.params).toEqual([11, "12"]);
-        expect(fake.statements(/UPDATE invoices/)[0].params).toEqual(["12"]);
+        expect(worksheet.params).toEqual([1, 11, "12"]);
+        expect(fake.statements(/UPDATE invoices/)[0].params).toEqual([1, "12"]);
         expect(fake.connection.commit).toHaveBeenCalledOnce();
     });
 
     it("leaves worksheets alone for a line that did not come from one", async () => {
-        fake.respondWith((sql) =>
-            /SELECT worksheet_id/.test(sql) ? [{ worksheet_id: null }] : {}
-        );
+        respondWith((sql) => (/SELECT worksheet_id/.test(sql) ? [{ worksheet_id: null }] : {}));
 
         await deleteSingleItem(request({ params: { invoiceId: "12", id: "99" } }));
 
@@ -140,7 +153,7 @@ describe("deleteSingleItem", () => {
     });
 
     it("refuses a line that is not on the invoice and deletes nothing", async () => {
-        fake.respondWith(() => []);
+        respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 0 }] : []));
 
         const result = await deleteSingleItem(request({ params: { invoiceId: "12", id: "99" } }));
 
@@ -153,14 +166,14 @@ describe("deleteSingleItem", () => {
 describe("buildInvoiceLines", () => {
     it("gives no lines when nothing is asked for", async () => {
         for (const items of [undefined, null, []]) {
-            expect(await buildInvoiceLines("shop", items)).toEqual({ lines: [] });
+            expect(await buildInvoiceLines("shop", 1, items)).toEqual({ lines: [] });
         }
     });
 
     it("copies the product's data into each line, whatever type the ids have in the request", async () => {
         databaseHas([cable]);
 
-        const result = await buildInvoiceLines("shop", [
+        const result = await buildInvoiceLines("shop", 1, [
             { productId: "3", quantity: "2.5", worksheetId: "11" },
             { productId: 3, quantity: 1 }
         ]);
@@ -177,7 +190,7 @@ describe("buildInvoiceLines", () => {
         databaseHas([cable]);
 
         expect(
-            await buildInvoiceLines("shop", [
+            await buildInvoiceLines("shop", 1, [
                 { productId: 3, quantity: 1 },
                 { productId: 404, quantity: 1 }
             ])
@@ -198,7 +211,7 @@ describe("buildInvoiceLines", () => {
             "3",
             null
         ]) {
-            expect(await buildInvoiceLines("shop", [item]), JSON.stringify(item)).toEqual({
+            expect(await buildInvoiceLines("shop", 1, [item]), JSON.stringify(item)).toEqual({
                 message: "post.newWorkSheet"
             });
         }
@@ -206,6 +219,7 @@ describe("buildInvoiceLines", () => {
         expect(
             await buildInvoiceLines(
                 "shop",
+                1,
                 Array.from({ length: 501 }, () => ({ productId: 3, quantity: 1 }))
             )
         ).toEqual({ message: "post.newWorkSheet" });
@@ -214,10 +228,10 @@ describe("buildInvoiceLines", () => {
     it("refuses a quantity that is not a number and items that are not a list", async () => {
         databaseHas([cable]);
 
-        expect(await buildInvoiceLines("shop", [{ productId: 3, quantity: "lots" }])).toEqual({
+        expect(await buildInvoiceLines("shop", 1, [{ productId: 3, quantity: "lots" }])).toEqual({
             message: "post.newWorkSheet"
         });
-        expect(await buildInvoiceLines("shop", { productId: 3 })).toEqual({
+        expect(await buildInvoiceLines("shop", 1, { productId: 3 })).toEqual({
             message: "post.newWorkSheet"
         });
     });
@@ -235,7 +249,7 @@ const pick = ({ code, name, price, discountPrice, unit, comment }: typeof cable)
 describe("postSingle (new invoice)", () => {
     it("creates the invoice and its lines in one transaction", async () => {
         databaseHas([cable]);
-        fake.respondWith((sql) => {
+        respondWith((sql) => {
             if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
             if (/MAX\(number_sort\)/.test(sql)) return [{ highest: "41" }];
             if (/INSERT INTO invoices/.test(sql)) return { insertId: 7, affectedRows: 1 };
@@ -266,7 +280,7 @@ describe("postSingle (new invoice)", () => {
 
     it("answers with the reason when a worksheet is already on an invoice", async () => {
         databaseHas([cable]);
-        fake.respondWith((sql) => {
+        respondWith((sql) => {
             if (/FOR UPDATE/.test(sql)) return [{ value: "41" }];
             if (/MAX\(number_sort\)/.test(sql)) return [{ highest: "41" }];
             if (/INSERT INTO invoices/.test(sql)) return { insertId: 7 };
@@ -321,15 +335,15 @@ describe("putSingleData (invoice details)", () => {
                 ? { success: true, data: [{ paymentPeriod: 30 }] }
                 : { success: true, data: [] }
         );
-        fake.respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 0 }] : {}));
+        respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 0 }] : {}));
 
         expect(await putSingleData(request({ body: draft }))).toEqual({ success: true });
 
         const [update] = fake.statements(/UPDATE invoices/);
         const [worksheets] = fake.statements(/UPDATE worksheets/);
 
-        expect(update.params).toEqual(["2026-10-21", 5, "42", "cash", "offer", 30, 7]);
-        expect(worksheets.params).toEqual([5, 7, 5]);
+        expect(update.params).toEqual(["2026-10-21", 5, "42", "cash", "offer", 30, 1, 7]);
+        expect(worksheets.params).toEqual([5, 1, 7, 5]);
         expect(fake.connection.commit).toHaveBeenCalledOnce();
     });
 
@@ -366,7 +380,7 @@ describe("putSingleData (invoice details)", () => {
         const [invoice] = updates();
 
         expect(invoice.sql).toContain("COALESCE(?, payment_period)");
-        expect(invoice.params).toEqual(["2026-10-21", 5, "42", "cash", "offer", null, 7]);
+        expect(invoice.params).toEqual(["2026-10-21", 5, "42", "cash", "offer", null, 1, 7]);
     });
 
     it("keeps the invoice's own payment period when it has no customer", async () => {
@@ -378,12 +392,21 @@ describe("putSingleData (invoice details)", () => {
         expect(queryMock).not.toHaveBeenCalled();
         expect(updates()).toHaveLength(1);
         expect(updates()[0].sql).toContain("COALESCE(?, payment_period)");
-        expect(updates()[0].params).toEqual(["2026-10-21", null, "42", "cash", "offer", null, 7]);
+        expect(updates()[0].params).toEqual([
+            "2026-10-21",
+            null,
+            "42",
+            "cash",
+            "offer",
+            null,
+            1,
+            7
+        ]);
     });
 
     it("refuses to change a paid invoice, and changes nothing", async () => {
         queryMock.mockResolvedValue({ success: true, data: [{ paymentPeriod: 30 }] });
-        fake.respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 1 }] : {}));
+        respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 1 }] : {}));
 
         expect(await putSingleData(request({ body: draft }))).toEqual({
             success: false,
@@ -415,7 +438,7 @@ describe("putSingleData (invoice details)", () => {
 describe("putSingle (add a line to an invoice)", () => {
     it("adds the line, bills the worksheet and sets the change date together", async () => {
         databaseHas([cable]);
-        fake.respondWith(() => ({ affectedRows: 1 }));
+        respondWith(() => ({ affectedRows: 1 }));
 
         const result = await putSingle(
             request({
@@ -425,10 +448,10 @@ describe("putSingle (add a line to an invoice)", () => {
 
         expect(result).toEqual({ success: true });
         expect(fake.statements(/INSERT INTO invoice_items/)[0].params[0]).toEqual([
-            [11, 3, 12, 2, "P-3", "Cable", 19.99, 17.5, "pc", "1 m"]
+            [1, 11, 3, 12, 2, "P-3", "Cable", 19.99, 17.5, "pc", "1 m"]
         ]);
-        expect(fake.statements(/UPDATE worksheets/)[0].params).toEqual([12, [11]]);
-        expect(fake.statements(/UPDATE invoices/)[0].params).toEqual([12]);
+        expect(fake.statements(/UPDATE worksheets/)[0].params).toEqual([12, 1, [11]]);
+        expect(fake.statements(/UPDATE invoices/)[0].params).toEqual([1, 12]);
         expect(fake.pool.getConnection).toHaveBeenCalledOnce();
         expect(fake.connection.commit).toHaveBeenCalledOnce();
     });
@@ -463,7 +486,7 @@ describe("putSingle (add a line to an invoice)", () => {
 
     it("rolls back the line when the worksheet behind it is already billed", async () => {
         databaseHas([cable]);
-        fake.respondWith((sql) => (/UPDATE worksheets/.test(sql) ? { affectedRows: 0 } : {}));
+        respondWith((sql) => (/UPDATE worksheets/.test(sql) ? { affectedRows: 0 } : {}));
 
         const result = await putSingle(
             request({
@@ -481,9 +504,7 @@ describe("putSingle (add a line to an invoice)", () => {
 describe("a paid invoice", () => {
     beforeEach(() => {
         databaseHas([cable]);
-        fake.respondWith((sql) =>
-            /SELECT locked/.test(sql) ? [{ locked: 1 }] : { affectedRows: 1 }
-        );
+        respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 1 }] : { affectedRows: 1 }));
     });
 
     const changes = () => fake.statements(/^(UPDATE|INSERT|DELETE)/);
@@ -520,19 +541,22 @@ describe("a paid invoice", () => {
         const [check] = fake.statements(/SELECT locked/);
 
         expect(check.sql).toContain("FOR UPDATE");
-        expect(check.params).toEqual(["12"]);
+        expect(check.sql).toContain("tenant_id = ?");
+        expect(check.params).toEqual([1, "12"]);
     });
 });
 
 describe("markAsPaid", () => {
     it("locks the invoice and its worksheets and copies the customer into it, together", async () => {
-        fake.respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 0 }] : {}));
+        respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 0 }] : {}));
 
         expect(await markAsPaid(request({ params: { id: "7" } }))).toEqual({ success: true });
 
         const [invoice] = fake.statements(/UPDATE invoices/);
 
-        expect(invoice.sql).toContain("LEFT JOIN customers ON customers.id = invoices.customer_id");
+        expect(invoice.sql).toContain(
+            "LEFT JOIN customers ON customers.tenant_id = invoices.tenant_id AND customers.id = invoices.customer_id"
+        );
         for (const copy of [
             "invoices.locked = 1",
             "invoices.customer_name = customers.name",
@@ -542,25 +566,58 @@ describe("markAsPaid", () => {
         ]) {
             expect(invoice.sql).toContain(copy);
         }
-        expect(invoice.params).toEqual(["7"]);
-        expect(fake.statements(/UPDATE worksheets/)[0].params).toEqual(["7"]);
+        expect(invoice.params).toEqual([1, "7"]);
+        expect(fake.statements(/UPDATE worksheets/)[0].params).toEqual([1, "7"]);
         expect(fake.connection.commit).toHaveBeenCalledOnce();
     });
 
     it("keeps the copy of an invoice that is already paid", async () => {
-        fake.respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 1 }] : {}));
+        respondWith((sql) => (/SELECT locked/.test(sql) ? [{ locked: 1 }] : {}));
 
         expect(await markAsPaid(request({ params: { id: "7" } }))).toEqual({ success: true });
         expect(fake.statements(/^UPDATE/)).toHaveLength(0);
     });
 
-    it("says so for an invoice that does not exist", async () => {
-        fake.respondWith(() => []);
+    it("says so for an invoice that does not exist, or is another company's", async () => {
+        respondWith(() => []);
 
         expect(await markAsPaid(request({ params: { id: "404" } }))).toEqual({
             success: false,
-            message: "put.invoice.lock"
+            message: "notFound"
         });
         expect(fake.statements(/^UPDATE/)).toHaveLength(0);
+    });
+});
+
+describe("another company's invoice", () => {
+    it("is not found by any change, and nothing is written", async () => {
+        // the caller is in company 2; invoice 12 is not one of company 2's, so the lock finds no row
+        const caller = { ...testCaller, tenantId: 2 };
+        respondWith((sql) => (/SELECT locked/.test(sql) ? [] : { affectedRows: 1 }));
+
+        for (const change of [
+            () =>
+                putSingleItem({
+                    ...request({ params: { invoiceId: "12", id: "99" }, body: { value: 5 } }),
+                    user: caller
+                } as unknown as Request),
+            () =>
+                deleteSingleItem({
+                    ...request({ params: { invoiceId: "12", id: "99" } }),
+                    user: caller
+                } as unknown as Request),
+            () =>
+                markAsPaid({
+                    ...request({ params: { id: "12" } }),
+                    user: caller
+                } as unknown as Request)
+        ]) {
+            expect(await change()).toEqual({ success: false, message: "notFound" });
+        }
+
+        for (const lock of fake.statements(/SELECT locked/)) {
+            expect(lock.params[0]).toBe(2);
+        }
+        expect(fake.statements(/^(UPDATE|DELETE|INSERT)/)).toHaveLength(0);
     });
 });

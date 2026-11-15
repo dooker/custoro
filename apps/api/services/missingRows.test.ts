@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
+import { testCaller } from "../helper/testing/caller";
 
 // A row that is not there (or a query that failed) is an answer of success: false, not a
 // TypeError that ends in an error 500
@@ -20,7 +21,14 @@ const user = await import("./user");
 const invoice = await import("./invoice");
 
 const request = (parts: { params?: object; body?: unknown; file?: object; query?: object }) =>
-    ({ database: "shop", params: {}, body: {}, query: {}, ...parts }) as unknown as Request;
+    ({
+        database: "shop",
+        user: testCaller,
+        params: {},
+        body: {},
+        query: {},
+        ...parts
+    }) as unknown as Request;
 
 const noRows = { success: true, data: [], message: "OK" };
 const failed = { success: false, data: [], message: "error" };
@@ -41,12 +49,12 @@ beforeEach(() => {
 });
 
 describe("PUT /user/:id for a user that does not exist", () => {
-    it("answers success: false and changes nothing", async () => {
+    it("answers not found (also for another company's user) and changes nothing", async () => {
         queryMock.mockResolvedValue(noRows);
 
         const result = await user.putSingle(request({ params: { id: "9999" }, body: ann }));
 
-        expect(result).toEqual({ success: false, message: "get.user" });
+        expect(result).toEqual({ success: false, message: "notFound" });
         // only the look-up ran: no username check, no update
         expect(queryMock).toHaveBeenCalledOnce();
         expect(queryMock.mock.calls[0][0].sql).toContain("SELECT avatar");
@@ -80,12 +88,12 @@ describe("PUT /user/:id for a user that does not exist", () => {
 });
 
 describe("DELETE /user/:id for a user that does not exist", () => {
-    it("answers success: false and deletes nothing", async () => {
+    it("answers not found (also for another company's user) and deletes nothing", async () => {
         queryMock.mockResolvedValue(noRows);
 
         expect(await user.deleteSingle(request({ params: { id: "9999" } }))).toEqual({
             success: false,
-            message: "get.user"
+            message: "notFound"
         });
         expect(queryMock).toHaveBeenCalledOnce();
     });
@@ -102,7 +110,9 @@ describe("DELETE /user/:id for a user that does not exist", () => {
             success: true
         });
         expect(queryMock).toHaveBeenCalledOnce();
-        expect(fake.statements(/DELETE\s+FROM users/).map(({ params }) => params)).toEqual([[2]]);
+        expect(fake.statements(/DELETE\s+FROM users/).map(({ params }) => params)).toEqual([
+            [1, 2]
+        ]);
     });
 });
 

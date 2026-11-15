@@ -6,11 +6,16 @@ import { resolveSession, verifyToken, type SessionUserIF } from "./credentials";
 const findSessionUser = async (database: string, id: number) => {
     const { success, data } = await query<SessionUserIF>({
         database,
-        sql: `SELECT id,
-                     role,
-                     token_version
+        sql: `/* every company: the caller's own row, by the id of a verified token; it gives the company */
+              SELECT users.id,
+                     users.role,
+                     users.token_version,
+                     users.tenant_id,
+                     users.owner,
+                     tenants.active AS tenant_active
               FROM users
-              WHERE id = ?;`,
+              JOIN tenants ON tenants.id = users.tenant_id
+              WHERE users.id = ?;`,
         params: [id],
         logger: "Get session user"
     });

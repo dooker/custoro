@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
+import { testCaller } from "../helper/testing/caller";
 
 // Products and customers are protected by unique keys and foreign keys; these tests check what
 // the API tells the web app when the database refuses (see the 2026-10-19 migrations)
@@ -19,7 +20,7 @@ const failing = (code: string) =>
     queryMock.mockResolvedValue({ success: false, data: [], code, message: "error" });
 
 const request = (parts: { params?: object; body?: object }) =>
-    ({ database: "shop", params: {}, body: {}, ...parts }) as unknown as Request;
+    ({ database: "shop", user: testCaller, params: {}, body: {}, ...parts }) as unknown as Request;
 
 const newProduct = {
     code: "P-1",
@@ -78,7 +79,16 @@ describe("products", () => {
             }
         );
         // the price goes to the database as a number
-        expect(queryMock.mock.calls[0][0].params).toEqual(["P-1", "Cable", 19.99, 0, "pc", "", 1]);
+        expect(queryMock.mock.calls[0][0].params).toEqual([
+            "P-1",
+            "Cable",
+            19.99,
+            0,
+            "pc",
+            "",
+            1,
+            1
+        ]);
     });
 
     it("says a product that worksheets still use cannot be deleted", async () => {

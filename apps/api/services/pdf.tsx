@@ -11,6 +11,7 @@ import InvoiceTemplate from "./InvoiceTemplate/InvoiceTemplate";
 import type { PdfIF } from "../types/pdf";
 import i18n from "../i18n";
 import { Document, Page } from "@react-pdf/renderer";
+import { tenantOf } from "../helpers/tenant";
 import type { Request, Response } from "express";
 import type { TFunction } from "i18next";
 import { pdfDir } from "../config/paths";
@@ -18,7 +19,9 @@ import { filenamePrefixMessage } from "../helpers/settingsInput";
 import {
     inlineContentDisposition,
     invoiceFilenamePrefixPattern,
-    resolveInside
+    pdfCandidates,
+    resolveInside,
+    tenantPdfDir
 } from "../helpers/pdfFiles";
 
 const pdfLanguages = ["en", "et"];
@@ -50,9 +53,11 @@ export const getSingle = async (request: Request, response: Response) => {
         });
     }
 
+    // The row says which company's folder the file is in
     const { success, data } = await query<PdfIF>({
         database,
-        sql: `SELECT filename, invoice_type
+        sql: `/* every company: the public link, its hash is unique over all companies and is the only credential */
+              SELECT filename, invoice_type, tenant_id
                   FROM invoices
                   WHERE hash = ?;`,
         params: [currentHash],
@@ -66,11 +71,11 @@ export const getSingle = async (request: Request, response: Response) => {
         });
     }
 
-    // The file name comes from the database; whatever it holds, only a file directly inside
-    // pdfDir is ever read
-    const pdfPath = resolveInside(pdfDir, String(pdf.filename ?? ""));
+    // The file name comes from the database; whatever it holds, only a file directly inside the
+    // company's folder (or, for company 1, the folder from before companies) is ever read
+    const candidates = pdfCandidates(pdfDir, Number(pdf.tenant_id), String(pdf.filename ?? ""));
 
-    if (!pdfPath) {
+    if (!candidates.length) {
         return response.status(404).send("File not found");
     }
 
@@ -81,9 +86,18 @@ export const getSingle = async (request: Request, response: Response) => {
             ? pdf.filename.replace("invoice", offer)
             : pdf.filename;
 
-    const stats = await fs.promises.stat(pdfPath).catch(() => null);
+    let pdfPath: string | undefined;
 
-    if (!stats?.isFile()) {
+    for (const candidate of candidates) {
+        const stats = await fs.promises.stat(candidate).catch(() => null);
+
+        if (stats?.isFile()) {
+            pdfPath = candidate;
+            break;
+        }
+    }
+
+    if (!pdfPath) {
         return response.status(404).send("File not found");
     }
 
@@ -165,7 +179,9 @@ export const putSingle = async (request: Request) => {
     }
 
     const filename = `${prefix}${invoice?.number}.pdf`;
-    const fullFilePath = resolveInside(pdfDir, filename);
+    const tenantId = tenantOf(request);
+    const companyPdfDir = tenantPdfDir(pdfDir, tenantId);
+    const fullFilePath = resolveInside(companyPdfDir, filename);
 
     if (!fullFilePath) {
         return {
@@ -199,7 +215,7 @@ export const putSingle = async (request: Request) => {
             </Document>
         );
         const stream = await renderToStream(element);
-        fs.mkdirSync(pdfDir, { recursive: true });
+        fs.mkdirSync(companyPdfDir, { recursive: true });
 
         const writeStream = fs.createWriteStream(fullFilePath);
 
@@ -212,8 +228,9 @@ export const putSingle = async (request: Request) => {
                     sql: `UPDATE invoices
                           SET hash     = ?,
                               filename = ?
-                          WHERE id = ?;`,
-                    params: [hash, filename, Number(id)],
+                          WHERE tenant_id = ?
+                            AND id = ?;`,
+                    params: [hash, filename, tenantId, Number(id)],
                     logger: "Update invoice with hash & filename"
                 });
 
