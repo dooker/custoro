@@ -21,12 +21,34 @@ describe("isPrivateAddress", () => {
         "fe80::1",
         "::ffff:127.0.0.1",
         "::ffff:10.0.0.1",
+        // the same addresses written another way (Copilot review of PR 40)
+        "0:0:0:0:0:0:0:1",
+        "0000:0000:0000:0000:0000:0000:0000:0001",
+        "::0:1",
+        "::ffff:7f00:1",
+        "0:0:0:0:0:ffff:7f00:1",
+        "::ffff:0a00:0005",
+        "::127.0.0.1",
+        "64:ff9b::a00:1",
+        "2002:7f00:1::1",
+        "FE80::1",
+        "FD00::1",
+        "0::",
         "not an address"
     ])("refuses %s", (address) => {
         expect(isPrivateAddress(address)).toBe(true);
     });
 
-    it.each(["8.8.8.8", "172.32.0.1", "185.7.252.10", "2a00:1450:4001::1", "::ffff:8.8.8.8"])(
+    it.each([
+        "8.8.8.8",
+        "172.32.0.1",
+        "185.7.252.10",
+        "2a00:1450:4001::1",
+        "2A00:1450:4001:0:0:0:0:1",
+        "::ffff:8.8.8.8",
+        "::ffff:808:808",
+        "64:ff9b::808:808"
+    ])(
         "allows %s",
         (address) => {
             expect(isPrivateAddress(address)).toBe(false);
