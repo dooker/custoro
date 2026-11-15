@@ -298,20 +298,27 @@ describe("moveSavedMailToCompanyOne", () => {
         ]);
     });
 
-    it("leaves a plain password behind without a key, and says so", async () => {
+    it("waits for a key instead of moving without the password, and moves it once there is one", async () => {
+        // Copilot review of PR 40: the host moved without the plain password, so company 1 left
+        // the working default for a server it cannot log in to, and was never moved again
         fs.writeFileSync(
             files.mailSettingsFile,
-            JSON.stringify({ host: "smtp.old.test", password: "plain" })
+            JSON.stringify({ host: "smtp.old.test", username: "old", password: "plain" })
         );
         companyRows({});
         const log = vi.fn();
 
-        await moveSavedMailToCompanyOne("shop", undefined, log);
+        expect(await moveSavedMailToCompanyOne("shop", undefined, log)).toBe(false);
+        expect(fake.calls).toHaveLength(0);
+        expect(log).toHaveBeenCalledWith(expect.stringMatching(/MAIL_SETTINGS_KEY/));
 
-        expect(fake.statements(/UPDATE config/).flatMap(({ params }) => params)).not.toContain(
-            "plain"
-        );
-        expect(log).toHaveBeenCalledWith(expect.stringMatching(/not moved/));
+        // the next start, with a key: everything moves, the password encrypted
+        expect(await moveSavedMailToCompanyOne("shop", key, () => undefined)).toBe(true);
+        const stored = fake
+            .statements(/UPDATE config/)
+            .find(({ params }) => params[2] === "mailPassword")?.params[0] as string;
+
+        expect(decryptSecret(stored, key)).toBe("plain");
     });
 
     it("moves nothing when company 1's settings cannot be read", async () => {

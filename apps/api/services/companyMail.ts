@@ -224,15 +224,20 @@ export const moveSavedMailToCompanyOne = async (
 
     let password = file.password;
 
+    // A plain password is only ever stored encrypted. Without a key nothing moves yet: company 1
+    // keeps sending with the saved settings as the default, and the move happens at the first
+    // start with a key (Copilot review of PR 40: moving without it left company 1 with a server it
+    // could not log in to, and no later start moved it again)
     if (password && !isEncrypted(password)) {
         if (!key) {
             log(
-                "The saved mail server password is plain text and MAIL_SETTINGS_KEY is not set: it was not moved to company 1. Set the key and type the password again on the settings page."
+                "The saved mail settings stay the default until MAIL_SETTINGS_KEY is set: their password is plain text and is only ever stored encrypted. Set the key and restart."
             );
-            password = undefined;
-        } else {
-            password = encryptSecret(password, key);
+
+            return false;
         }
+
+        password = encryptSecret(password, key);
     }
 
     const values = Object.entries({
