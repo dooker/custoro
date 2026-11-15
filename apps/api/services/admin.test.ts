@@ -9,15 +9,30 @@ vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 
 const { saveAdmin } = await import("./admin");
 
-const input = { database: "shop", username: "boss@example.test", name: "Boss", reset: false };
+const input = {
+    database: "shop",
+    tenantId: 1,
+    username: "boss@example.test",
+    name: "Boss",
+    reset: false
+};
 const password = "correct horse battery";
 
-// What the look-up for the username finds
+// What the look-up for the username finds; company 1 exists, and the install has an owner when
+// `hasOwner` says so
+let hasOwner = false;
 const existing = (...rows: { id: number }[]) =>
-    fake.respondWith((sql) => (/SELECT id/.test(sql) ? rows : {}));
+    fake.respondWith((sql) => {
+        if (/FROM tenants/.test(sql)) return /WHERE id = \?/.test(sql) ? [{ id: 1 }] : [];
+        if (/WHERE owner = 1/.test(sql)) return hasOwner ? [{ id: 9 }] : [];
+        if (/WHERE username = \?/.test(sql)) return rows;
+
+        return {};
+    });
 
 beforeEach(() => {
     fake.reset();
+    hasOwner = false;
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
@@ -30,10 +45,33 @@ describe("saveAdmin", () => {
         const [insert] = fake.statements(/INSERT INTO users/);
 
         expect(insert.sql).toContain("role = 'admin'");
-        expect(insert.params.slice(0, 2)).toEqual(["boss@example.test", "Boss"]);
+        expect(insert.params.slice(0, 3)).toEqual([1, "boss@example.test", "Boss"]);
         expect(insert.params).not.toContain(password);
-        expect(await bcrypt.compare(password, insert.params[2] as string)).toBe(true);
+        expect(await bcrypt.compare(password, insert.params[3] as string)).toBe(true);
+        // the first admin of an install without an owner is its owner
+        expect(insert.params[4]).toBe(1);
         expect(fake.connection.commit).toHaveBeenCalledOnce();
+    });
+
+    it("makes a later admin, or one of another company, no owner", async () => {
+        hasOwner = true;
+        existing();
+
+        expect(await saveAdmin({ ...input, tenantId: 1, password })).toEqual({
+            ok: true,
+            created: true
+        });
+        expect(fake.statements(/INSERT INTO users/)[0].params[4]).toBe(0);
+    });
+
+    it("refuses a company that does not exist, and creates nobody", async () => {
+        fake.respondWith((sql) => (/FROM tenants/.test(sql) ? [] : /SELECT/.test(sql) ? [] : {}));
+
+        expect(await saveAdmin({ ...input, tenantId: 7, password })).toEqual({
+            ok: false,
+            message: "tenant.missing"
+        });
+        expect(fake.statements(/INSERT INTO users/)).toHaveLength(0);
     });
 
     it("refuses an email that is taken and changes nothing", async () => {

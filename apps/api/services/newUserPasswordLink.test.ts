@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
 import { hashResetToken } from "../helpers/passwordReset";
+import { testCaller } from "../helper/testing/caller";
 
 // A user made on the users page has no password. The API mails them a link to set one (the reset
 // page and email, valid for 7 days) and tells the admin whether it went out.
@@ -30,6 +31,7 @@ const user = await import("./user");
 
 const request = {
     database: "shop",
+    user: testCaller,
     params: {},
     query: {},
     body: { name: "Ann", username: "ann@example.test", discount: "0", offer: "0", role: "user" }

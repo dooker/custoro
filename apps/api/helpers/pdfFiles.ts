@@ -22,6 +22,29 @@ export const resolveInside = (dir: string, filename: string): string | null => {
     return path.dirname(resolved) === root && resolved !== root ? resolved : null;
 };
 
+/**
+ * The folder of one company's invoice PDFs: `<pdfDir>/<tenant id>`. Both companies have an invoice
+ * 1, so their files cannot share one folder.
+ */
+export const tenantPdfDir = (pdfDir: string, tenantId: number) => {
+    if (!Number.isInteger(tenantId) || tenantId < 1) {
+        throw new Error(`Not a company id: ${tenantId}`);
+    }
+
+    return path.join(pdfDir, String(tenantId));
+};
+
+/**
+ * Where an existing PDF of a company is: its own folder, or for company 1 the flat folder all PDFs
+ * were in before there were companies (an install updated to several companies keeps reading
+ * them where they are). Null when the name is not a plain file name.
+ */
+export const pdfCandidates = (pdfDir: string, tenantId: number, filename: string) =>
+    [
+        resolveInside(tenantPdfDir(pdfDir, tenantId), filename),
+        tenantId === 1 ? resolveInside(pdfDir, filename) : null
+    ].filter((candidate): candidate is string => candidate !== null);
+
 // ASCII fallback of a file name for the plain `filename` parameter: printable ASCII only, and
 // none of the characters that end or escape a quoted string or start a percent escape
 const asciiFilename = (filename: string) => filename.replace(/[^\x20-\x7e]|["\\%;]/g, "_");

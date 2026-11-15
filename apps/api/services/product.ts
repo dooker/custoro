@@ -1,5 +1,6 @@
 import { postGeneralSingle, putGeneralSingle } from "./_helpers";
 import { query } from "../helper/query";
+import { tenantOf } from "../helpers/tenant";
 import { RowDataPacket } from "mysql2";
 import { invalidInputMessage, parseInput } from "../helpers/bodyInput";
 import { productInput } from "../helpers/resourceInput";
@@ -37,8 +38,9 @@ export const getSingle = async (request: Request, id?: string): Promise<QueryRes
                      unit,
                      comment
               FROM products
-              WHERE id = ?;`,
-        params: [id || (paramId as string)],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantOf(request), id || (paramId as string)],
         logger: `Get single ${type}`
     });
 
@@ -73,8 +75,9 @@ export const getByCode = async (request: Request) => {
         database,
         sql: `SELECT COUNT(id) AS count
               FROM products
-              WHERE code = ?;`,
-        params: [code],
+              WHERE tenant_id = ?
+                AND code = ?;`,
+        params: [tenantOf(request), code],
         logger: `Get single ${type} by code`
     });
 
@@ -102,7 +105,8 @@ export const postSingle = async (request: Request) => {
     const { code, name, price, discountPrice, unit, comment } = input.values;
     const sql = `
         INSERT INTO products
-        SET code           = ?,
+        SET tenant_id      = ?,
+            code           = ?,
             name           = ?,
             price          = ?,
             discount_price = ?,
@@ -111,7 +115,7 @@ export const postSingle = async (request: Request) => {
     return withProductMessage(
         await postGeneralSingle({
             sql,
-            params: [code, name, price, discountPrice, unit, comment],
+            params: [tenantOf(request), code, name, price, discountPrice, unit, comment],
             logger: type,
             database
         })
@@ -139,8 +143,9 @@ export const putSingle = async (request: Request) => {
             discount_price = ?,
             unit           = ?,
             comment        = ?
-        WHERE id = ?`;
-    const params = [code, name, price, discountPrice, unit, comment, Number(id)];
+        WHERE tenant_id = ?
+          AND id = ?`;
+    const params = [code, name, price, discountPrice, unit, comment, tenantOf(request), Number(id)];
 
     return withProductMessage(await putGeneralSingle({ database, sql, params, logger: type }));
 };
@@ -151,12 +156,13 @@ export const deleteSingle = async (request: Request) => {
         database
     } = request;
 
-    const { success, code } = await query<RowDataPacket>({
+    const { success, code, affectedRows } = await query<RowDataPacket>({
         database,
         sql: `DELETE
               FROM products
-              WHERE id = ?`,
-        params: [id as string],
+              WHERE tenant_id = ?
+                AND id = ?`,
+        params: [tenantOf(request), id as string],
         logger: `Delete single ${type}`
     });
 
@@ -164,6 +170,14 @@ export const deleteSingle = async (request: Request) => {
         return {
             success: false,
             message: code === rowIsReferenced ? "product.inUse" : "delete.product"
+        };
+    }
+
+    // No product of the caller's company has that id
+    if (affectedRows === 0) {
+        return {
+            success: false,
+            message: "notFound"
         };
     }
 

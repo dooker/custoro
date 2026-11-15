@@ -17,7 +17,13 @@ import {
 } from "./credentials";
 import { tooManyAttemptsMessage } from "./rateLimit";
 
-const admin: LoginUserIF = { id: 1, password: "hash-of-admin", role: "admin", token_version: 3 };
+const admin: LoginUserIF = {
+    id: 1,
+    password: "hash-of-admin",
+    role: "admin",
+    token_version: 3,
+    tenant_active: 1
+};
 
 const fakeDeps = (overrides: Partial<CredentialsDepsIF> = {}) => ({
     findUser: vi.fn<CredentialsDepsIF["findUser"]>(async () => ({ success: true, user: admin })),
@@ -121,6 +127,21 @@ describe("checkCredentials", () => {
         const result = await checkCredentials("user@example.test", "secret", deps);
 
         expect(result).toEqual({ success: false, message: loginFailedMessage });
+        expect(deps.signToken).not.toHaveBeenCalled();
+    });
+
+    it("rejects the people of a deactivated company like a wrong password", async () => {
+        const deps = fakeDeps({
+            findUser: vi.fn(async () => ({ success: true, user: { ...admin, tenant_active: 0 } }))
+        });
+
+        const result = await checkCredentials("user@example.test", "secret", deps);
+
+        expect(result).toEqual({ success: false, message: loginFailedMessage });
+        expect(deps.comparePassword).toHaveBeenCalledWith(
+            "secret",
+            expect.stringMatching(/^\$2[aby]\$10\$/)
+        );
         expect(deps.signToken).not.toHaveBeenCalled();
     });
 
@@ -264,17 +285,40 @@ describe("verifyToken", () => {
 });
 
 describe("resolveSession", () => {
-    const user = { id: 2, role: "user", token_version: 4 };
+    const user = {
+        id: 2,
+        role: "user",
+        token_version: 4,
+        tenant_id: 7,
+        owner: 0,
+        tenant_active: 1
+    };
 
-    it("returns the caller with the role from the database", async () => {
+    it("returns the caller with the role and company from the database", async () => {
         const findUser = vi.fn(async () => ({ ...user, role: "admin" }));
 
-        expect(await resolveSession({ id: 2, tv: 4, role: "user" }, findUser)).toEqual({
+        expect(
+            await resolveSession({ id: 2, tv: 4, role: "user", tenantId: 99 }, findUser)
+        ).toEqual({
             id: 2,
             role: "admin",
-            tv: 4
+            tv: 4,
+            tenantId: 7,
+            owner: false
         });
         expect(findUser).toHaveBeenCalledWith(2);
+    });
+
+    it("marks the owner of the install", async () => {
+        expect(await resolveSession({ id: 2, tv: 4 }, async () => ({ ...user, owner: 1 }))).toEqual(
+            expect.objectContaining({ owner: true })
+        );
+    });
+
+    it("refuses the people of a deactivated company", async () => {
+        expect(
+            await resolveSession({ id: 2, tv: 4 }, async () => ({ ...user, tenant_active: 0 }))
+        ).toBeNull();
     });
 
     it("refuses a token from before the last password or email change", async () => {

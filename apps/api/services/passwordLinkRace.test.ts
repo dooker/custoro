@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { createFakeDb } from "../helper/testing/fakeDb";
+import { testCaller } from "../helper/testing/caller";
 
 // A password link is mailed to the address the account had when it was looked up. If the email
 // changes in between (an admin corrects it, the user changes it), saving the link by id alone
@@ -36,8 +37,8 @@ const database = (tokenRows: number) =>
     queryMock.mockImplementation(async ({ sql }: { sql: string }) => {
         if (/COUNT/.test(sql)) return { success: true, data: [{ count: 0 }] };
         if (/INSERT/.test(sql)) return { success: true, data: {}, insertId: 7 };
-        if (/SELECT id, username/.test(sql.replace(/\s+/g, " ")))
-            return { success: true, data: [{ id: 7, username: "ann@example.test" }] };
+        if (/SELECT users\.id, users\.username/.test(sql.replace(/\s+/g, " ")))
+            return { success: true, data: [{ id: 7, username: "ann@example.test", tenant_id: 1 }] };
         if (/forgot_token/.test(sql)) return { success: true, data: {}, affectedRows: tokenRows };
 
         return { success: true, data: {} };
@@ -54,6 +55,7 @@ beforeEach(() => {
 describe("a new user's password link", () => {
     const request = {
         database: "shop",
+        user: testCaller,
         params: {},
         query: {},
         body: { name: "Ann", username: "ann@example.test", discount: "0", offer: "0", role: "user" }

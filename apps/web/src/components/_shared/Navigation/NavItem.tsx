@@ -15,9 +15,9 @@ interface LinkIF {
 export const NavItem = ({ selector, link, Icon, dataTestId, level }: LinkIF) => {
     const { t } = useSafeTranslation();
     const { user } = useAuth();
-    const { role } = user || {};
+    const { role, owner } = user || {};
 
-    if (level === 'admin' && role !== 'admin') {
+    if ((level === 'admin' && role !== 'admin') || (level === 'owner' && Number(owner) !== 1)) {
         return null;
     }
 

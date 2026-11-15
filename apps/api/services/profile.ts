@@ -21,6 +21,8 @@ import { accountKey, getLoginThrottle, getResetThrottle } from "../helpers/rateL
 import { getAppOrigin } from "../helpers/appOrigin";
 import { isUsernameTaken } from "../helpers/users";
 import { getTokenSigner } from "./login";
+import { tenantOf } from "../helpers/tenant";
+import type { EmailConfigResult } from "../types/email";
 
 export const getSingle = async (request: Request) => {
     const { database } = request;
@@ -39,18 +41,24 @@ export const getSingle = async (request: Request) => {
     // const userFields = config.schemas?.user;
     // ${userFields ? `${userFields}, ` : ""},
 
+    // The person's company's name (shown in the menu) and whether they own the install (the owner
+    // page)
     let sql = `
-        SELECT id,
-               name,
-               username AS email,
-               timestamp,
-               discount,
-               avatar,
-               offer,
-               role
+        SELECT users.id,
+               users.name,
+               users.username AS email,
+               users.timestamp,
+               users.discount,
+               users.avatar,
+               users.offer,
+               users.role,
+               users.owner,
+               tenants.name AS companyName
         FROM users
-        WHERE id = ?;`;
-    let params = [id];
+        JOIN tenants ON tenants.id = users.tenant_id
+        WHERE users.tenant_id = ?
+          AND users.id = ?;`;
+    let params = [tenantOf(request), id];
     const { success, data } = await query({ database, sql, params, logger: "Get user details" });
 
     if (!success) {
@@ -67,9 +75,10 @@ export const getSingle = async (request: Request) => {
     sql = `
         UPDATE users
         SET timestamp = NOW()
-        WHERE id = ?
+        WHERE tenant_id = ?
+          AND id = ?
           AND timestamp < NOW() - INTERVAL 5 MINUTE`;
-    params = [id];
+    params = [tenantOf(request), id];
     await query({ database, sql, params, logger: "Update user timestamp" });
 
     return {
@@ -124,8 +133,9 @@ export const putSingle = async (request: Request) => {
                      password,
                      avatar
               FROM users
-              WHERE id = ?;`,
-        params: [id],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantOf(request), id],
         logger: "Get profile for update"
     });
     const current = currentData?.[0];
@@ -183,29 +193,34 @@ export const putSingle = async (request: Request) => {
     // import theme from req.body
     // sql - theme    = ?`;
     // params - theme
-    let sql = `UPDATE users
-               SET username = ?,
-                   name     = ?`;
+    // The optional assignments, in the order of their params
+    const assignments: string[] = [];
     const params: (string | number)[] = [newEmail, typeof name === "string" ? name : ""];
 
     if (password) {
-        sql += `, password = ?`;
+        assignments.push("password = ?");
         params.push(await hashPassword(password));
     }
 
     // Ends every other session (the caller gets a fresh token below) and cancels a password link
     // that is still open: it was sent for the old password or to the old address
     if (changesCredentials) {
-        sql += `, token_version = token_version + 1, forgot_token = NULL, forgot_token_expires = NULL`;
+        assignments.push(
+            "token_version = token_version + 1, forgot_token = NULL, forgot_token_expires = NULL"
+        );
     }
 
     if (fileExists && avatar) {
-        sql += `, avatar = ?`;
+        assignments.push("avatar = ?");
         params.push(avatar);
     }
 
-    sql += ` WHERE id = ?;`;
-    params.push(id);
+    params.push(tenantOf(request), id);
+    const sql = `UPDATE users
+               SET username = ?,
+                   name     = ?${assignments.map((assignment) => `, ${assignment}`).join("")}
+               WHERE tenant_id = ?
+                 AND id = ?;`;
 
     const { success, code } = await query({
         database,
@@ -246,16 +261,22 @@ export const forgot = async (username: string, request: Request) => {
         Sentry.captureMessage(message, "error");
     };
 
-    const { data } = await query<UserIF & { username: string }>({
+    // An account of an active company only: a deactivated company's people get the same answer
+    // and no email
+    const { data } = await query<UserIF & { username: string; tenant_id: number }>({
         database,
-        sql: `SELECT id, username
+        sql: `/* every company: the account is found by its email before anyone is logged in */
+              SELECT users.id, users.username, users.tenant_id
               FROM users
-              WHERE username = ?`,
+              JOIN tenants ON tenants.id = users.tenant_id
+              WHERE users.username = ?
+                AND tenants.active = 1`,
         params: [username],
         logger: "Check if user exists"
     });
     const found = data?.[0];
     const user = found ? { id: found.id, email: found.username } : null;
+    const tenantId = Number(found?.tenant_id);
 
     // Limits reset emails per address and per account (counted by the account the lookup found,
     // see accountKey). Over the limit the answer is still success, so it says nothing about the
@@ -270,7 +291,8 @@ export const forgot = async (username: string, request: Request) => {
         findUser: async () => user,
         saveToken: (userId, tokenHash, expiresAt) =>
             saveResetToken(database, userId, String(user?.email), tokenHash, expiresAt),
-        sendEmail: (to, link) => sendRestoreEmail(database, to, link),
+        // The person's own company's mail server and texts
+        sendEmail: (to, link) => sendRestoreEmail(database, tenantId, to, link),
         reportError
     });
 
@@ -290,7 +312,8 @@ const saveResetToken = async (
 ) => {
     const { success, affectedRows } = await query({
         database,
-        sql: `UPDATE users
+        sql: `/* every company: the account the email lookup or the new-user page found, by id */
+              UPDATE users
               SET forgot_token         = ?,
                   forgot_token_expires = ?
               WHERE id = ?
@@ -307,10 +330,26 @@ const saveResetToken = async (
     return success && affectedRows === 1;
 };
 
+// The password email when a company has not written its own (a new company, a fresh install): the
+// link must be in it, or the person cannot set a password at all
+export const defaultRestoreEmail = {
+    subject: "Set your password",
+    text: "Set your password here: [RESTORE_LINK]",
+    html: '<p>Set your password here: <a href="[RESTORE_LINK]">[RESTORE_LINK]</a></p>'
+};
+
+/** The company's password email, with the default for each part it left empty */
+export const withRestoreLink = (config: EmailConfigResult | undefined): EmailConfigResult => ({
+    subject: config?.subject || defaultRestoreEmail.subject,
+    text: config?.text || defaultRestoreEmail.text,
+    html: config?.html || defaultRestoreEmail.html
+});
+
 // The password email of the settings page (forgotSubject, forgotText, forgotHtml)
-const sendRestoreEmail = async (database: string, to: string, link: string) => {
+const sendRestoreEmail = async (database: string, tenantId: number, to: string, link: string) => {
     const config = await getConfig({
         database,
+        tenantId,
         fields: ["forgotSubject", "forgotText", "forgotHtml"],
         mapper: ["subject", "text", "html"]
     });
@@ -319,7 +358,13 @@ const sendRestoreEmail = async (database: string, to: string, link: string) => {
         return { success: false, message: config.message };
     }
 
-    return email({ email: to, config: config.data, replace: { "[RESTORE_LINK]": link } });
+    return email({
+        database,
+        tenantId,
+        email: to,
+        config: withRestoreLink(config.data),
+        replace: { "[RESTORE_LINK]": link }
+    });
 };
 
 /**
@@ -327,7 +372,12 @@ const sendRestoreEmail = async (database: string, to: string, link: string) => {
  * page and email as a password reset, valid for 7 days. False when it could not be sent (no mail
  * server, a failed send); the user can still use "Forgot password" later.
  */
-export const sendPasswordSetupLink = async (database: string, userId: number, address: string) => {
+export const sendPasswordSetupLink = async (
+    database: string,
+    tenantId: number,
+    userId: number,
+    address: string
+) => {
     const { token, tokenHash, expiresAt } = createResetToken(new Date(), passwordSetupLifetimeMs);
 
     if (!(await saveResetToken(database, userId, address, tokenHash, expiresAt))) {
@@ -336,7 +386,12 @@ export const sendPasswordSetupLink = async (database: string, userId: number, ad
         return false;
     }
 
-    const sent = await sendRestoreEmail(database, address, `${getAppOrigin()}/restore/${token}`);
+    const sent = await sendRestoreEmail(
+        database,
+        tenantId,
+        address,
+        `${getAppOrigin()}/restore/${token}`
+    );
 
     if (!sent.success) {
         console.error(
@@ -350,7 +405,8 @@ export const sendPasswordSetupLink = async (database: string, userId: number, ad
 const findUserIdByTokenHash = async (database: string, tokenHash: string) => {
     const { data } = await query<UserIF>({
         database,
-        sql: `SELECT id
+        sql: `/* every company: the link's token is the only credential, before anyone is logged in */
+              SELECT id
               FROM users
               WHERE forgot_token = ?
                 AND forgot_token_expires > UTC_TIMESTAMP();`,
@@ -376,7 +432,8 @@ export const putToken = async (request: Request) => {
         consumeToken: async (tokenHash, passwordHash) => {
             const { success, affectedRows } = await query({
                 database,
-                sql: `UPDATE users
+                sql: `/* every company: the link's token is the only credential */
+                      UPDATE users
                       SET password             = ?,
                           forgot_token         = NULL,
                           forgot_token_expires = NULL,

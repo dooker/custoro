@@ -51,7 +51,7 @@ import {
     serviceHost,
     trustProxyWarning
 } from "./helpers/startupChecks";
-import { encryptSavedMailPassword } from "./services/settings";
+import { moveSavedMailToCompanyOne } from "./services/companyMail";
 import { createShutdown, shutdownSignals } from "./helpers/shutdown";
 import { closePools } from "./db";
 import { uploadDir, pdfDir } from "./config/paths";
@@ -91,8 +91,11 @@ if (mailWarning) {
     console.warn(`Warning: ${mailWarning}`);
 }
 
-// A password saved before the key was set is encrypted now
-encryptSavedMailPassword();
+// The mail settings of an install from before companies become company 1's, once (not awaited:
+// the API starts either way, and a failure is logged)
+moveSavedMailToCompanyOne(dbConfig.default[env === "production" ? "prod" : "dev"]).catch((error) =>
+    console.error("Moving the saved mail settings to company 1 failed:", error)
+);
 
 console.log(`System: Running in ${env} mode`);
 console.log(`Root Path: ${rootPath}`);

@@ -137,10 +137,10 @@ export const keywordWhere = ({ keyword, table, customer, prefix = "WHERE" }: Key
     };
 };
 
-export const getCustomers = ({ keyword, order, direction }: GetterIF) => {
+export const getCustomers = ({ tenantId, keyword, order, direction }: GetterIF) => {
     const sql = [];
     const totalSql = [];
-    const params = [];
+    const params: (string | number)[] = [tenantId];
 
     let currentOrder;
     const allowedOrderFields = [
@@ -168,16 +168,19 @@ export const getCustomers = ({ keyword, order, direction }: GetterIF) => {
                phone,
                address,
                email
-        FROM customers`);
+        FROM customers
+        WHERE customers.tenant_id = ?`);
 
     totalSql.push(`
         SELECT COUNT(id) AS total
-        FROM customers`);
+        FROM customers
+        WHERE customers.tenant_id = ?`);
 
     if (keyword) {
         const { sql: keywordSql, params: keywordParams } = keywordWhere({
             keyword,
-            table: "customers"
+            table: "customers",
+            prefix: "AND"
         });
 
         sql.push(keywordSql);
@@ -195,10 +198,10 @@ export const getCustomers = ({ keyword, order, direction }: GetterIF) => {
     };
 };
 
-export const getProducts = ({ keyword, order, direction }: GetterIF) => {
+export const getProducts = ({ tenantId, keyword, order, direction }: GetterIF) => {
     const sql = [];
     const totalSql = [];
-    const params = [];
+    const params: (string | number)[] = [tenantId];
 
     let currentOrder;
     const allowedOrderFields = ["id", "code", "name", "price", "discount_price", "unit"];
@@ -216,16 +219,19 @@ export const getProducts = ({ keyword, order, direction }: GetterIF) => {
                discount_price as discountPrice,
                unit,
                comment
-        FROM products`);
+        FROM products
+        WHERE products.tenant_id = ?`);
 
     totalSql.push(`
         SELECT COUNT(id) AS total
-        FROM products`);
+        FROM products
+        WHERE products.tenant_id = ?`);
 
     if (keyword) {
         const { sql: keywordSql, params: keywordParams } = keywordWhere({
             keyword,
-            table: "products"
+            table: "products",
+            prefix: "AND"
         });
 
         sql.push(keywordSql);
@@ -243,10 +249,10 @@ export const getProducts = ({ keyword, order, direction }: GetterIF) => {
     };
 };
 
-export const getWorksheets = ({ keyword = null, customerId }: GetterIF) => {
+export const getWorksheets = ({ tenantId, keyword = null, customerId }: GetterIF) => {
     const sql = [];
     const totalSql = [];
-    const params = [];
+    const params: (string | number)[] = [tenantId];
 
     if (customerId) {
         sql.push(`
@@ -260,47 +266,45 @@ export const getWorksheets = ({ keyword = null, customerId }: GetterIF) => {
                    worksheets.invoice
             FROM worksheets
                      LEFT JOIN products ON worksheets.product_id = products.id
+            WHERE worksheets.tenant_id = ?
         `);
 
         totalSql.push(`
             SELECT COUNT(worksheets.id) AS total
             FROM worksheets
                      LEFT JOIN products ON worksheets.product_id = products.id
+            WHERE worksheets.tenant_id = ?
         `);
 
         if (keyword) {
             const { sql: keywordSql, params: keywordParams } = keywordWhere({
                 keyword,
                 table: "worksheets",
-                customer: true
+                customer: true,
+                prefix: "AND"
             });
 
             sql.push(keywordSql);
             totalSql.push(keywordSql);
             params.push(...keywordParams);
-
-            sql.push(`AND`);
-            totalSql.push(`AND`);
-        } else {
-            sql.push(`WHERE`);
-            totalSql.push(`WHERE`);
         }
 
         sql.push(`
-            worksheets.customer_id = ?
+            AND worksheets.customer_id = ?
                 ORDER BY worksheets.id DESC
         `);
         totalSql.push(`
-            worksheets.customer_id = ?
+            AND worksheets.customer_id = ?
                 AND worksheets.locked!="1"
         `);
-        params.push(customerId);
+        params.push(customerId as number);
     } else if (keyword) {
         // The words are looked for in the customers' names, so the customers are joined before
         // the worksheets are grouped
         const { sql: keywordSql, params: keywordParams } = keywordWhere({
             keyword,
-            table: "worksheets"
+            table: "worksheets",
+            prefix: "AND"
         });
 
         sql.push(`
@@ -309,6 +313,7 @@ export const getWorksheets = ({ keyword = null, customerId }: GetterIF) => {
                    COUNT(worksheets.id) AS worksheet_count
             FROM worksheets
                      LEFT JOIN customers ON worksheets.customer_id = customers.id
+            WHERE worksheets.tenant_id = ?
             ${keywordSql}
             GROUP BY customers.name, customers.id
             ORDER BY MAX(worksheets.id) DESC
@@ -318,6 +323,7 @@ export const getWorksheets = ({ keyword = null, customerId }: GetterIF) => {
             SELECT COUNT(DISTINCT worksheets.customer_id) AS total
             FROM worksheets
                      LEFT JOIN customers ON worksheets.customer_id = customers.id
+            WHERE worksheets.tenant_id = ?
             ${keywordSql}
         `);
         params.push(...keywordParams);
@@ -334,6 +340,7 @@ export const getWorksheets = ({ keyword = null, customerId }: GetterIF) => {
                          COUNT(*)  AS worksheet_count,
                          MAX(id)   AS last_id
                   FROM worksheets
+                  WHERE tenant_id = ?
                   GROUP BY customer_id
                   ORDER BY last_id DESC
                   ${limitMarker}) g
@@ -342,11 +349,16 @@ export const getWorksheets = ({ keyword = null, customerId }: GetterIF) => {
         `);
 
         // One row per customer, so this counts the rows of the list (it counted distinct names,
-        // which is fewer when two customers have the same name); a skip scan of the index: 114 ms
-        // became 1.4 ms
+        // which is fewer when two customers have the same name). Grouped by the index's first two
+        // columns so MySQL reads it with a loose index scan (one entry per customer): COUNT(DISTINCT
+        // customer_id) with the company filter read every worksheet of the company instead (50 000
+        // invoices: 42.6 ms; before companies, without the filter, 0.75 ms)
         totalSql.push(`
-            SELECT COUNT(DISTINCT customer_id) AS total
-            FROM worksheets
+            SELECT COUNT(*) AS total
+            FROM (SELECT tenant_id, customer_id
+                  FROM worksheets
+                  WHERE tenant_id = ?
+                  GROUP BY tenant_id, customer_id) c
         `);
     }
 
@@ -357,12 +369,13 @@ export const getWorksheets = ({ keyword = null, customerId }: GetterIF) => {
     };
 };
 
-export const getInvoices = ({ keyword = null, customerId }: GetterIF) => {
-    const params: (string | number)[] = [];
+export const getInvoices = ({ tenantId, keyword = null, customerId }: GetterIF) => {
+    const params: (string | number)[] = [tenantId];
+    // What follows the company condition, each part starting with AND
     const where: string[] = [];
 
     if (customerId) {
-        where.push(`WHERE invoices.customer_id = ?`);
+        where.push(`AND invoices.customer_id = ?`);
         params.push(customerId);
     }
 
@@ -370,27 +383,31 @@ export const getInvoices = ({ keyword = null, customerId }: GetterIF) => {
         const { sql: keywordSql, params: keywordParams } = keywordWhere({
             keyword,
             table: "invoices",
-            prefix: customerId ? "AND" : "WHERE"
+            prefix: "AND"
         });
 
         where.push(keywordSql);
         params.push(...keywordParams);
     }
 
-    // The page and the total are filtered the same way and take the same params. Newest number
-    // first: number_sort is the number as a number (see the migration), with the id as tie-break,
-    // so the order is the same on every request and an index serves it. The line count is a
-    // subquery, evaluated for the rows of the page only, instead of a join that groups every invoice.
+    // The page and the total are filtered the same way and take the same params: the company
+    // first, written into every statement. Newest number first: number_sort is the number as a
+    // number (see the migration), with the id as tie-break, so the order is the same on every
+    // request and an index (tenant_id, number_sort) serves it. The line count is a subquery,
+    // evaluated for the rows of the page only, instead of a join that groups every invoice; it
+    // uses the index (tenant_id, invoice_id).
     const conditions = where.join(" ");
     const lineCount = `(SELECT COUNT(*)
                 FROM invoice_items
-                WHERE invoice_items.invoice_id = invoices.id) AS total`;
+                WHERE invoice_items.tenant_id = invoices.tenant_id
+                  AND invoice_items.invoice_id = invoices.id) AS total`;
 
     // Customers are only needed to count when the keyword searches their names
     const totalSql = `
         SELECT COUNT(invoices.id) AS total
         FROM invoices
-                 ${keyword ? "LEFT JOIN customers ON invoices.customer_id = customers.id" : ""}
+                 ${keyword ? "LEFT JOIN customers ON customers.tenant_id = invoices.tenant_id AND customers.id = invoices.customer_id" : ""}
+        WHERE invoices.tenant_id = ?
         ${conditions}`;
 
     if (keyword) {
@@ -404,7 +421,9 @@ export const getInvoices = ({ keyword = null, customerId }: GetterIF) => {
                invoices.locked,
                ${lineCount}
         FROM invoices
-                 LEFT JOIN customers ON invoices.customer_id = customers.id
+                 LEFT JOIN customers ON customers.tenant_id = invoices.tenant_id
+                     AND customers.id = invoices.customer_id
+        WHERE invoices.tenant_id = ?
         ${conditions}
         ORDER BY invoices.number_sort DESC, invoices.id DESC`,
             totalSql,
@@ -412,11 +431,11 @@ export const getInvoices = ({ keyword = null, customerId }: GetterIF) => {
         };
     }
 
-    // Without a keyword the page is picked first, from the index alone (id and number_sort), and
-    // only its rows are joined to the invoices and customers and get their line count: the cost
-    // no longer grows with the page number (page 1350 of 50 000 invoices: 33 ms became 3.3 ms,
-    // page 1: 1 ms became 0.07 ms). The paging LIMIT goes inside, where the rows are picked (see
-    // limitMarker).
+    // Without a keyword the page is picked first, from the index alone (tenant_id, number_sort and
+    // the id), and only its rows are joined to the invoices and customers and get their line
+    // count: the cost no longer grows with the page number (page 1350 of 50 000 invoices: 33 ms
+    // became 3.3 ms, page 1: 1 ms became 0.07 ms). The paging LIMIT goes inside, where the rows
+    // are picked (see limitMarker).
     return {
         sql: `
         SELECT IF(invoices.locked = 1, invoices.customer_name, customers.name) AS name,
@@ -426,21 +445,23 @@ export const getInvoices = ({ keyword = null, customerId }: GetterIF) => {
                ${lineCount}
         FROM (SELECT id, number_sort
               FROM invoices
+              WHERE tenant_id = ?
               ${conditions}
               ORDER BY number_sort DESC, id DESC
               ${limitMarker}) p
                  JOIN invoices ON invoices.id = p.id
-                 LEFT JOIN customers ON customers.id = invoices.customer_id
+                 LEFT JOIN customers ON customers.tenant_id = invoices.tenant_id
+                     AND customers.id = invoices.customer_id
         ORDER BY p.number_sort DESC, p.id DESC`,
         totalSql,
         params
     };
 };
 
-export const getUsers = ({ keyword, order, direction }: GetterIF) => {
+export const getUsers = ({ tenantId, keyword, order, direction }: GetterIF) => {
     const sql = [];
     const totalSql = [];
-    const params = [];
+    const params: (string | number)[] = [tenantId];
 
     let currentOrder;
     const allowedOrderFields = ["id", "username", "name", "discount", "offer", "role"];
@@ -459,16 +480,19 @@ export const getUsers = ({ keyword, order, direction }: GetterIF) => {
                offer,
                avatar,
                role
-        FROM users`);
+        FROM users
+        WHERE users.tenant_id = ?`);
 
     totalSql.push(`
         SELECT COUNT(id) AS total
-        FROM users`);
+        FROM users
+        WHERE users.tenant_id = ?`);
 
     if (keyword) {
         const { sql: keywordSql, params: keywordParams } = keywordWhere({
             keyword,
-            table: "users"
+            table: "users",
+            prefix: "AND"
         });
 
         sql.push(keywordSql);

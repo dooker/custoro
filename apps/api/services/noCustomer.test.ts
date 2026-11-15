@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
+import { testCaller } from "../helper/testing/caller";
 
 // An invoice does not need a customer (customer_id can be NULL), and a paid one is read like any
 // other. query() refuses an undefined parameter, which is what looking up "the customer of an
@@ -16,7 +17,8 @@ vi.mock("../helper/query", async (importOriginal) => ({
 const customer = await import("./customer");
 const invoice = await import("./invoice");
 
-const request = (params: object) => ({ database: "shop", params, body: {} }) as unknown as Request;
+const request = (params: object) =>
+    ({ database: "shop", user: testCaller, params, body: {} }) as unknown as Request;
 
 const invoiceRow = (customerId: number | null, locked: number) => ({
     id: 7,
@@ -98,13 +100,13 @@ describe("customer.getSingle", () => {
     it("reads the customer in the path when it is asked for the customer itself", async () => {
         await customer.getSingle(request({ id: "9" }));
 
-        expect(customerQueries()[0].params).toEqual(["9"]);
+        expect(customerQueries()[0].params).toEqual([1, "9"]);
     });
 
     it("reads the customer it is given, not the one in the path", async () => {
         await customer.getSingle(request({ id: "9" }), 5);
 
-        expect(customerQueries()[0].params).toEqual([5]);
+        expect(customerQueries()[0].params).toEqual([1, 5]);
     });
 
     it("finds no customer for an invoice that has none, and does not ask the database", async () => {

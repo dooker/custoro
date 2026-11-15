@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
+import { testCaller } from "../helper/testing/caller";
 
 // Defense in depth: the statements built from names and ids use placeholders and explicit column
 // lists, and a config lookup gets each row under the name it asked for
@@ -17,7 +18,14 @@ const worksheet = await import("./worksheet");
 const profile = await import("./profile");
 
 const request = (parts: { params?: object; user?: object }) =>
-    ({ database: "shop", params: {}, query: {}, body: {}, ...parts }) as unknown as Request;
+    ({
+        database: "shop",
+        user: testCaller,
+        params: {},
+        query: {},
+        body: {},
+        ...parts
+    }) as unknown as Request;
 
 const sqlCalls = () => queryMock.mock.calls.map(([call]) => call);
 
@@ -39,31 +47,33 @@ describe("getConfig", () => {
 
         await helpers.getConfig({
             database: "shop",
+            tenantId: 4,
             fields: ["forgotSubject", "x') OR ('1'='1"],
             mapper: ["subject", "text"]
         });
 
         const [{ sql, params }] = sqlCalls();
 
-        expect(sql).toContain("WHERE name IN (?, ?)");
+        expect(sql).toMatch(/WHERE tenant_id = \?\s+AND name IN \(\?, \?\)/);
         expect(sql).not.toContain("forgotSubject");
         expect(sql).not.toContain("OR ('1'='1");
-        expect(params).toEqual(["forgotSubject", "x') OR ('1'='1"]);
+        expect(params).toEqual([4, "forgotSubject", "x') OR ('1'='1"]);
     });
 
-    it("reads every setting when no names are given", async () => {
+    it("reads every setting of the company when no names are given", async () => {
         queryMock.mockResolvedValue({ success: true, data: [] });
 
         await helpers.getConfig({
             database: "shop",
+            tenantId: 4,
             fields: undefined as unknown as string[],
             mapper: []
         });
 
         const [{ sql, params }] = sqlCalls();
 
-        expect(sql).not.toContain("WHERE");
-        expect(params).toEqual([]);
+        expect(sql).toMatch(/WHERE tenant_id = \?\s*$/);
+        expect(params).toEqual([4]);
     });
 
     it("gives each row the name it asked for, whatever order the database answers in", async () => {
@@ -73,6 +83,7 @@ describe("getConfig", () => {
         expect(
             await helpers.getConfig({
                 database: "shop",
+                tenantId: 4,
                 fields: ["forgotSubject", "forgotText", "forgotHtml"],
                 mapper: ["subject", "text", "html"]
             })
@@ -94,6 +105,7 @@ describe("getConfig", () => {
         expect(
             await helpers.getConfig({
                 database: "shop",
+                tenantId: 4,
                 fields: ["invoiceSubject", "vat"],
                 mapper: ["subject"]
             })
@@ -103,9 +115,9 @@ describe("getConfig", () => {
     it("answers success: false when the query fails", async () => {
         queryMock.mockResolvedValue({ success: false, data: [] });
 
-        expect(await helpers.getConfig({ database: "shop", fields: ["a"], mapper: ["b"] })).toEqual(
-            { success: false, message: "get.config" }
-        );
+        expect(
+            await helpers.getConfig({ database: "shop", tenantId: 4, fields: ["a"], mapper: ["b"] })
+        ).toEqual({ success: false, message: "get.config" });
     });
 });
 
@@ -138,11 +150,11 @@ describe("explicit column lists", () => {
         const [invoiceQuery, itemsQuery] = sqlCalls();
 
         expect(invoiceQuery.sql).not.toMatch(/SELECT\s+\*/);
-        expect(invoiceQuery.sql).toMatch(/WHERE id = \?/);
+        expect(invoiceQuery.sql).toMatch(/WHERE tenant_id = \?\s+AND id = \?/);
         expect(invoiceQuery.sql).not.toContain("number_sort");
-        expect(invoiceQuery.params).toEqual(["7"]);
+        expect(invoiceQuery.params).toEqual([1, "7"]);
         // the items belong to the invoice that was found, whatever the request said
-        expect(itemsQuery.params).toEqual([7]);
+        expect(itemsQuery.params).toEqual([1, 7]);
 
         expect(result.data?.[0]).toMatchObject({
             id: 7,
@@ -186,11 +198,13 @@ describe("the profile's last seen time", () => {
     it("is only written when it is more than 5 minutes old", async () => {
         queryMock.mockResolvedValue({ success: true, data: [{ id: 2 }] });
 
-        await profile.getSingle(request({ user: { id: 2, role: "user", tv: 0 } }));
+        await profile.getSingle(
+            request({ user: { id: 2, role: "user", tv: 0, tenantId: 3, owner: false } })
+        );
 
         const update = sqlCalls().find(({ sql }) => /UPDATE users/.test(sql));
 
         expect(update.sql).toMatch(/timestamp < NOW\(\) - INTERVAL 5 MINUTE/);
-        expect(update.params).toEqual([2]);
+        expect(update.params).toEqual([3, 2]);
     });
 });

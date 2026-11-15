@@ -64,6 +64,9 @@ services:
             # A local test mail catcher (MailHog, Mailpit, ...) has no TLS, so development allows a
             # plain connection to the mail server. Production requires TLS (EMAIL_REQUIRE_TLS unset).
             EMAIL_REQUIRE_TLS: ${EMAIL_REQUIRE_TLS:-false}
+            # A company's own mail server may be the catcher on this private network; production
+            # leaves it unset, so a company can never make the API connect inside the server's network
+            MAIL_ALLOW_PRIVATE_HOSTS: ${MAIL_ALLOW_PRIVATE_HOSTS:-true}
             # File watching on macOS/Windows bind mounts
             CHOKIDAR_USEPOLLING: "true"
         ports:

@@ -6,7 +6,8 @@ import { query } from "../helper/query";
 export const isUsernameTaken = async (database: string, username: string, exceptId?: number) => {
     const { success, data } = await query<{ count: number }>({
         database,
-        sql: `SELECT COUNT(id) AS count
+        sql: `/* every company: an email logs in to one company, so it is unique over all of them */
+              SELECT COUNT(id) AS count
               FROM users
               WHERE username = ?
                 AND id <> ?;`,

@@ -1,0 +1,76 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.tenants
+    .intro
+        color: variables.$asbestos
+        max-width: 80ch
+        margin-bottom: variables.$grid-gutter*2
+
+.table
+    width: 100%
+    border-collapse: collapse
+    margin-bottom: variables.$grid-gutter*3
+
+    th,
+    td
+        text-align: left
+        padding: variables.$grid variables.$grid-gutter
+        border-bottom: 1px solid variables.$clouds
+        vertical-align: middle
+
+    th
+        font-size: 0.875rem
+        color: variables.$asbestos
+
+    // The rename box: the look of the app's form fields (shared/Form.sass), which a table cannot
+    // take from .general-form (it would become a grid)
+    input
+        width: 100%
+        height: 32px
+        box-sizing: border-box
+        padding: 0 variables.$grid
+        border: none
+        border-radius: 4px
+        background: rgba(variables.$asbestos, 0.2)
+
+        &:focus
+            outline: none
+            box-shadow: inset 0 0 0 1px variables.$emerald
+
+.inactive
+    color: variables.$concrete
+
+.table td.buttons
+    width: 1%
+    white-space: nowrap
+
+.actions
+    display: flex
+    gap: variables.$grid
+    justify-content: flex-end
+
+    span
+        white-space: nowrap
+
+.create
+    gap: variables.$grid-gutter
+    max-width: 480px
+    padding-left: 0
+
+    label
+        display: grid
+        gap: 4px
+
+    p
+        color: variables.$asbestos
+
+@media (max-width: variables.$breakpoint)
+    .table
+        th:nth-child(3),
+        td:nth-child(3),
+        th:nth-child(4),
+        td:nth-child(4)
+            display: none
+
+    .actions
+        flex-direction: column

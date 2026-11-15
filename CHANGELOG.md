@@ -5,6 +5,53 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.1.0 - 2026-11-15
+
+### Added
+
+- Several companies in one Custoro: every company has its own people (any number, each an admin
+  or a user of that company), customers, products, worksheets, invoices, invoice numbering (each
+  starts at 1), company details, email texts, logo, invoice PDFs and mail server, and nobody sees
+  anything of another company (docs/multi-tenant.md). A person belongs to one company and logs in
+  as before. An existing install becomes company 1, named after the company name in its settings,
+  with everyone in it, and keeps working as it did: the migration runs in `custoro deploy latest`
+  (which backs up the database first), nobody is logged out, and nothing has to be done by hand
+- The owner's Companies page: the owner of the install (on an existing install its first admin,
+  so on Zone dooker@dooker.eu) sees every company with its number of people and invoices, creates
+  one with its first admin (who gets the "set your password" email), renames it, and switches it
+  off (its people cannot log in and their sessions end; nothing is deleted) and on again. It shows
+  counts, never another company's data. Over SSH the same: `custoro create-tenant "<name>" --admin
+  <email>`; `custoro set-owner <email>` changes the owner; `custoro create-admin` takes `--tenant
+  <id>`
+- The company in the menu: the person's company is shown under their name
+
+### Changed
+
+- A mail server per company: every company sets its own (host, port, user, password and now a
+  sender) on its settings page. The password is stored encrypted only, with `MAIL_SETTINGS_KEY`:
+  without the key the page refuses to save it (it no longer stores it as plain text). A company
+  without a server of its own sends with the install's default, as before. The settings an install
+  sent with move to company 1 when the API starts: the saved ones, else the `EMAIL_*` ones, and
+  `EMAIL_FROM` as its sender (`storage/mail-settings.json` stays as a copy). A plain password waits
+  for `MAIL_SETTINGS_KEY`: until it is set nothing moves and mail goes out as before. A saved server
+  on the server's own network (a relay on the same machine) does not move: it stays the install's
+  default and keeps working
+- "Not found" for what is not there: changing or deleting something that does not exist, or that
+  another company has, answers "Not found" (it answered success or the action's own error)
+- A default password email: when a company has not written its own, the email has a default text
+  with the link (a new company's first admin got an empty email)
+
+### Security
+
+- Every query filters by the company: the company comes only from the person's row in the
+  database, and the database itself refuses a row of one company pointing at another's. A test
+  reads every SQL statement of the API and fails on one without its company, and a test suite
+  tries every endpoint with another company's ids
+- No mail server inside the server's network: a company's mail server must be on a mail port (25,
+  465, 587, 2525) and outside the server's own network, or a company admin could make the API
+  connect to the database or other inside services. The dev stack allows its mail catcher with
+  `MAIL_ALLOW_PRIVATE_HOSTS=true`; leave it unset in production
+
 ## 5.0.1 - 2026-11-14
 
 ### Fixed

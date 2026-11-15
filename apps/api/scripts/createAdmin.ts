@@ -29,6 +29,8 @@ const refusals: Record<string, string> = {
     "user.exists":
         "A user with this email already exists. Run it again with --reset to give them a new password and the admin role.",
     "get.user": "There is no user with this email. Run it again without --reset to create one.",
+    "tenant.missing":
+        "There is no company with that --tenant id. The owner page lists the companies.",
     error: "The database refused it. The reason is in the log above."
 };
 
@@ -87,9 +89,10 @@ const run = async () => {
         return 2;
     }
 
-    const { email, name, reset } = parsed.args;
+    const { email, name, reset, tenantId } = parsed.args;
     const result = await saveAdmin({
         database,
+        tenantId,
         username: email,
         name,
         password: await readPassword(),

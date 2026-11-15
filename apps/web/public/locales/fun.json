@@ -16,7 +16,8 @@
         "pdf": "PDF",
         "generatePdf": "Generate PDF",
         "send": "Send email",
-        "upload": "Pick file"
+        "upload": "Pick file",
+        "cancel": "Never mind"
     },
     "products": {
         "singular": "Product",
@@ -220,6 +221,9 @@
         "missingInfo": "It seems we are missing some vital info to actually send the email",
         "user.exists": "Well well well, there is already user with this email",
         "user.lastAdmin": "The last admin standing! Crown another one before this one leaves",
+        "user.owner": "Nice try, but the big boss of this whole thing stays",
+        "tenant.exists": "That name is taken, pick another one",
+        "tenant.ownCompany": "Switching off your own company? You would be locked out, so no",
         "user.passwordLinkSent": "Recruit added. A pigeon flies off with their password link (good for 7 days)",
         "user.passwordLinkFailed": "Recruit added, but the pigeon with the password link never left. They can use \"Wait... password?\" once mail works",
         "passwordLength": "8 to 72 characters, space cadet. Not 7, not 73.",
@@ -229,6 +233,8 @@
         "settingsInvalid": "The settings did not pass inspection, nothing was saved",
         "logoutFailed": "The server would not let go of your session, it will wander off when it expires",
         "mailSettingsNotSaved": "Everything else is tucked in, but the mail server settings slipped through our fingers",
+        "mailKeyMissing": "Password not kept: the server has no MAIL_SETTINGS_KEY to lock it with. Poke whoever runs the server.",
+        "mailHostNotAllowed": "Not that mail server: use a mail port (25, 465, 587 or 2525) and a server out in the wide world",
         "filenamePrefix": "Invoice file names only like letters, digits, _ and - (32 at most). No wormholes.",
         "product.exists": "Another product already wears that code. Pick a different one.",
         "product.inUse": "Worksheets still need this product. It stays on the ship.",
@@ -237,6 +243,7 @@
         "invoice.locked": "This invoice is paid and sealed in amber, no more fiddling with it",
         "worksheet.invoiced": "That worksheet already flew off on an invoice.",
         "invalidInput": "Something in there looked fishy (too long, or the wrong kind of thing), nothing was saved",
+        "notFound": "Poof, nothing here: it never existed, or it lives in another company",
         "lastInvoiceIdTooLow": "That last invoice ID would hand out a number an invoice already wears, nothing was saved. Reload the page if invoices sneaked in meanwhile",
         "export.rangeTooLong": "Even the bean counter stops at one year"
     },
@@ -264,6 +271,7 @@
             "port": "Port",
             "username": "Username",
             "password": "Password",
+            "from": "Who it's from",
             "invoiceSubject": "Invoice email subject",
             "invoiceText": "Invoice email text",
             "invoiceHtml": "Invoice email HTML",
@@ -282,6 +290,9 @@
         },
         "help": {
             "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
+            "mailDefault": "No mail server of its own yet, so mail goes out the house way. Put in a host to fly your own flag.",
+            "mailPasswordSaved": "A password is tucked away (we never show it). Leave the box empty to keep it.",
+            "mailOwn": "The mail server that carries this company's invoices and password mails. The password sits in a locked box.",
             "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
         },
         "export": {
@@ -324,5 +335,25 @@
         "et": "Eesti",
         "fun": "English (fun)"
     },
-    "changelog": "Changelog"
+    "changelog": "Changelog",
+    "tenants": {
+        "singular": "Company",
+        "plural": "Companies",
+        "intro": "Each company has its own crew, customers, gizmos, worksheets, invoices and knobs. You see the headcounts here, never their stuff.",
+        "name": "Name",
+        "people": "Crew",
+        "invoices": "Invoices",
+        "created": "Born",
+        "state": "State",
+        "active": "Humming",
+        "inactive": "Asleep",
+        "rename": "Rename",
+        "deactivate": "Put to sleep",
+        "activate": "Wake up",
+        "new": "Brand new company",
+        "newHelp": "It gets the default knobs, and its first admin gets a mail with a link to pick a password.",
+        "adminEmail": "First admin's email",
+        "adminName": "First admin's name",
+        "create": "Make it so"
+    }
 }

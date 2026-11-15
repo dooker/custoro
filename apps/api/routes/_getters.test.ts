@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { config } from "../config/config";
 import {
     applyPaging,
+    getCustomers,
     getFromTo,
     getInvoices,
     getPaging,
+    getProducts,
+    getUsers,
     getWorksheets,
     keywordWhere,
     keywordWords,
@@ -263,7 +266,7 @@ describe("getInvoices", () => {
             { keyword: "ann 2024" },
             { customerId: 7, keyword: "ann 2024" }
         ]) {
-            const { sql, totalSql, params } = getInvoices(filter);
+            const { sql, totalSql, params } = getInvoices({ tenantId: 3, ...filter });
 
             expect(placeholders(sql), JSON.stringify(filter)).toBe(params.length);
             expect(placeholders(totalSql), JSON.stringify(filter)).toBe(params.length);
@@ -271,26 +274,32 @@ describe("getInvoices", () => {
     });
 
     it("has one WHERE, also for a customer and a keyword together", () => {
-        const { sql, totalSql, params } = getInvoices({ customerId: 7, keyword: "ann 2" });
+        const { sql, totalSql, params } = getInvoices({
+            tenantId: 3,
+            customerId: 7,
+            keyword: "ann 2"
+        });
 
         for (const statement of [sql, totalSql]) {
             // not counting the line-count subquery, which has a WHERE of its own
             const outer = statement.replace(/\(SELECT COUNT\(\*\)[\s\S]*?\) AS total/, "");
 
             expect(outer.match(/\bWHERE\b/g)).toHaveLength(1);
-            expect(statement).toContain("invoices.customer_id = ? AND (customers.name LIKE ?");
+            expect(statement).toMatch(
+                /WHERE invoices\.tenant_id = \?\s+AND invoices\.customer_id = \? AND \(customers\.name LIKE \?/
+            );
         }
 
-        expect(params).toEqual([7, "%ann%", "%ann%", "%ann%", "%2%", "%2%", "%2%"]);
+        expect(params).toEqual([3, 7, "%ann%", "%ann%", "%ann%", "%2%", "%2%", "%2%"]);
     });
 
     it("counts only the customer's invoices when asked for one customer", () => {
-        expect(getInvoices({ customerId: 7 }).totalSql).toContain("customer_id = ?");
+        expect(getInvoices({ tenantId: 3, customerId: 7 }).totalSql).toContain("customer_id = ?");
     });
 
     it("lists the newest number first, with the id as tie-break, and counts lines per page row", () => {
         for (const filter of [{}, { customerId: 7 }, { keyword: "ann" }]) {
-            const { sql } = getInvoices(filter);
+            const { sql } = getInvoices({ tenantId: 3, ...filter });
 
             expect(sql, JSON.stringify(filter)).toMatch(
                 /ORDER BY (invoices\.number_sort DESC, invoices\.id DESC|p\.number_sort DESC, p\.id DESC)\s*$/
@@ -302,7 +311,7 @@ describe("getInvoices", () => {
 
     it("picks the page first, from the index, and joins only its rows, when there is no keyword", () => {
         for (const filter of [{}, { customerId: 7 }]) {
-            const { sql } = getInvoices(filter);
+            const { sql } = getInvoices({ tenantId: 3, ...filter });
             const inner = sql.slice(sql.indexOf("FROM (") + 6, sql.indexOf(") p"));
 
             // the rows of the page are picked from invoices alone: no customers, no line count
@@ -313,42 +322,46 @@ describe("getInvoices", () => {
             expect(inner).toMatch(/ORDER BY number_sort DESC, id DESC\s+\/\* LIMIT \*\/$/);
             // and then joined by id, in the same order
             expect(sql).toMatch(/\) p\s+JOIN invoices ON invoices\.id = p\.id/);
-            expect(sql).toMatch(/LEFT JOIN customers ON customers\.id = invoices\.customer_id/);
+            expect(sql).toMatch(
+                /LEFT JOIN customers ON customers\.tenant_id = invoices\.tenant_id\s+AND customers\.id = invoices\.customer_id/
+            );
             expect(sql).toMatch(/ORDER BY p\.number_sort DESC, p\.id DESC\s*$/);
         }
 
-        expect(getInvoices({ customerId: 7 }).sql).toMatch(
-            /FROM invoices\s+WHERE invoices\.customer_id = \?\s+ORDER BY number_sort DESC, id DESC/
+        expect(getInvoices({ tenantId: 3, customerId: 7 }).sql).toMatch(
+            /FROM invoices\s+WHERE tenant_id = \?\s+AND invoices\.customer_id = \?\s+ORDER BY number_sort DESC, id DESC/
         );
     });
 
     it("keeps the join before the page when a keyword searches the customers' names", () => {
-        const { sql } = getInvoices({ keyword: "ann" });
+        const { sql } = getInvoices({ tenantId: 3, keyword: "ann" });
 
         expect(sql).not.toContain(limitMarker);
         expect(sql).not.toMatch(/\) p\b/);
         expect(sql).toMatch(
-            /FROM invoices\s+LEFT JOIN customers ON invoices\.customer_id = customers\.id\s+WHERE/
+            /FROM invoices\s+LEFT JOIN customers ON customers\.tenant_id = invoices\.tenant_id\s+AND customers\.id = invoices\.customer_id\s+WHERE/
         );
     });
 
     it("gets its LIMIT inside the page query, or at the end after a keyword search", () => {
         const paging = { page: 3, limit: 20 };
-        const deferred = applyPaging(getInvoices({}).sql, paging);
+        const deferred = applyPaging(getInvoices({ tenantId: 3 }).sql, paging);
 
         expect(deferred).toMatch(/ORDER BY number_sort DESC, id DESC\s+LIMIT 40, 20\) p/);
         expect(deferred).not.toContain(limitMarker);
         // nothing after the outer ORDER BY
         expect(deferred).toMatch(/ORDER BY p\.number_sort DESC, p\.id DESC\s*$/);
 
-        expect(applyPaging(getInvoices({ keyword: "ann" }).sql, paging)).toMatch(
+        expect(applyPaging(getInvoices({ tenantId: 3, keyword: "ann" }).sql, paging)).toMatch(
             /ORDER BY invoices\.number_sort DESC, invoices\.id DESC\s+LIMIT 40, 20\s*$/
         );
     });
 
     it("only joins customers to count when a keyword searches their names", () => {
-        expect(getInvoices({}).totalSql).not.toContain("customers");
-        expect(getInvoices({ keyword: "ann" }).totalSql).toContain("LEFT JOIN customers");
+        expect(getInvoices({ tenantId: 3 }).totalSql).not.toContain("customers");
+        expect(getInvoices({ tenantId: 3, keyword: "ann" }).totalSql).toContain(
+            "LEFT JOIN customers"
+        );
     });
 });
 
@@ -356,42 +369,43 @@ describe("getWorksheets grouped by customer", () => {
     const placeholders = (sql: string) => (sql.match(/\?/g) ?? []).length;
 
     it("groups on the worksheets alone and joins the page's customers after, without a keyword", () => {
-        const { sql, totalSql, params } = getWorksheets({});
+        const { sql, totalSql, params } = getWorksheets({ tenantId: 3 });
 
         expect(sql).toMatch(
-            /FROM \(SELECT customer_id,\s+COUNT\(\*\)\s+AS worksheet_count,\s+MAX\(id\)\s+AS last_id\s+FROM worksheets\s+GROUP BY customer_id\s+ORDER BY last_id DESC\s+\/\* LIMIT \*\/\) g/
+            /FROM \(SELECT customer_id,\s+COUNT\(\*\)\s+AS worksheet_count,\s+MAX\(id\)\s+AS last_id\s+FROM worksheets\s+WHERE tenant_id = \?\s+GROUP BY customer_id\s+ORDER BY last_id DESC\s+\/\* LIMIT \*\/\) g/
         );
         expect(sql).toMatch(
             /JOIN customers ON customers\.id = g\.customer_id\s+ORDER BY g\.last_id DESC\s*$/
         );
         expect(sql).toMatch(/SELECT customers\.name,\s+customers\.id,\s+g\.worksheet_count/);
-        expect(params).toEqual([]);
-        expect(placeholders(sql) + placeholders(totalSql)).toBe(0);
+        expect(params).toEqual([3]);
+        expect(placeholders(sql)).toBe(1);
+        expect(placeholders(totalSql)).toBe(1);
     });
 
     it("counts the customers that have worksheets, which is what the list has a row for", () => {
-        expect(getWorksheets({}).totalSql).toMatch(
-            /SELECT COUNT\(DISTINCT customer_id\) AS total\s+FROM worksheets\s*$/
+        expect(getWorksheets({ tenantId: 3 }).totalSql).toMatch(
+            /SELECT COUNT\(\*\) AS total\s+FROM \(SELECT tenant_id, customer_id\s+FROM worksheets\s+WHERE tenant_id = \?\s+GROUP BY tenant_id, customer_id\) c\s*$/
         );
-        expect(getWorksheets({ keyword: "ann" }).totalSql).toContain(
+        expect(getWorksheets({ tenantId: 3, keyword: "ann" }).totalSql).toContain(
             "COUNT(DISTINCT worksheets.customer_id)"
         );
-        expect(getWorksheets({}).totalSql).not.toContain("customers.name");
+        expect(getWorksheets({ tenantId: 3 }).totalSql).not.toContain("customers.name");
     });
 
     it("gets its LIMIT inside the grouped query", () => {
-        const paged = applyPaging(getWorksheets({}).sql, { page: 2, limit: 20 });
+        const paged = applyPaging(getWorksheets({ tenantId: 3 }).sql, { page: 2, limit: 20 });
 
         expect(paged).toMatch(/ORDER BY last_id DESC\s+LIMIT 20, 20\) g/);
         expect(paged).toMatch(/ORDER BY g\.last_id DESC\s*$/);
     });
 
     it("joins the customers first when a keyword searches their names", () => {
-        const { sql, totalSql, params } = getWorksheets({ keyword: "ann 2" });
+        const { sql, totalSql, params } = getWorksheets({ tenantId: 3, keyword: "ann 2" });
 
         for (const statement of [sql, totalSql]) {
             expect(statement).toMatch(
-                /LEFT JOIN customers ON worksheets\.customer_id = customers\.id\s+WHERE \(customers\.name LIKE \?\) AND \(customers\.name LIKE \?\)/
+                /LEFT JOIN customers ON worksheets\.customer_id = customers\.id\s+WHERE worksheets\.tenant_id = \?\s+AND \(customers\.name LIKE \?\) AND \(customers\.name LIKE \?\)/
             );
             expect(placeholders(statement)).toBe(params.length);
         }
@@ -400,16 +414,46 @@ describe("getWorksheets grouped by customer", () => {
             /GROUP BY customers\.name, customers\.id\s+ORDER BY MAX\(worksheets\.id\) DESC\s*$/
         );
         expect(sql).not.toContain(limitMarker);
-        expect(params).toEqual(["%ann%", "%2%"]);
+        expect(params).toEqual([3, "%ann%", "%2%"]);
     });
 
     it("leaves the worksheets of one customer as they were", () => {
-        const { sql, totalSql, params } = getWorksheets({ customerId: 7 });
+        const { sql, totalSql, params } = getWorksheets({ tenantId: 3, customerId: 7 });
 
         expect(sql).toContain("worksheets.customer_id = ?");
         expect(sql).toMatch(/ORDER BY worksheets\.id DESC\s*$/);
         expect(sql).not.toContain(limitMarker);
         expect(totalSql).toContain("COUNT(worksheets.id)");
-        expect(params).toEqual([7]);
+        expect(params).toEqual([3, 7]);
     });
+});
+
+describe("every list filters by the caller's company first", () => {
+    const placeholders = (sql: string) => (sql.match(/\?/g) ?? []).length;
+    const getters = { getCustomers, getProducts, getUsers, getInvoices, getWorksheets };
+    const filters = [
+        {},
+        { keyword: "ann 2" },
+        { customerId: 7 },
+        { customerId: 7, keyword: "ann" }
+    ];
+
+    for (const [name, getter] of Object.entries(getters)) {
+        it(`${name}: the page and the total, with and without a keyword or customer`, () => {
+            for (const filter of filters) {
+                const { sql, totalSql, params } = getter({ tenantId: 5, ...filter });
+                const label = `${name} ${JSON.stringify(filter)}`;
+
+                expect(params[0], label).toBe(5);
+                expect(sql, label).toMatch(/\btenant_id = \?/);
+                expect(totalSql, label).toMatch(/\btenant_id = \?/);
+                // the company's ? is the first one in both, so params[0] lands on it
+                expect(sql.indexOf("tenant_id = ?"), label).toBeLessThanOrEqual(sql.indexOf("?"));
+                expect(totalSql.indexOf("tenant_id = ?"), label).toBeLessThanOrEqual(
+                    totalSql.indexOf("?")
+                );
+                expect(placeholders(totalSql), label).toBe(params.length);
+            }
+        });
+    }
 });

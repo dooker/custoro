@@ -52,11 +52,16 @@ for (const { prefix, file } of mounts) {
         const head = call.slice(0, call.search(/\basync\s*\(/) >>> 0 || call.length);
         const first = head.match(/^\s*(\[[^\]]*\]|"[^"]*")/)?.[1] ?? "?";
         const paths = [...first.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+        // requireOwner (the owner page) is the owner's authorize: it counts as one, role "owner"
         const order = [
-            ...head.matchAll(/authenticate|authorize|requireIds|requireParams|imageUpload/g)
-        ];
+            ...head.matchAll(
+                /authenticate|authorize|requireOwner|requireIds|requireParams|imageUpload/g
+            )
+        ].map((m) => (m[0] === "requireOwner" ? ["authorize"] : m));
         const first_of = (name) => order.findIndex((m) => m[0] === name);
-        const roles = head.match(/authorize\(\[([^\]]*)\]\)/)?.[1].replace(/["\s]/g, "");
+        const roles =
+            head.match(/authorize\(\[([^\]]*)\]\)/)?.[1].replace(/["\s]/g, "") ??
+            (head.includes("requireOwner") ? "owner" : undefined);
         const extra = [
             ...[...head.matchAll(/requireIds\(([^)]*)\)/g)].map(
                 (m) => `ids(${m[1].replace(/["\s]/g, "")})`

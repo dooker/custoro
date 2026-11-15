@@ -1,6 +1,12 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { inlineContentDisposition, invoiceFilenamePrefixPattern, resolveInside } from "./pdfFiles";
+import {
+    inlineContentDisposition,
+    invoiceFilenamePrefixPattern,
+    pdfCandidates,
+    resolveInside,
+    tenantPdfDir
+} from "./pdfFiles";
 
 describe("invoiceFilenamePrefixPattern", () => {
     it("accepts short names made of letters, digits, underscore and hyphen", () => {
@@ -92,5 +98,33 @@ describe("inlineContentDisposition", () => {
                 /^inline; filename="[^"\\;%]*"; filename\*=UTF-8''[A-Za-z0-9._~!$&+^`|%-]*$/
             );
         }
+    });
+});
+
+describe("tenantPdfDir and pdfCandidates", () => {
+    it("keeps every company's PDFs in its own folder", () => {
+        expect(tenantPdfDir("/data/pdf", 3)).toBe(path.join("/data/pdf", "3"));
+    });
+
+    it.each([0, -1, 1.5, Number.NaN])("refuses %s as a company id", (id) => {
+        expect(() => tenantPdfDir("/data/pdf", id)).toThrow(/company id/);
+    });
+
+    it("finds company 1's PDFs in its folder, then where they were before companies", () => {
+        expect(pdfCandidates("/data/pdf", 1, "invoice_7.pdf")).toEqual([
+            path.join("/data/pdf", "1", "invoice_7.pdf"),
+            path.join("/data/pdf", "invoice_7.pdf")
+        ]);
+    });
+
+    it("never gives another company the old shared folder", () => {
+        expect(pdfCandidates("/data/pdf", 2, "invoice_7.pdf")).toEqual([
+            path.join("/data/pdf", "2", "invoice_7.pdf")
+        ]);
+    });
+
+    it("gives nothing for a name that is a path", () => {
+        expect(pdfCandidates("/data/pdf", 1, "other/invoice_7.pdf")).toEqual([]);
+        expect(pdfCandidates("/data/pdf", 2, "../1/invoice_7.pdf")).toEqual([]);
     });
 });

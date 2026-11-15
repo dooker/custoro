@@ -4,6 +4,7 @@ import { parseInput, type InputValues } from "../helpers/bodyInput";
 import { customerInput } from "../helpers/resourceInput";
 import type { CustomerIF } from "../types/customer";
 import type { QueryResult } from "../types/query";
+import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 
 const type = "customer";
@@ -47,8 +48,9 @@ export const getSingle = async (
                      payment_period as paymentPeriod,
                      department
               FROM customers
-              WHERE id = ?;`,
-        params: [customerId as string | number],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantOf(request), customerId as string | number],
         logger: type
     });
 
@@ -108,7 +110,8 @@ export const postSingle = async (request: Request) => {
 
     const sql = `
         INSERT INTO customers
-        SET name            = ?,
+        SET tenant_id       = ?,
+            name            = ?,
             contact         = ?,
             reg_number       = ?,
             vat_number      = ?,
@@ -127,7 +130,7 @@ export const postSingle = async (request: Request) => {
     return await postGeneralSingle({
         database,
         sql,
-        params: buildParams(input.values),
+        params: [tenantOf(request), ...buildParams(input.values)],
         logger: type
     });
 };
@@ -160,14 +163,15 @@ export const putSingle = async (request: Request) => {
             additional_info = ?,
             shipping_info   = ?,
             department      = ?
-        WHERE id = ?;
+        WHERE tenant_id = ?
+          AND id = ?;
     `;
 
     // The customer is the one in the URL, not whatever id the body says
     return await putGeneralSingle({
         database,
         sql,
-        params: [...buildParams(input.values), Number(id)],
+        params: [...buildParams(input.values), tenantOf(request), Number(id)],
         logger: type
     });
 };
@@ -178,12 +182,13 @@ export const deleteSingle = async (request: Request) => {
         database
     } = request;
 
-    const { success, code } = await query({
+    const { success, code, affectedRows } = await query({
         database,
         sql: `DELETE
               FROM customers
-              WHERE id = ?;`,
-        params: [id as string],
+              WHERE tenant_id = ?
+                AND id = ?;`,
+        params: [tenantOf(request), id as string],
         logger: `Delete single ${type}`
     });
 
@@ -192,6 +197,14 @@ export const deleteSingle = async (request: Request) => {
         return {
             success: false,
             message: "customer.inUse"
+        };
+    }
+
+    // No customer of the caller's company has that id
+    if (success && affectedRows === 0) {
+        return {
+            success: false,
+            message: "notFound"
         };
     }
 

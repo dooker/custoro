@@ -16,7 +16,8 @@
         "pdf": "PDF",
         "generatePdf": "Generate PDF",
         "send": "Send email",
-        "upload": "Pick file"
+        "upload": "Pick file",
+        "cancel": "Cancel"
     },
     "products": {
         "singular": "Product",
@@ -220,6 +221,9 @@
         "missingInfo": "Missing some info to send email",
         "user.exists": "User with this email already exists",
         "user.lastAdmin": "This is the last admin. Make another user an admin first",
+        "user.owner": "The owner of the install cannot be deleted here",
+        "tenant.exists": "A company with this name exists already",
+        "tenant.ownCompany": "Your own company cannot be deactivated: you would lock yourself out",
         "user.passwordLinkSent": "User added. A link to set the password was emailed (valid for 7 days)",
         "user.passwordLinkFailed": "User added, but the email with the password link could not be sent. They can use \"Forgot password?\" once mail works",
         "passwordLength": "Password must be 8 to 72 characters long",
@@ -229,6 +233,8 @@
         "settingsInvalid": "Some settings are not valid, nothing was saved",
         "logoutFailed": "Logging out on the server failed. Your session ends when it expires",
         "mailSettingsNotSaved": "The other settings were saved, but the mail server settings could not be saved",
+        "mailKeyMissing": "The mail password was not saved: the server has no MAIL_SETTINGS_KEY to encrypt it with. Ask whoever runs the server to set it.",
+        "mailHostNotAllowed": "This mail server is not allowed: it must be on a mail port (25, 465, 587 or 2525) and outside the server's own network",
         "filenamePrefix": "The invoice file name prefix may only have letters, digits, _ and - (up to 32 characters)",
         "product.exists": "A product with this code already exists",
         "product.inUse": "This product cannot be deleted because worksheets still use it",
@@ -237,6 +243,7 @@
         "invoice.locked": "This invoice is paid and locked, it cannot be changed",
         "worksheet.invoiced": "This worksheet is already on an invoice",
         "invalidInput": "Some values are not valid (too long, or not the right kind of value), nothing was saved",
+        "notFound": "Not found: it does not exist, or it belongs to another company",
         "lastInvoiceIdTooLow": "The last invoice ID cannot be lower than an invoice number that is already in use, nothing was saved. Reload the page if invoices were added meanwhile",
         "export.rangeTooLong": "The period can be at most a year"
     },
@@ -264,6 +271,7 @@
             "port": "Port",
             "username": "Username",
             "password": "Password",
+            "from": "Sender (From)",
             "invoiceSubject": "Invoice email subject",
             "invoiceText": "Invoice email text",
             "invoiceHtml": "Invoice email HTML",
@@ -282,6 +290,9 @@
         },
         "help": {
             "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
+            "mailDefault": "This company has no mail server of its own yet: its emails go out with the install's default server. Set a host to use your own.",
+            "mailPasswordSaved": "A password is saved (it is never shown). Leave the field empty to keep it.",
+            "mailOwn": "The mail server this company's invoices and password emails are sent with. The password is stored encrypted.",
             "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
         },
         "export": {
@@ -324,5 +335,25 @@
         "et": "Eesti",
         "fun": "English (fun)"
     },
-    "changelog": "Changelog"
+    "changelog": "Changelog",
+    "tenants": {
+        "singular": "Company",
+        "plural": "Companies",
+        "intro": "Every company has its own people, customers, products, worksheets, invoices and settings. Here you see how many people and invoices each one has, never their data.",
+        "name": "Name",
+        "people": "People",
+        "invoices": "Invoices",
+        "created": "Created",
+        "state": "State",
+        "active": "Active",
+        "inactive": "Switched off",
+        "rename": "Rename",
+        "deactivate": "Switch off",
+        "activate": "Switch on",
+        "new": "New company",
+        "newHelp": "The company gets the default settings, and its first admin an email with a link to set their password.",
+        "adminEmail": "Email of its first admin",
+        "adminName": "Name of its first admin",
+        "create": "Create company"
+    }
 }

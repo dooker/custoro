@@ -115,6 +115,11 @@ interface SettingsIF {
     port?: string;
     username?: string;
     password?: string;
+    // The company's mail sender; whether a password is saved; whether the install's default
+    // server is used ("1" or "")
+    from?: string;
+    mailPasswordSaved?: string;
+    mailUsesDefault?: string;
     invoiceHtml?: string;
     forgotHtml?: string;
     logo?: string | File | null;

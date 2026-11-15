@@ -21,6 +21,9 @@ export interface ProfileIF {
     name: string;
     offer?: number;
     role?: string;
+    // The owner of the install (1): the companies page; the name of the person's company
+    owner?: number;
+    companyName?: string;
     theme: string;
     timestamp?: string;
     // Only in the profile form; never returned by the API

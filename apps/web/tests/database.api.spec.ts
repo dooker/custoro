@@ -940,10 +940,10 @@ test.describe('worksheets on invoices', () => {
 
         expect((await call('get', `/worksheet/${worksheet}`)).data[0].invoice).toBe(created.lastId);
 
-        // a line that is not on this invoice is refused
+        // a line on an invoice the company does not have is refused as not found
         expect(
             await call('delete', `/invoice/${created.lastId + 1000000}/${invoice.items[0].id}`)
-        ).toEqual({ success: false, message: 'delete.invoice.item' });
+        ).toEqual({ success: false, message: 'notFound' });
 
         expect(
             (await call('delete', `/invoice/${created.lastId}/${invoice.items[0].id}`)).success
@@ -961,7 +961,7 @@ test.describe('worksheets on invoices', () => {
 
         expect(
             await call('put', `/invoice/${created.lastId + 1000000}/${item.id}`, { value: 9 })
-        ).toEqual({ success: false, message: 'put.invoice.items' });
+        ).toEqual({ success: false, message: 'notFound' });
         expect((await getInvoice(created.lastId)).items[0].quantity).toBe(2);
 
         expect(await call('put', `/invoice/${created.lastId}/${item.id}`, { value: 4.25 })).toEqual(

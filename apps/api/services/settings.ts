@@ -1,35 +1,34 @@
-import fs from "node:fs";
 import { query } from "../helper/query";
-import { getMailSettings, readSavedMailSettings } from "../helper";
 import type { ConfigLogoIF, SettingsIF } from "../types/settings";
 import type { QueryResult } from "../types/query";
 import type { FrontRequestIF, UploadFileIF } from "../types/express";
-import path from "path";
 import { deleteImageFile } from "./_helpers";
 import { isAdmin } from "../helpers/authorize";
 import { getHighestNumber } from "../helper/invoiceNumber";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
-import { formatMailSettings, hasPlainPassword } from "../helpers/mailSettings";
-import { mailSettingsKey } from "../helpers/mailSecret";
-import { legacyEmailEnvFile, mailSettingsFile } from "../config/paths";
+import { companyMailRows, readCompanyMail, saveCompanyMail } from "./companyMail";
 import {
     isBelowUsedNumber,
     lastInvoiceIdTooLowMessage,
     longFields,
     mailFields,
-    parseSettingsInput,
-    type MailField
+    parseSettingsInput
 } from "../helpers/settingsInput";
+import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 
-const emailEnvFields: string[] = [...mailFields];
+// Never in a settings answer, whoever asks: the company's mail server rows (the password among
+// them, encrypted) and the old names of the mail fields
+const hiddenSettings: string[] = [...Object.values(companyMailRows), ...mailFields];
 
-const getLogoFilename = async (database: string) => {
+const getLogoFilename = async (database: string, tenantId: number) => {
     const { success, data } = await query<ConfigLogoIF>({
         database,
         sql: `SELECT value
               FROM config
-              WHERE name = 'logo';`,
+              WHERE tenant_id = ?
+                AND name = 'logo';`,
+        params: [tenantId],
         logger: "Get logo filename"
     });
 
@@ -55,9 +54,10 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
         : null;
     const sql = `
         SELECT *
-        FROM config ${placeholders ? `WHERE name IN (${placeholders})` : ""};
+        FROM config
+        WHERE tenant_id = ? ${placeholders ? `AND name IN (${placeholders})` : ""};
     `;
-    const params = fields ? fields.split(",").map((item) => item) : [];
+    const params = [tenantOf(request), ...(fields ? fields.split(",").map((item) => item) : [])];
 
     const { success, data: rows } = await query<SettingsIF>({
         database,
@@ -76,23 +76,32 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
     const settings = rows.reduce<SettingsIF>((acc, row) => {
         const key = String(row.name);
 
-        if (!emailEnvFields.includes(key)) {
+        if (!hiddenSettings.includes(key)) {
             acc[key] = longFields.includes(key) ? row.long_value : row.value;
         }
 
         return acc;
     }, {} as SettingsIF);
 
-    // Mail server settings are only shown to, and editable by, admins
+    // The company's own mail server is only shown to, and editable by, its admins: never the
+    // password (only whether one is saved), and never the install's default server
     if (!fields && isAdmin(request)) {
-        const envConfig = getMailSettings();
+        const mail = await readCompanyMail(database, tenantOf(request));
 
-        for (const [key, value] of Object.entries(envConfig)) {
-            if (key !== "password") {
-                // An unset mail setting is empty, not the text "undefined" the form would send back
-                settings[key] = value === undefined ? "" : String(value);
-            }
+        if (!mail) {
+            return {
+                success: false,
+                message: "get.settings"
+            };
         }
+
+        for (const key of ["host", "port", "username", "from"] as const) {
+            // An unset mail setting is empty, not the text "undefined" the form would send back
+            settings[key] = mail[key] ?? "";
+        }
+
+        settings.mailPasswordSaved = mail.password ? "1" : "";
+        settings.mailUsesDefault = mail.host ? "" : "1";
     }
 
     return {
@@ -104,6 +113,7 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
 export const putAll = async (request: Request) => {
     const { body, file: rawFile, database } = request as FrontRequestIF;
     const file = rawFile as UploadFileIF;
+    const tenantId = tenantOf(request);
 
     // Only the setting keys the app knows are accepted, and a few of them only in a valid format
     const parsed = parseSettingsInput(body);
@@ -122,13 +132,6 @@ export const putAll = async (request: Request) => {
 
     const { short: shortEntries, long: longEntries, mail } = parsed.input;
     const lastInvoiceId = shortEntries.find(([key]) => key === "lastInvoiceId")?.[1];
-    const emailEnvFileValues = readSavedMailSettings();
-    const emailEnvFieldValues: Record<MailField, string | undefined> = {
-        host: mail.host,
-        port: mail.port,
-        username: mail.username,
-        password: mail.password
-    };
     // The upload of a request that is refused is already on disk and nothing will refer to it
     const discardUpload = () => {
         if (file?.filename) {
@@ -165,7 +168,7 @@ export const putAll = async (request: Request) => {
             shortInParams.push("logo");
             filename = file.filename;
         } else {
-            const { success, data, message } = await getLogoFilename(database);
+            const { success, data, message } = await getLogoFilename(database, tenantId);
 
             if (!success) {
                 return {
@@ -185,9 +188,10 @@ export const putAll = async (request: Request) => {
                 sql: `
                 UPDATE config
                 SET value = CASE ${shortCases} END
-                WHERE name IN (${shortNames});
+                WHERE tenant_id = ?
+                  AND name IN (${shortNames});
             `,
-                params: [...shortCaseParams, ...shortInParams],
+                params: [...shortCaseParams, String(tenantId), ...shortInParams],
                 logger: "Update settings - short values",
                 message: "put.settings.short"
             });
@@ -198,9 +202,10 @@ export const putAll = async (request: Request) => {
                 sql: `
                 UPDATE config
                 SET long_value = CASE ${longCases} END
-                WHERE name IN (${longNames});
+                WHERE tenant_id = ?
+                  AND name IN (${longNames});
             `,
-                params: [...longCaseParams, ...longInParams],
+                params: [...longCaseParams, String(tenantId), ...longInParams],
                 logger: "Update settings - long values",
                 message: "put.settings.long"
             });
@@ -221,12 +226,19 @@ export const putAll = async (request: Request) => {
                     await connection.query(
                         `SELECT value
                          FROM config
-                         WHERE name = 'lastInvoiceId'
-                         FOR UPDATE;`
+                         WHERE tenant_id = ?
+                           AND name = 'lastInvoiceId'
+                         FOR UPDATE;`,
+                        [tenantId]
                     );
 
                     // Read after the lock, so it counts every invoice committed before it
-                    if (isBelowUsedNumber(lastInvoiceId, await getHighestNumber(connection))) {
+                    if (
+                        isBelowUsedNumber(
+                            lastInvoiceId,
+                            await getHighestNumber(connection, tenantId)
+                        )
+                    ) {
                         throw new TransactionRefusal(lastInvoiceIdTooLowMessage);
                     }
 
@@ -263,19 +275,15 @@ export const putAll = async (request: Request) => {
         }
     }
 
-    const emailEnvFieldValuesSet = Object.values(emailEnvFieldValues).every((v) => v === undefined);
+    // The company's mail server: an empty password keeps the saved one, a typed one is stored
+    // encrypted and refused without MAIL_SETTINGS_KEY
+    if (Object.values(mail).some((value) => value !== undefined)) {
+        const saved = await saveCompanyMail(database, tenantId, mail);
 
-    if (!emailEnvFieldValuesSet) {
-        const content = formatMailSettings(
-            emailEnvFieldValues,
-            emailEnvFileValues,
-            mailSettingsKey()
-        );
-
-        if (!writeMailSettings(content)) {
+        if (!saved.ok) {
             return {
                 success: false,
-                message: "mailSettingsNotSaved"
+                message: saved.message
             };
         }
     }
@@ -286,57 +294,15 @@ export const putAll = async (request: Request) => {
     };
 };
 
-/**
- * Writes the mail settings file: to a new file that then replaces the old one, so a crash never
- * leaves half a file, and readable only by the API's user, since it holds the mail password.
- * The old .env.email goes, its settings are in the new file now.
- */
-const writeMailSettings = (content: string) => {
-    const temporaryFile = `${mailSettingsFile}.${process.pid}.tmp`;
-
-    try {
-        fs.mkdirSync(path.dirname(mailSettingsFile), { recursive: true });
-        fs.writeFileSync(temporaryFile, content, { mode: 0o600 });
-        fs.renameSync(temporaryFile, mailSettingsFile);
-        fs.rmSync(legacyEmailEnvFile, { force: true });
-
-        return true;
-    } catch (error) {
-        fs.rmSync(temporaryFile, { force: true });
-        console.error(
-            "Failed to save the mail settings:",
-            error instanceof Error ? error.message : error
-        );
-
-        return false;
-    }
-};
-
-/**
- * At startup: a password saved in plain text (before MAIL_SETTINGS_KEY was set, or by an older
- * version) is written again, encrypted. Nothing happens without a key or a plain password.
- */
-export const encryptSavedMailPassword = () => {
-    const key = mailSettingsKey();
-    const saved = readSavedMailSettings();
-
-    if (!key || !hasPlainPassword(saved)) {
-        return false;
-    }
-
-    const written = writeMailSettings(formatMailSettings({}, saved, key));
-
-    if (written) {
-        console.log("The saved mail server password is now stored encrypted (MAIL_SETTINGS_KEY)");
-    }
-
-    return written;
-};
-
 export const deleteLogo = async (request: Request) => {
     const { database } = request;
+    const tenantId = tenantOf(request);
 
-    const { success: getFilenameSuccess, data, message } = await getLogoFilename(database);
+    const {
+        success: getFilenameSuccess,
+        data,
+        message
+    } = await getLogoFilename(database, tenantId);
     const filename = data?.value;
 
     if (!getFilenameSuccess) {
@@ -350,8 +316,9 @@ export const deleteLogo = async (request: Request) => {
         database,
         sql: `UPDATE config
               SET value=''
-              WHERE name = ?`,
-        params: ["logo"],
+              WHERE tenant_id = ?
+                AND name = ?`,
+        params: [tenantId, "logo"],
         logger: "Reset logo value"
     });
 

@@ -19,6 +19,9 @@ export interface EmailConfigIF {
 }
 
 export interface EmailIF {
+    database: string;
+    // The company whose mail server and sender the email goes out with
+    tenantId: number;
     email: string;
     config: EmailConfigResult | undefined;
     attachments?: AttachmentsType;

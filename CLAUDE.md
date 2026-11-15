@@ -27,6 +27,7 @@ Request flow: **route -> service -> helper**. A route holds no SQL and no busine
 - Production runs **MySQL 8.4** (`docker-compose.prod.yml`), but the hosted database is **MariaDB 11.4**. SQL and migrations must work on both.
 - Schema changes are a migration in `apps/api/migrations/` plus the same end state in `apps/api/db/01-schema.sql`. Money is `DECIMAL`, every table `utf8mb4_unicode_ci`.
 - Prettier: API double quotes and no trailing commas, web single quotes and ES5 commas, both 4 spaces and 100 columns. CI runs it with `--check`.
+- Several companies share one database (`docs/multi-tenant.md`): every statement on `config`, `customers`, `products`, `invoices`, `worksheets`, `invoice_items` and `users` filters by `tenant_id` from `tenantOf(req)` (never from the request), or says `/* every company: <why> */`; `helpers/tenantSql.test.ts` enforces it and `tests/tenants.api.spec.ts` tries every endpoint across companies.
 - A user-visible or deploy-relevant change gets a `CHANGELOG.md` entry under `## Unreleased`. One version for everything; only `npm run release:prepare` changes it (see `custoro-release`).
 
 ## Node 22 on the host, Node 24 required

@@ -1,10 +1,13 @@
 import type { JwtPayload } from "jsonwebtoken";
 
-// The caller, set by helpers/authenticate.ts from a verified token and the users table
+// The caller, set by helpers/authenticate.ts from a verified token and the users table. The
+// company (tenantId) and the owner flag come from the users table, never from the token.
 export interface AuthPayload extends JwtPayload {
     id: number;
     role: string;
     tv: number;
+    tenantId: number;
+    owner: boolean;
 }
 
 declare module "express-serve-static-core" {

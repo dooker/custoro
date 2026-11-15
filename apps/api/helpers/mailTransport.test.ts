@@ -73,3 +73,26 @@ describe("mailSender", () => {
         expect(mailSender(undefined, undefined)).toBeUndefined();
     });
 });
+
+describe("mailTransportOptions for a company's own, checked server", () => {
+    it("connects to the checked address and checks the certificate against the name", () => {
+        expect(
+            mailTransportOptions(
+                { host: "smtp.example.test", port: "587", username: "u", password: "p" },
+                undefined,
+                "185.7.252.10"
+            )
+        ).toMatchObject({ host: "185.7.252.10", tls: { servername: "smtp.example.test" } });
+    });
+
+    it("adds nothing when there is no checked address", () => {
+        expect(
+            mailTransportOptions({
+                host: "smtp.example.test",
+                port: "587",
+                username: "u",
+                password: "p"
+            })
+        ).not.toHaveProperty("tls");
+    });
+});

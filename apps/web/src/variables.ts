@@ -32,6 +32,7 @@ export const RESOURCE = {
     USERS: 'users',
     USER: 'user',
     USER_AVATAR: 'users.avatar',
+    TENANTS: 'tenants',
 } as const;
 
 // paths
@@ -56,6 +57,7 @@ export const PATHS = {
     PRODUCTS: `/${RESOURCE.PRODUCTS}/`,
     USER: `/${RESOURCE.USER}/`,
     USERS: `/${RESOURCE.USERS}/`,
+    TENANTS: `/${RESOURCE.TENANTS}/`,
 } as const;
 
 export const person =
