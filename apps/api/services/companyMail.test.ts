@@ -44,7 +44,8 @@ const env = [
     "EMAIL_USER",
     "EMAIL_PASS",
     "EMAIL_FROM",
-    "MAIL_SETTINGS_KEY"
+    "MAIL_SETTINGS_KEY",
+    "MAIL_ALLOW_PRIVATE_HOSTS"
 ];
 const savedEnv = Object.fromEntries(env.map((name) => [name, process.env[name]]));
 
@@ -147,6 +148,8 @@ describe("saveCompanyMail", () => {
 
 describe("companyMailServer", () => {
     it("sends with the company's own server, sender and opened password", async () => {
+        // the test resolves no names: the host check is helpers/mailHost.test.ts's
+        process.env.MAIL_ALLOW_PRIVATE_HOSTS = "true";
         process.env.MAIL_SETTINGS_KEY = key;
         process.env.EMAIL_PASS = "the default's password";
         companyRows({
@@ -163,7 +166,8 @@ describe("companyMailServer", () => {
             username: "bills@company.test",
             password: "company secret",
             from: "Company <bills@company.test>",
-            usesDefault: false
+            usesDefault: false,
+            connectTo: "smtp.company.test"
         });
         expect(queryMock.mock.calls[0][0].params[0]).toBe(3);
     });
@@ -177,6 +181,27 @@ describe("companyMailServer", () => {
 
         expect(server.password).toBeUndefined();
         expect(server.usesDefault).toBe(false);
+    });
+
+    it("refuses a company's own server inside the server's network", async () => {
+        companyRows({ mailHost: "127.0.0.1", mailPort: "3306" });
+
+        expect(await companyMailServer("shop", 3)).toMatchObject({
+            usesDefault: false,
+            refused: "mailHostNotAllowed"
+        });
+    });
+
+    it("refuses to save such a server, before anything is written", async () => {
+        expect(await saveCompanyMail("shop", 3, { host: "10.0.0.5" }, key)).toEqual({
+            ok: false,
+            message: "mailHostNotAllowed"
+        });
+        expect(await saveCompanyMail("shop", 3, { port: "3306" }, key)).toEqual({
+            ok: false,
+            message: "mailHostNotAllowed"
+        });
+        expect(fake.calls).toHaveLength(0);
     });
 
     it("uses the install's default server and sender for a company without its own", async () => {

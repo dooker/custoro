@@ -234,6 +234,7 @@
         "logoutFailed": "The server would not let go of your session, it will wander off when it expires",
         "mailSettingsNotSaved": "Everything else is tucked in, but the mail server settings slipped through our fingers",
         "mailKeyMissing": "Password not kept: the server has no MAIL_SETTINGS_KEY to lock it with. Poke whoever runs the server.",
+        "mailHostNotAllowed": "Not that mail server: use a mail port (25, 465, 587 or 2525) and a server out in the wide world",
         "filenamePrefix": "Invoice file names only like letters, digits, _ and - (32 at most). No wormholes.",
         "product.exists": "Another product already wears that code. Pick a different one.",
         "product.inUse": "Worksheets still need this product. It stays on the ship.",

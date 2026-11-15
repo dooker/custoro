@@ -235,6 +235,7 @@
         "logoutFailed": "Serveris väljalogimine ebaõnnestus. Seanss lõpeb, kui see aegub",
         "mailSettingsNotSaved": "Teised seaded salvestati, kuid meiliserveri seadeid ei õnnestunud salvestada",
         "mailKeyMissing": "Meiliparooli ei salvestatud: serveril pole MAIL_SETTINGS_KEY-d, millega seda krüpteerida. Palu serveri haldajal see seadistada.",
+        "mailHostNotAllowed": "Seda meiliserverit ei saa kasutada: see peab olema meilipordil (25, 465, 587 või 2525) ja väljaspool serveri enda võrku",
         "filenamePrefix": "Arve failinime algus tohib sisaldada ainult tähti, numbreid, _ ja - (kuni 32 märki)",
         "product.exists": "Sellise koodiga toode on juba olemas",
         "product.inUse": "Toodet ei saa kustutada, sest sellega on seotud töölehti",

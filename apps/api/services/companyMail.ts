@@ -14,6 +14,15 @@ import { encryptSecret, isEncrypted, mailSettingsKey } from "../helpers/mailSecr
 import { openMailSettings, oneLine, type MailValues } from "../helpers/mailSettings";
 import { mailSettingsFile } from "../config/paths";
 import type { MailField } from "../helpers/settingsInput";
+import { mailPort } from "../helpers/mailTransport";
+import {
+    allowPrivateMailHosts,
+    checkCompanyMailHost,
+    isPrivateAddress,
+    mailHostNotAllowedMessage,
+    mailPorts
+} from "../helpers/mailHost";
+import net from "node:net";
 
 /** The config rows of a company's mail server, by the field of the settings page */
 export const companyMailRows: Record<MailField, string> = {
@@ -66,6 +75,9 @@ export interface MailServer {
     from?: string;
     // The company has no server of its own: the install's default is used
     usesDefault: boolean;
+    // A company's own server: the address it was checked at, or why it may not be used
+    connectTo?: string;
+    refused?: string;
 }
 
 /**
@@ -84,8 +96,12 @@ export const companyMailServer = async (
     }
 
     const opened = openMailSettings(saved as MailValues, mailSettingsKey());
+    // Never a connection to the server's own network on a company's behalf (helpers/mailHost.ts)
+    const checked = await checkCompanyMailHost(saved.host, mailPort(saved.port));
 
-    return { ...opened, from: saved.from, usesDefault: false };
+    return checked.ok
+        ? { ...opened, from: saved.from, usesDefault: false, connectTo: checked.address }
+        : { ...opened, from: saved.from, usesDefault: false, refused: checked.message };
 };
 
 /**
@@ -100,6 +116,21 @@ export const saveCompanyMail = async (
     key: string | undefined = mailSettingsKey()
 ): Promise<{ ok: true } | { ok: false; message: string }> => {
     const values: [string, string][] = [];
+
+    // A server inside the server's own network, or off the mail ports, is refused when it is saved
+    // too (the name is resolved and checked again before every email)
+    if (!allowPrivateMailHosts()) {
+        const port = typed.port?.trim();
+        const host = typed.host?.trim();
+
+        if (
+            (port && !mailPorts.includes(Number(port))) ||
+            (host &&
+                (host.toLowerCase() === "localhost" || (net.isIP(host) && isPrivateAddress(host))))
+        ) {
+            return { ok: false, message: mailHostNotAllowedMessage };
+        }
+    }
 
     for (const [field, name] of Object.entries(companyMailRows) as [MailField, string][]) {
         const value = typed[field];

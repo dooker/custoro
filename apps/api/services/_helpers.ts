@@ -358,6 +358,15 @@ export const email = async ({
     // The company's own mail server and sender, or the install's default when it has none
     const emailConfig = await companyMailServer(database, tenantId);
 
+    if (emailConfig.refused) {
+        console.error("The company's mail server is not allowed (helpers/mailHost.ts)");
+
+        return {
+            success: false,
+            message: emailConfig.refused
+        };
+    }
+
     if (!emailConfig.password || !email || !config) {
         console.error("Missing some info to send email");
 
@@ -376,7 +385,11 @@ export const email = async ({
 
     // The mail server login only goes over TLS (see helpers/mailTransport.ts)
     const transporter = nodemailer.createTransport(
-        mailTransportOptions(emailConfig, process.env.EMAIL_REQUIRE_TLS) as TransportOptions
+        mailTransportOptions(
+            emailConfig,
+            process.env.EMAIL_REQUIRE_TLS,
+            emailConfig.connectTo
+        ) as TransportOptions
     );
 
     try {

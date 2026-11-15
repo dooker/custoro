@@ -24,15 +24,23 @@ export const mailPort = (port: string | undefined) => parseInt(String(port), 10)
  * EMAIL_REQUIRE_TLS=false allows the plain connection, for a mail server or test mail catcher on
  * the same machine; leave it unset anywhere else.
  */
-export const mailTransportOptions = (server: MailServerIF, requireTlsSetting?: string) => {
+export const mailTransportOptions = (
+    server: MailServerIF,
+    requireTlsSetting?: string,
+    // The address a company's own server was checked at (helpers/mailHost.ts): the connection goes
+    // there, and the certificate is still checked against the server's name
+    connectTo?: string
+) => {
     const port = mailPort(server.port);
     const implicitTls = port === implicitTlsPort;
+    const host = String(server.host);
 
     return {
-        host: String(server.host),
+        host: connectTo ?? host,
         port,
         secure: implicitTls,
         requireTLS: !implicitTls && requireTlsSetting?.trim().toLowerCase() !== "false",
+        ...(connectTo && connectTo !== host ? { tls: { servername: host } } : {}),
         auth: {
             user: String(server.username),
             pass: String(server.password)

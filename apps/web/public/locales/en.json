@@ -234,6 +234,7 @@
         "logoutFailed": "Logging out on the server failed. Your session ends when it expires",
         "mailSettingsNotSaved": "The other settings were saved, but the mail server settings could not be saved",
         "mailKeyMissing": "The mail password was not saved: the server has no MAIL_SETTINGS_KEY to encrypt it with. Ask whoever runs the server to set it.",
+        "mailHostNotAllowed": "This mail server is not allowed: it must be on a mail port (25, 465, 587 or 2525) and outside the server's own network",
         "filenamePrefix": "The invoice file name prefix may only have letters, digits, _ and - (up to 32 characters)",
         "product.exists": "A product with this code already exists",
         "product.inUse": "This product cannot be deleted because worksheets still use it",
