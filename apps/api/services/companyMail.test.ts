@@ -204,6 +204,15 @@ describe("companyMailServer", () => {
         expect(fake.calls).toHaveLength(0);
     });
 
+    it("refuses to send when the company's settings cannot be read, instead of the default", async () => {
+        // Copilot review of PR 40: a failed read looked like "no server of its own"
+        process.env.EMAIL_HOST = "smtp.default.test";
+        process.env.EMAIL_PASS = "default secret";
+        queryMock.mockResolvedValue({ success: false, data: [] });
+
+        expect(await companyMailServer("shop", 3)).toMatchObject({ refused: "error" });
+    });
+
     it("uses the install's default server and sender for a company without its own", async () => {
         process.env.EMAIL_HOST = "smtp.default.test";
         process.env.EMAIL_PASS = "default secret";
@@ -303,6 +312,14 @@ describe("moveSavedMailToCompanyOne", () => {
             "plain"
         );
         expect(log).toHaveBeenCalledWith(expect.stringMatching(/not moved/));
+    });
+
+    it("moves nothing when company 1's settings cannot be read", async () => {
+        fs.writeFileSync(files.mailSettingsFile, JSON.stringify({ host: "smtp.old.test" }));
+        queryMock.mockResolvedValue({ success: false, data: [] });
+
+        expect(await moveSavedMailToCompanyOne("shop", key, () => undefined)).toBe(false);
+        expect(fake.calls).toHaveLength(0);
     });
 
     it("does nothing when company 1 has a server of its own already", async () => {

@@ -88,6 +88,13 @@ export const getAll = async (request: Request): Promise<QueryResult<SettingsIF>>
     if (!fields && isAdmin(request)) {
         const mail = await readCompanyMail(database, tenantOf(request));
 
+        if (!mail) {
+            return {
+                success: false,
+                message: "get.settings"
+            };
+        }
+
         for (const key of ["host", "port", "username", "from"] as const) {
             // An unset mail setting is empty, not the text "undefined" the form would send back
             settings[key] = mail[key] ?? "";

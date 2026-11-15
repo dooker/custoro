@@ -40,8 +40,15 @@ export type CompanyMail = Partial<Record<MailField, string>>;
 /** The message when a password is typed but there is no key to encrypt it with */
 export const mailKeyMissingMessage = "mailKeyMissing";
 
-/** A company's saved mail settings, as stored: the password still encrypted */
-export const readCompanyMail = async (database: string, tenantId: number): Promise<CompanyMail> => {
+/**
+ * A company's saved mail settings, as stored: the password still encrypted. Null when they cannot
+ * be read: a failed read is not "no server of its own" (Copilot review of PR 40), so no caller
+ * falls back to the default server or overwrites the settings on it.
+ */
+export const readCompanyMail = async (
+    database: string,
+    tenantId: number
+): Promise<CompanyMail | null> => {
     const { success, data } = await query<{ name: string; value: string }>({
         database,
         sql: `SELECT name, value
@@ -52,15 +59,17 @@ export const readCompanyMail = async (database: string, tenantId: number): Promi
         logger: "Get the company's mail settings"
     });
 
+    if (!success) {
+        return null;
+    }
+
     const saved: CompanyMail = {};
 
-    if (success) {
-        for (const [field, name] of Object.entries(companyMailRows)) {
-            const value = data?.find((row) => row.name === name)?.value;
+    for (const [field, name] of Object.entries(companyMailRows)) {
+        const value = data?.find((row) => row.name === name)?.value;
 
-            if (value) {
-                saved[field as MailField] = value;
-            }
+        if (value) {
+            saved[field as MailField] = value;
         }
     }
 
@@ -90,6 +99,10 @@ export const companyMailServer = async (
     tenantId: number
 ): Promise<MailServer> => {
     const saved = await readCompanyMail(database, tenantId);
+
+    if (!saved) {
+        return { usesDefault: false, refused: "error" };
+    }
 
     if (!saved.host) {
         return { ...getMailSettings(), from: process.env.EMAIL_FROM, usesDefault: true };
@@ -204,7 +217,8 @@ export const moveSavedMailToCompanyOne = async (
 
     const companyOne = await readCompanyMail(database, 1);
 
-    if (companyOne.host) {
+    // Unreadable: try again at the next start rather than write over what may be there
+    if (!companyOne || companyOne.host) {
         return false;
     }
 
