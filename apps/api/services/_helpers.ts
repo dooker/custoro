@@ -1,4 +1,5 @@
-import { getMailSettings, normalizeDate } from "../helper";
+import { normalizeDate } from "../helper";
+import { companyMailServer } from "./companyMail";
 import fs from "node:fs";
 import nodemailer, { type TransportOptions } from "nodemailer";
 import { query, queryErrorMessage } from "../helper/query";
@@ -346,8 +347,16 @@ export const replaceVariables = ({ content, replacements }: ReplaceVariablesIF) 
     return result;
 };
 
-export const email = async ({ email, config, attachments, replace }: EmailIF) => {
-    const emailConfig = getMailSettings();
+export const email = async ({
+    database,
+    tenantId,
+    email,
+    config,
+    attachments,
+    replace
+}: EmailIF) => {
+    // The company's own mail server and sender, or the install's default when it has none
+    const emailConfig = await companyMailServer(database, tenantId);
 
     if (!emailConfig.password || !email || !config) {
         console.error("Missing some info to send email");
@@ -372,7 +381,7 @@ export const email = async ({ email, config, attachments, replace }: EmailIF) =>
 
     try {
         const mailOptions = {
-            from: mailSender(process.env.EMAIL_FROM, emailConfig.username),
+            from: mailSender(emailConfig.from, emailConfig.username),
             to: `${email}`,
             subject: `${config.subject}`,
             text: `${text}`,

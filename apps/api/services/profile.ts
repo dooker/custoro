@@ -337,7 +337,13 @@ const sendRestoreEmail = async (database: string, tenantId: number, to: string, 
         return { success: false, message: config.message };
     }
 
-    return email({ email: to, config: config.data, replace: { "[RESTORE_LINK]": link } });
+    return email({
+        database,
+        tenantId,
+        email: to,
+        config: config.data,
+        replace: { "[RESTORE_LINK]": link }
+    });
 };
 
 /**

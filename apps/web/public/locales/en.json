@@ -230,6 +230,7 @@
         "settingsInvalid": "Some settings are not valid, nothing was saved",
         "logoutFailed": "Logging out on the server failed. Your session ends when it expires",
         "mailSettingsNotSaved": "The other settings were saved, but the mail server settings could not be saved",
+        "mailKeyMissing": "The mail password was not saved: the server has no MAIL_SETTINGS_KEY to encrypt it with. Ask whoever runs the server to set it.",
         "filenamePrefix": "The invoice file name prefix may only have letters, digits, _ and - (up to 32 characters)",
         "product.exists": "A product with this code already exists",
         "product.inUse": "This product cannot be deleted because worksheets still use it",
@@ -266,6 +267,7 @@
             "port": "Port",
             "username": "Username",
             "password": "Password",
+            "from": "Sender (From)",
             "invoiceSubject": "Invoice email subject",
             "invoiceText": "Invoice email text",
             "invoiceHtml": "Invoice email HTML",
@@ -284,6 +286,9 @@
         },
         "help": {
             "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
+            "mailDefault": "This company has no mail server of its own yet: its emails go out with the install's default server. Set a host to use your own.",
+            "mailPasswordSaved": "A password is saved (it is never shown). Leave the field empty to keep it.",
+            "mailOwn": "The mail server this company's invoices and password emails are sent with. The password is stored encrypted.",
             "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
         },
         "export": {

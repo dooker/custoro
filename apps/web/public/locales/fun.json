@@ -230,6 +230,7 @@
         "settingsInvalid": "The settings did not pass inspection, nothing was saved",
         "logoutFailed": "The server would not let go of your session, it will wander off when it expires",
         "mailSettingsNotSaved": "Everything else is tucked in, but the mail server settings slipped through our fingers",
+        "mailKeyMissing": "Password not kept: the server has no MAIL_SETTINGS_KEY to lock it with. Poke whoever runs the server.",
         "filenamePrefix": "Invoice file names only like letters, digits, _ and - (32 at most). No wormholes.",
         "product.exists": "Another product already wears that code. Pick a different one.",
         "product.inUse": "Worksheets still need this product. It stays on the ship.",
@@ -266,6 +267,7 @@
             "port": "Port",
             "username": "Username",
             "password": "Password",
+            "from": "Who it's from",
             "invoiceSubject": "Invoice email subject",
             "invoiceText": "Invoice email text",
             "invoiceHtml": "Invoice email HTML",
@@ -284,6 +286,9 @@
         },
         "help": {
             "forgotHelp": "Use [RESTORE_LINK] in email body to point to forgot page link - our system will replace it with proper URL",
+            "mailDefault": "No mail server of its own yet, so mail goes out the house way. Put in a host to fly your own flag.",
+            "mailPasswordSaved": "A password is tucked away (we never show it). Leave the box empty to keep it.",
+            "mailOwn": "The mail server that carries this company's invoices and password mails. The password sits in a locked box.",
             "invoiceHelp": "Use [INVOICE_LINK] in email body to point to invoice by link - our system will replace it with proper URL"
         },
         "export": {

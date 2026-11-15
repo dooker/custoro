@@ -231,6 +231,7 @@
         "settingsInvalid": "Mõni seadistus pole kehtiv, midagi ei salvestatud",
         "logoutFailed": "Serveris väljalogimine ebaõnnestus. Seanss lõpeb, kui see aegub",
         "mailSettingsNotSaved": "Teised seaded salvestati, kuid meiliserveri seadeid ei õnnestunud salvestada",
+        "mailKeyMissing": "Meiliparooli ei salvestatud: serveril pole MAIL_SETTINGS_KEY-d, millega seda krüpteerida. Palu serveri haldajal see seadistada.",
         "filenamePrefix": "Arve failinime algus tohib sisaldada ainult tähti, numbreid, _ ja - (kuni 32 märki)",
         "product.exists": "Sellise koodiga toode on juba olemas",
         "product.inUse": "Toodet ei saa kustutada, sest sellega on seotud töölehti",
@@ -267,6 +268,7 @@
             "port": "Port",
             "user": "Kasutajanimi",
             "password": "Parool",
+            "from": "Saatja (From)",
             "invoiceSubject": "Arve kirja pealkiri",
             "invoiceText": "Arve kirja tekst sisu",
             "invoiceHtml": "Arve kirja HMTL sisu",
@@ -285,6 +287,9 @@
         },
         "help": {
             "forgotHelp": "Kasuta [RESTORE_LINK] e-kirja sees, et viidata uue parooli loomise lehe lingile - süsteem vahetab selle korrektse URLi vastu",
+            "mailDefault": "Sellel ettevõttel pole veel oma meiliserverit: kirjad lähevad välja paigalduse vaikimisi serveriga. Oma serveri kasutamiseks sisesta host.",
+            "mailPasswordSaved": "Parool on salvestatud (seda ei näidata kunagi). Jäta väli tühjaks, et see alles jääks.",
+            "mailOwn": "Meiliserver, millega selle ettevõtte arved ja paroolikirjad saadetakse. Parool salvestatakse krüpteeritult.",
             "invoiceHelp": "Kasuta [INVOICE_LINK] e-kirja sees, et viidata arve avamisele uues tabis - süsteem vahetab selle korrektse URLi vastu"
         },
         "export": {

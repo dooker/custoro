@@ -83,6 +83,8 @@ export const postSingle = async (request: Request) => {
     }
 
     const sent = await email({
+        database,
+        tenantId,
         email: customer.invoiceEmail || customer.email,
         config,
         attachments: [attachments],

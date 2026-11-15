@@ -17,7 +17,8 @@ export const emailEnvKeys: Record<MailField, string> = {
     host: "EMAIL_HOST",
     port: "EMAIL_PORT",
     username: "EMAIL_USER",
-    password: "EMAIL_PASS"
+    password: "EMAIL_PASS",
+    from: "EMAIL_FROM"
 };
 
 // Every character that ends a line, and NUL: none belongs in a host, port, user or password

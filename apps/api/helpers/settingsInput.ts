@@ -5,7 +5,8 @@ import { invoiceFilenamePrefixPattern } from "./pdfFiles";
 // The body is checked key by key: a key that is not a setting is refused instead of ignored,
 // so nothing can be written to the config table (or the mail file) that the app does not read.
 
-export const mailFields = ["host", "port", "username", "password"] as const;
+// The company's mail server (services/companyMail.ts); "from" is the sender of its emails
+export const mailFields = ["host", "port", "username", "password", "from"] as const;
 export type MailField = (typeof mailFields)[number];
 
 // Stored in config.long_value; every other setting is a short value (config.value, 250 chars)
@@ -30,8 +31,9 @@ const shortFields = [
 ];
 
 // The logo is a file upload (and DELETE /settings); the web form sends its current name along,
-// which is accepted and ignored.
-const ignoredFields = ["logo"];
+// which is accepted and ignored. So are the two facts the settings answer gives about the mail
+// server (whether a password is saved, whether the install's default is used).
+const ignoredFields = ["logo", "mailPasswordSaved", "mailUsesDefault"];
 
 const maxShortLength = 250;
 const maxMailLength = 255;
@@ -58,6 +60,8 @@ const rules: Record<string, { test: (value: string) => boolean; message?: string
     },
     vat: { test: (value) => /^\d{1,3}(\.\d{1,2})?$/.test(value) && Number(value) <= 100 },
     port: { test: (value) => value === "" || (/^\d{1,5}$/.test(value) && Number(value) <= 65535) },
+    // One line: it becomes the From header
+    from: { test: (value) => !/[\r\n\0]/.test(value) },
     invoiceFilenamePrefix: {
         test: (value) => invoiceFilenamePrefixPattern.test(value),
         message: filenamePrefixMessage
