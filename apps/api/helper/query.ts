@@ -102,7 +102,9 @@ export const query = async <T>({
         }
 
         // Detect SELECT vs non-SELECT
-        const isSelect = sql.trim().toUpperCase().startsWith("SELECT");
+        // Leading comments do not count: a statement may start with one that says why it reads
+        // every company (/* every company: ... */, see helpers/tenantSql.test.ts)
+        const isSelect = /^SELECT\b/i.test(sql.replace(/^(\s*\/\*[\s\S]*?\*\/)*\s*/, ""));
 
         if (isSelect) {
             return {

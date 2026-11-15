@@ -194,3 +194,37 @@ describe("query parameters", () => {
         }
     });
 });
+
+describe("query on success", () => {
+    afterEach(() => poolQuery.mockReset());
+
+    it.each([
+        ["a plain SELECT", "SELECT id FROM users WHERE id = ?"],
+        ["one after spaces and a line break", "\n   select id FROM users"],
+        [
+            "one that starts with a comment saying why it reads every company",
+            "/* every company: the account is found by its email */\n SELECT id FROM users"
+        ],
+        ["one after two comments", "/* a */ /* b */ SELECT 1"]
+    ])("gives the rows of %s", async (_case, sql) => {
+        poolQuery.mockResolvedValue([[{ id: 7 }], []]);
+
+        expect(await query({ database: "shop", sql, params: [] })).toEqual({
+            success: true,
+            data: [{ id: 7 }],
+            message: "OK"
+        });
+    });
+
+    it("gives the affected rows of an UPDATE, also one that starts with a comment", async () => {
+        poolQuery.mockResolvedValue([{ affectedRows: 1, insertId: 0 }, undefined]);
+
+        expect(
+            await query({
+                database: "shop",
+                sql: "/* every company: by token */ UPDATE users SET password = ?",
+                params: ["hash"]
+            })
+        ).toMatchObject({ success: true, affectedRows: 1 });
+    });
+});
