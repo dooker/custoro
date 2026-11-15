@@ -198,6 +198,22 @@ Then, once:
 Every deploy also links `~/bin/custoro` to the running release's script; `~/bin` is on the `PATH`
 on Zone, so `custoro status`, `custoro backup` and `custoro deploy latest` work from any folder.
 
+### Several companies
+
+Every company has its own people, data, invoice numbering and mail server; the owner of the
+install (the first admin of company 1 after the update) has the Companies page in the menu. Over
+SSH, the same:
+
+```bash
+custoro create-tenant "Company Name OÜ" --admin boss@example.com   # its first admin gets the password email
+custoro set-owner you@example.com                                    # the owner page moves to this person
+custoro create-admin someone@example.com --tenant 2                  # an admin in company 2
+```
+
+Each company sets its mail server on its own settings page; the password needs `MAIL_SETTINGS_KEY`
+in `.env.production` (Zone: set at install). A company's server must be on a mail port (25, 465,
+587, 2525) outside the server's network; do not set `MAIL_ALLOW_PRIVATE_HOSTS` here.
+
 ### Updating
 
 ```bash

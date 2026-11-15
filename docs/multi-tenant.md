@@ -1,7 +1,8 @@
 # Several companies in one Custoro (multi-tenant plan)
 
-Status: **plan**, nothing built. Written 2026-11-14 against `main` at 5.0.1; the owner's answers
-of the same day are in.
+Status: **built** on branch `feat/multi-tenant` (PR #40) for 5.1.0, 2026-11-15. Written 2026-11-14
+against `main` at 5.0.1 with the owner's answers; the section "Found while building" at the end
+says what turned out differently.
 
 ## Goal
 
@@ -220,3 +221,28 @@ CHANGELOG entries say so and carry no **Breaking**, so `version:suggest` agrees.
 - A company's own domain or subdomain (all companies share `custoro.eastsidecustoms.com`)
 - Billing, plans or limits per company
 - A database per company (possible later for one large customer: export by `tenant_id`)
+
+## Found while building
+
+- **The company's name and its company name are two things.** The owner page names the company
+  (`tenants.name`); a new company's `companyName` setting starts with that name, and after that the
+  company changes its own on its settings page (it prints on its invoices). Renaming on the owner
+  page does not change the invoices.
+- **A company's mail server could reach inside the server's network.** Every company admin now
+  types a host and port the API connects to, so it must be on a mail port and resolve only to
+  public addresses, and the connection goes to the address that was checked
+  (`helpers/mailHost.ts`). `MAIL_ALLOW_PRIVATE_HOSTS=true` lifts it for the dev stack's catcher.
+- **A new company's password email was empty.** Its texts start empty, as on a fresh install; the
+  email now has a default text with the link until the company writes its own.
+- **`query()` took a statement that starts with a comment for a write.** The `/* every company */`
+  markers made the login lookups return nothing; the SELECT check skips leading comments now.
+- **One count lost its fast plan.** `COUNT(DISTINCT customer_id)` with the company filter read every
+  worksheet of the company (42.6 ms on 50 000 invoices); grouped by `(tenant_id, customer_id)` it
+  is a loose index scan again (1.79 ms).
+- **Another company's id answers "Not found"** everywhere a change or delete matched no row,
+  including the invoice lock; it answered success or the action's own error before.
+- **Old PDFs stay where they are.** Company 1 also reads the flat `storage/pdf/` folder of before,
+  so the update moves no file; new PDFs go to `storage/pdf/<company>/`.
+- **`invoice_items.product_id` keeps a one-column reference** (its `ON DELETE SET NULL` would also
+  clear `tenant_id` on a two-column one); the API copies only the company's own products into a
+  line and the cross-company suite tries another's.

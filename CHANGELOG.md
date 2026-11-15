@@ -5,6 +5,47 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+### Added
+
+- Several companies in one Custoro (docs/multi-tenant.md). Every company has its own people (any
+  number, each an admin or a user of that company), customers, products, worksheets, invoices,
+  invoice numbering (each starts at 1), company details, email texts, logo, invoice PDFs and mail
+  server; nobody sees anything of another company. A person belongs to one company and logs in as
+  before. An existing install becomes company 1, named after the company name in its settings,
+  with everyone in it, and keeps working as it did: the migration runs in `custoro deploy latest`
+  (which backs up the database first), nobody is logged out, and nothing has to be done by hand
+- The owner of the install (on an existing install the first admin, so on Zone dooker@dooker.eu)
+  has a Companies page in the menu: every company with its number of people and invoices, a new
+  company with its first admin (who gets the "set your password" email), renaming, switching a
+  company off (its people cannot log in and their sessions end; nothing is deleted) and on again.
+  It shows counts, never another company's data. Over SSH the same: `custoro create-tenant
+  "<name>" --admin <email>`, and `custoro set-owner <email>` changes the owner;
+  `custoro create-admin` takes `--tenant <id>`
+- The menu shows the person's company under their name
+
+### Changed
+
+- Every company sets its own mail server (host, port, user, password and now a sender) on its
+  settings page. The password is stored encrypted only, with `MAIL_SETTINGS_KEY`: without the key
+  the page refuses to save it (it no longer stores it as plain text). A company without a server of
+  its own sends with the install's default, as before. The saved settings of an install move to
+  company 1 when the API starts (`storage/mail-settings.json` stays as a copy)
+- Changing or deleting something that does not exist, or that another company has, answers "Not
+  found" (it answered success or the action's own error)
+- The password email has a default text with the link when a company has not written its own (a
+  new company's first admin got an empty email)
+
+### Security
+
+- Every query on a company's data filters by its company, the company coming only from the
+  person's row in the database; the database itself refuses a row of one company pointing at
+  another's. A test reads every SQL statement of the API and fails on one without its company, and
+  a test suite tries every endpoint with another company's ids
+- A company's mail server must be on a mail port (25, 465, 587, 2525) outside the server's own
+  network: a company admin could otherwise make the API connect to the database or other inside
+  services. The dev stack allows its mail catcher with `MAIL_ALLOW_PRIVATE_HOSTS=true`; leave it
+  unset in production
+
 ## 5.0.1 - 2026-11-14
 
 ### Fixed
