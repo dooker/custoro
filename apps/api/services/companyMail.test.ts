@@ -321,6 +321,32 @@ describe("moveSavedMailToCompanyOne", () => {
         expect(decryptSecret(stored, key)).toBe("plain");
     });
 
+    it("moves the settings mail was really sent with: the file's, else EMAIL_*, and EMAIL_FROM", async () => {
+        // Copilot review of PR 40: only the file's fields moved, so a port, login or sender that
+        // came from the environment was lost once company 1 had a server of its own
+        process.env.EMAIL_PORT = "465";
+        process.env.EMAIL_PASS = "env secret";
+        process.env.EMAIL_FROM = "Bills <bills@old.test>";
+        fs.writeFileSync(
+            files.mailSettingsFile,
+            JSON.stringify({ host: "smtp.old.test", username: "old" })
+        );
+        companyRows({});
+
+        expect(await moveSavedMailToCompanyOne("shop", key, () => undefined)).toBe(true);
+        const moved = Object.fromEntries(
+            fake.statements(/UPDATE config/).map(({ params }) => [params[2], params[0]])
+        );
+
+        expect(moved).toMatchObject({
+            mailHost: "smtp.old.test",
+            mailPort: "465",
+            mailUser: "old",
+            mailFrom: "Bills <bills@old.test>"
+        });
+        expect(decryptSecret(moved.mailPassword as string, key)).toBe("env secret");
+    });
+
     it("moves nothing when company 1's settings cannot be read", async () => {
         fs.writeFileSync(files.mailSettingsFile, JSON.stringify({ host: "smtp.old.test" }));
         queryMock.mockResolvedValue({ success: false, data: [] });

@@ -11,7 +11,12 @@ import { query } from "../helper/query";
 import { withTransaction } from "../helper/transaction";
 import { getMailSettings, readSavedMailSettings } from "../helper";
 import { encryptSecret, isEncrypted, mailSettingsKey } from "../helpers/mailSecret";
-import { openMailSettings, oneLine, type MailValues } from "../helpers/mailSettings";
+import {
+    openMailSettings,
+    oneLine,
+    resolveMailSettings,
+    type MailValues
+} from "../helpers/mailSettings";
 import { mailSettingsFile } from "../config/paths";
 import type { MailField } from "../helpers/settingsInput";
 import { mailPort } from "../helpers/mailTransport";
@@ -200,9 +205,10 @@ export const saveCompanyMail = async (
 /**
  * At startup, once: the mail settings of an install from before companies (storage/mail-
  * settings.json, or the older .env.email) become company 1's, unless company 1 has its own
- * already. An encrypted password moves as it is; a plain one only when there is a key to encrypt
- * it with, else it is left out and logged (it is never stored plain in the database). The file
- * stays where it is, as a copy.
+ * already: what mail was really sent with, the file's field or else the EMAIL_ variable, and
+ * EMAIL_FROM as the sender. An encrypted password moves as it is; a plain one only when there is a
+ * key to encrypt it with, else nothing moves until there is one (it is never stored plain in the
+ * database). The file stays where it is, as a copy.
  */
 export const moveSavedMailToCompanyOne = async (
     database: string,
@@ -222,13 +228,24 @@ export const moveSavedMailToCompanyOne = async (
         return false;
     }
 
-    let password = file.password;
+    // What mail was really sent with until now: each field from the file, else from its EMAIL_
+    // variable, and the sender from EMAIL_FROM. Moving only the file's fields lost a port, login or
+    // sender that came from the environment once company 1 had a server of its own (Copilot
+    // review of PR 40).
+    const effective = resolveMailSettings(
+        openMailSettings(file, key, () => undefined),
+        process.env
+    );
+    let password: string | undefined;
 
-    // A plain password is only ever stored encrypted. Without a key nothing moves yet: company 1
-    // keeps sending with the saved settings as the default, and the move happens at the first
-    // start with a key (Copilot review of PR 40: moving without it left company 1 with a server it
-    // could not log in to, and no later start moved it again)
-    if (password && !isEncrypted(password)) {
+    if (file.password && isEncrypted(file.password)) {
+        // The file's encrypted password moves as it is (a later key can still open it)
+        password = file.password;
+    } else if (effective.password) {
+        // A plain password is only ever stored encrypted. Without a key nothing moves yet: company
+        // 1 keeps sending with the saved settings as the default, and the move happens at the first
+        // start with a key (Copilot review of PR 40: moving without it left company 1 with a server
+        // it could not log in to, and no later start moved it again)
         if (!key) {
             log(
                 "The saved mail settings stay the default until MAIL_SETTINGS_KEY is set: their password is plain text and is only ever stored encrypted. Set the key and restart."
@@ -237,14 +254,15 @@ export const moveSavedMailToCompanyOne = async (
             return false;
         }
 
-        password = encryptSecret(password, key);
+        password = encryptSecret(effective.password, key);
     }
 
     const values = Object.entries({
-        host: file.host,
-        port: file.port,
-        username: file.username,
-        password
+        host: effective.host,
+        port: effective.port,
+        username: effective.username,
+        password,
+        from: process.env.EMAIL_FROM?.trim()
     }).filter(([, value]) => value) as [MailField, string][];
 
     // An encrypted password is stored as it is, so it goes in through the same rows directly
