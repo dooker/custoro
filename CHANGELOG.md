@@ -33,7 +33,9 @@ version number, kept in each app's `package.json`. The web app shows this file o
   without a server of its own sends with the install's default, as before. The settings an install
   sent with move to company 1 when the API starts: the saved ones, else the `EMAIL_*` ones, and
   `EMAIL_FROM` as its sender (`storage/mail-settings.json` stays as a copy). A plain password waits
-  for `MAIL_SETTINGS_KEY`: until it is set nothing moves and mail goes out as before
+  for `MAIL_SETTINGS_KEY`: until it is set nothing moves and mail goes out as before. A saved server
+  on the server's own network (a relay on the same machine) does not move: it stays the install's
+  default and keeps working
 - "Not found" for what is not there: changing or deleting something that does not exist, or that
   another company has, answers "Not found" (it answered success or the action's own error)
 - A default password email: when a company has not written its own, the email has a default text

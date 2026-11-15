@@ -236,6 +236,20 @@ export const moveSavedMailToCompanyOne = async (
         openMailSettings(file, key, () => undefined),
         process.env
     );
+
+    // A server company 1 could not use as its own (inside the server's network, off the mail
+    // ports) stays the install's default: whoever ran the install set it, and moved it would be
+    // refused and the mail would stop (security review of PR 40). Retried at every start.
+    const allowed = await checkCompanyMailHost(effective.host, mailPort(effective.port));
+
+    if (!allowed.ok) {
+        log(
+            "The saved mail settings stay the install's default: their server is not one a company may have as its own (a mail port outside the server's network, see helpers/mailHost.ts)"
+        );
+
+        return false;
+    }
+
     let password: string | undefined;
 
     if (file.password && isEncrypted(file.password)) {

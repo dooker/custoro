@@ -274,6 +274,12 @@ describe("the settings page", () => {
 });
 
 describe("moveSavedMailToCompanyOne", () => {
+    // The made-up hosts below do not resolve: the host rule has its own tests (mailHost.test.ts)
+    // and one case here with the rule on
+    beforeEach(() => {
+        process.env.MAIL_ALLOW_PRIVATE_HOSTS = "true";
+    });
+
     it("moves the file's settings into company 1, an encrypted password as it is", async () => {
         const encrypted = encryptSecret("old secret", key);
         fs.writeFileSync(
@@ -345,6 +351,27 @@ describe("moveSavedMailToCompanyOne", () => {
             mailFrom: "Bills <bills@old.test>"
         });
         expect(decryptSecret(moved.mailPassword as string, key)).toBe("env secret");
+    });
+
+    it("leaves a saved server inside the server's network as the install's default", async () => {
+        // Security review of PR 40: moved to company 1 it was checked like any company's server
+        // and refused, so an install with a relay on its own network lost its mail on the update
+        process.env.MAIL_ALLOW_PRIVATE_HOSTS = "false";
+        fs.writeFileSync(
+            files.mailSettingsFile,
+            JSON.stringify({ host: "127.0.0.1", port: "25", username: "relay" })
+        );
+        companyRows({});
+        const log = vi.fn();
+
+        expect(await moveSavedMailToCompanyOne("shop", key, log)).toBe(false);
+        expect(fake.calls).toHaveLength(0);
+        expect(log).toHaveBeenCalledWith(expect.stringMatching(/stay the install's default/));
+        // and company 1 still sends with it: no server of its own, so the default
+        expect(await companyMailServer("shop", 1)).toMatchObject({
+            host: "127.0.0.1",
+            usesDefault: true
+        });
     });
 
     it("moves nothing when company 1's settings cannot be read", async () => {
