@@ -16,7 +16,8 @@
         "pdf": "PDF",
         "generatePdf": "Generate PDF",
         "send": "Send email",
-        "upload": "Pick file"
+        "upload": "Pick file",
+        "cancel": "Never mind"
     },
     "products": {
         "singular": "Product",
@@ -333,5 +334,25 @@
         "et": "Eesti",
         "fun": "English (fun)"
     },
-    "changelog": "Changelog"
+    "changelog": "Changelog",
+    "tenants": {
+        "singular": "Company",
+        "plural": "Companies",
+        "intro": "Each company has its own crew, customers, gizmos, worksheets, invoices and knobs. You see the headcounts here, never their stuff.",
+        "name": "Name",
+        "people": "Crew",
+        "invoices": "Invoices",
+        "created": "Born",
+        "state": "State",
+        "active": "Humming",
+        "inactive": "Asleep",
+        "rename": "Rename",
+        "deactivate": "Put to sleep",
+        "activate": "Wake up",
+        "new": "Brand new company",
+        "newHelp": "It gets the default knobs, and its first admin gets a mail with a link to pick a password.",
+        "adminEmail": "First admin's email",
+        "adminName": "First admin's name",
+        "create": "Make it so"
+    }
 }

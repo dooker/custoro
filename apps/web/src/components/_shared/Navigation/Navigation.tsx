@@ -27,13 +27,14 @@ const menuItems = [
     { selector: RESOURCE.INVOICES, link: `${PATHS.INVOICES}1/`, Icon: Invoice },
     { selector: RESOURCE.USERS, link: `${PATHS.USERS}1/`, Icon: Users, level: 'admin' },
     { selector: RESOURCE.SETTINGS, link: `${PATHS.SETTINGS}`, Icon: Settings, level: 'admin' },
+    { selector: RESOURCE.TENANTS, link: PATHS.TENANTS, Icon: Users, level: 'owner' },
 ];
 
 const Navigation = () => {
     const { t } = useSafeTranslation();
     const { logout, user } = useAuth();
     const navigate = useNavigate();
-    const { name, avatar } = user || {};
+    const { name, avatar, companyName } = user || {};
 
     // The API ends the session on every device first (the token is still needed for that). The
     // browser forgets the token either way; unless the API confirmed it (it refused, did not answer
@@ -69,7 +70,10 @@ const Navigation = () => {
                                 alt: name,
                             })}
                         </div>
-                        {name}
+                        <div className={styles.who}>
+                            {name}
+                            {companyName && <small data-testid="company-name">{companyName}</small>}
+                        </div>
                     </div>
 
                     <ul className={styles.menu}>

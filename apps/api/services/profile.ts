@@ -41,18 +41,23 @@ export const getSingle = async (request: Request) => {
     // const userFields = config.schemas?.user;
     // ${userFields ? `${userFields}, ` : ""},
 
+    // The person's company's name (shown in the menu) and whether they own the install (the owner
+    // page)
     let sql = `
-        SELECT id,
-               name,
-               username AS email,
-               timestamp,
-               discount,
-               avatar,
-               offer,
-               role
+        SELECT users.id,
+               users.name,
+               users.username AS email,
+               users.timestamp,
+               users.discount,
+               users.avatar,
+               users.offer,
+               users.role,
+               users.owner,
+               tenants.name AS companyName
         FROM users
-        WHERE tenant_id = ?
-          AND id = ?;`;
+        JOIN tenants ON tenants.id = users.tenant_id
+        WHERE users.tenant_id = ?
+          AND users.id = ?;`;
     let params = [tenantOf(request), id];
     const { success, data } = await query({ database, sql, params, logger: "Get user details" });
 

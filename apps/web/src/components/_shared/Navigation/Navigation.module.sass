@@ -21,6 +21,20 @@
         cursor: pointer
         height: variables.$header-height
 
+    // The person's name and, under it, their company's
+    .who
+        display: grid
+        line-height: 1.3
+        overflow: hidden
+
+        small
+            font-size: 12px
+            font-weight: 400
+            opacity: 0.75
+            white-space: nowrap
+            overflow: hidden
+            text-overflow: ellipsis
+
         svg.avatar
             border-radius: 100px
             border: 2px solid currentColor

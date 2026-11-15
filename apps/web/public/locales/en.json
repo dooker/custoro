@@ -16,7 +16,8 @@
         "pdf": "PDF",
         "generatePdf": "Generate PDF",
         "send": "Send email",
-        "upload": "Pick file"
+        "upload": "Pick file",
+        "cancel": "Cancel"
     },
     "products": {
         "singular": "Product",
@@ -333,5 +334,25 @@
         "et": "Eesti",
         "fun": "English (fun)"
     },
-    "changelog": "Changelog"
+    "changelog": "Changelog",
+    "tenants": {
+        "singular": "Company",
+        "plural": "Companies",
+        "intro": "Every company has its own people, customers, products, worksheets, invoices and settings. Here you see how many people and invoices each one has, never their data.",
+        "name": "Name",
+        "people": "People",
+        "invoices": "Invoices",
+        "created": "Created",
+        "state": "State",
+        "active": "Active",
+        "inactive": "Switched off",
+        "rename": "Rename",
+        "deactivate": "Switch off",
+        "activate": "Switch on",
+        "new": "New company",
+        "newHelp": "The company gets the default settings, and its first admin an email with a link to set their password.",
+        "adminEmail": "Email of its first admin",
+        "adminName": "Name of its first admin",
+        "create": "Create company"
+    }
 }

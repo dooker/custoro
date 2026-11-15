@@ -7,6 +7,7 @@ import { useSessionEnd } from './hooks/useSessionEnd';
 import Navigation from './components/_shared/Navigation/Navigation';
 import PrivateRoute from './PrivateRoute';
 import AdminRoute from './AdminRoute';
+import OwnerRoute from './OwnerRoute';
 import Loader from './components/_shared/Loader/Loader';
 import BiggerError from './components/BiggerError/BiggerError';
 import Confirmation from './components/_shared/Confirmation/Confirmation';
@@ -31,6 +32,7 @@ const Pdf = lazy(() => import('./components/Pdf/Pdf'));
 const Restore = lazy(() => import('./components/Login/Restore'));
 const ChangeLog = lazy(() => import('./components/ChangeLog/ChangeLog'));
 const Users = lazy(() => import('./components/Users/Users'));
+const Tenants = lazy(() => import('./components/Tenants/Tenants'));
 const User = lazy(() => import('./components/User/User'));
 
 const AppContent = () => {
@@ -111,6 +113,10 @@ const AppContent = () => {
                             <Route path={PATHS.USERS} element={<Users />} />
                             <Route path={`${PATHS.USERS}:page/`} element={<Users />} />
                             <Route path={`${PATHS.USER}:page/:id/`} element={<User />} />
+                        </Route>
+
+                        <Route element={<OwnerRoute />}>
+                            <Route path={PATHS.TENANTS} element={<Tenants />} />
                         </Route>
                     </Route>
 

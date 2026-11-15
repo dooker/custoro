@@ -16,7 +16,8 @@
         "pdf": "PDF",
         "generatePdf": "Genereeri PDF",
         "send": "Saada arve",
-        "upload": "Vali fail"
+        "upload": "Vali fail",
+        "cancel": "Tühista"
     },
     "products": {
         "singular": "Toode",
@@ -334,5 +335,25 @@
         "et": "Eesti",
         "fun": "English (fun)"
     },
-    "changelog": "Muudatuste logi"
+    "changelog": "Muudatuste logi",
+    "tenants": {
+        "singular": "Ettevõte",
+        "plural": "Ettevõtted",
+        "intro": "Igal ettevõttel on oma inimesed, kliendid, tooted, töölehed, arved ja seaded. Siin näed, mitu inimest ja arvet igaühel on, mitte nende andmeid.",
+        "name": "Nimi",
+        "people": "Inimesi",
+        "invoices": "Arveid",
+        "created": "Loodud",
+        "state": "Olek",
+        "active": "Aktiivne",
+        "inactive": "Välja lülitatud",
+        "rename": "Nimeta ümber",
+        "deactivate": "Lülita välja",
+        "activate": "Lülita sisse",
+        "new": "Uus ettevõte",
+        "newHelp": "Ettevõte saab vaikimisi seaded ja selle esimene admin kirja lingiga, et parool määrata.",
+        "adminEmail": "Esimese admini e-post",
+        "adminName": "Esimese admini nimi",
+        "create": "Loo ettevõte"
+    }
 }
