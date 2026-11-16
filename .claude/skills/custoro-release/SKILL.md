@@ -14,15 +14,19 @@ Facts: one version for the whole repository (root, API and web: three `package.j
 npm run version:suggest     # major/minor/patch, the current and next version, and the lines that decided
 ```
 
-| Bump  | When                                                                                                                                                 |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| major | an existing install must act or it stops working: a setting it must add, the API refuses to start, everyone logged out, an entry marked **Breaking** |
-| minor | anything under Added or Changed, or a migration (it runs on its own)                                                                                 |
-| patch | Fixed and Security entries only                                                                                                                      |
+**The owner's rule (2026-11-16): the number follows the size of the change**, not "breaking, feature or fix":
+
+| Bump              | When                                                                                      |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| major (**X**.y.z) | really big changes: a new area of the app, a new way it is run or stored                  |
+| minor (x.**Y**.z) | medium changes: a new screen or feature, a migration, a change people will notice         |
+| patch (x.y.**Z**) | really small things and tweaks: a fix, a text, a style, dependency updates, a docs change |
+
+**Every PR is a release** (the owner's rule, same day): the last commit of every PR is its release commit (step 2 on the PR's own branch), so merging publishes it. Say in the PR which size you chose and why. After the merge, remind the owner to deploy (`custoro deploy latest` on Zone).
 
 **Pre-release first.** A release that has not gone live yet is a release candidate: `5.0.0-rc.1`, then `rc.2` for the next tested build, and `5.0.0` once it is live. `npm run version:suggest` shows both ways (`premajor` and `major`). A pre-release keeps the entries under `## Unreleased`; going live (`release`) dates them as `## 5.0.0 - <date>`. Releases so far: `v5.0.0-rc.1` (2026-11-08, PR 24, no server bundle: the bundle came with PR 25). `5.0.0-rc.2` adds PR 25 and the PM2 / Zone.ee mode, and is the first with a bundle; after it, `prerelease` (rc.3) for another tested build or `release` (5.0.0) once it is live.
 
-The suggestion reads the wording of the entries, so it is a proposal: read `## Unreleased` yourself, and say which entry decides. A changed meaning of a setting with a safe default (PR 24's `RESET_MAX_REQUESTS_PER_ACCOUNT`) is not major. When an entry needs an operator to act, write it in bold as the existing ones do, or start it with **Breaking:**, so the next suggestion sees it.
+The suggestion reads the wording of the entries (major for an operator step, minor for Added or Changed, patch for Fixed and Security only), so it is only a hint for the size rule above: read `## Unreleased` yourself, and say which entry decides. A changed meaning of a setting with a safe default (PR 24's `RESET_MAX_REQUESTS_PER_ACCOUNT`) is not major. When an entry needs an operator to act, write it in bold as the existing ones do, or start it with **Breaking:**, so the next suggestion sees it.
 
 ## 2. Prepare the release PR
 
