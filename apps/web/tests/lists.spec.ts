@@ -14,7 +14,12 @@ const listRows = (page: Page, resource: string) =>
 const heading = (page: Page) => page.getByRole('heading', { level: 1 });
 
 // Products whose code and name carry one tag, so a search for it finds only them
-const createProducts = async (request: APIRequestContext, token: string, tag: string, count: number) => {
+const createProducts = async (
+    request: APIRequestContext,
+    token: string,
+    tag: string,
+    count: number
+) => {
     const ids: number[] = [];
 
     for (let index = 1; index <= count; index++) {
@@ -37,6 +42,22 @@ const createProducts = async (request: APIRequestContext, token: string, tag: st
 
     return ids;
 };
+
+// The products a test made, deleted after it even when it failed or timed out (a finally block in
+// the test cannot: its request context is closed by then)
+let madeProducts: number[] = [];
+
+test.afterEach(async ({ request }) => {
+    if (madeProducts.length) {
+        const token = await getApiToken(request);
+
+        for (const id of madeProducts) {
+            await request.delete(`${apiUrl}/product/${id}/`, { headers: apiHeaders(token) });
+        }
+
+        madeProducts = [];
+    }
+});
 
 test.beforeEach(async ({ page, request }) => {
     await login({ page, request });
@@ -83,73 +104,119 @@ test('a search starts on page 1, lives in the address, and survives pages, reloa
 
     const tag = Date.now().toString(36);
     const token = await getApiToken(request);
-    const ids = await createProducts(request, token, tag, 17);
+    madeProducts = await createProducts(request, token, tag, 17);
 
-    try {
-        // From page 2 of the whole list
-        await page.goto('/products/2/');
-        await expect(listRows(page, 'products')).toHaveCount(15);
-        await page.getByTestId('search-button').click();
-        await page.getByTestId('search-input').fill(tag);
+    // From page 2 of the whole list
+    await page.goto('/products/2/');
+    await expect(listRows(page, 'products')).toHaveCount(15);
+    await page.getByTestId('search-button').click();
+    await page.getByTestId('search-input').fill(tag);
 
-        // ... to page 1 of the matches: 15 rows here, 2 on page 2
-        await expect(page).toHaveURL(`/products/1/?q=${tag}`);
-        await expect(listRows(page, 'products')).toHaveCount(15);
-        await expect(listRows(page, 'products').first()).toContainText(tag);
+    // ... to page 1 of the matches: 15 rows here, 2 on page 2
+    await expect(page).toHaveURL(`/products/1/?q=${tag}`);
+    await expect(listRows(page, 'products')).toHaveCount(15);
+    await expect(listRows(page, 'products').first()).toContainText(tag);
 
-        await page.getByRole('button', { name: 'Go to page 2' }).click();
-        await expect(page).toHaveURL(`/products/2/?q=${tag}`);
-        await expect(listRows(page, 'products')).toHaveCount(2);
+    await page.getByRole('link', { name: 'Go to page 2' }).click();
+    await expect(page).toHaveURL(`/products/2/?q=${tag}`);
+    await expect(listRows(page, 'products')).toHaveCount(2);
 
-        // Reload: the box is open with the word, same rows
-        await page.reload();
-        await expect(page.getByTestId('search-input')).toHaveValue(tag);
-        await expect(listRows(page, 'products')).toHaveCount(2);
+    // Reload: the box is open with the word, same rows
+    await page.reload();
+    await expect(page.getByTestId('search-input')).toHaveValue(tag);
+    await expect(listRows(page, 'products')).toHaveCount(2);
 
-        await page.goBack();
-        await expect(page).toHaveURL(`/products/1/?q=${tag}`);
-        await expect(listRows(page, 'products')).toHaveCount(15);
+    await page.goBack();
+    await expect(page).toHaveURL(`/products/1/?q=${tag}`);
+    await expect(listRows(page, 'products')).toHaveCount(15);
 
-        // Every cell of a row is a link to the product, the first one reachable by Tab
-        const row = listRows(page, 'products').first();
-        const links = row.getByRole('link');
+    // Every cell of a row is a link to the product, the first one reachable by Tab
+    const row = listRows(page, 'products').first();
+    const links = row.getByRole('link');
 
-        // (every cell but the last, which holds the delete button)
-        await expect(links).toHaveCount((await row.getByRole('cell').count()) - 1);
-        await expect(links.first()).toHaveAttribute('href', /^\/product\/1\/\d+\/$/);
-        await expect(links.first()).toHaveAttribute('tabindex', '0');
-        await expect(links.nth(1)).toHaveAttribute('tabindex', '-1');
-        await row.getByRole('link').nth(2).click();
-        await expect(page).toHaveURL(/\/product\/1\/\d+\/$/);
-        await page.goBack();
+    // (every cell but the last, which holds the delete button)
+    await expect(links).toHaveCount((await row.getByRole('cell').count()) - 1);
+    await expect(links.first()).toHaveAttribute('href', /^\/product\/1\/\d+\/$/);
+    await expect(links.first()).toHaveAttribute('tabindex', '0');
+    await expect(links.nth(1)).toHaveAttribute('tabindex', '-1');
+    await row.getByRole('link').nth(2).click();
+    await expect(page).toHaveURL(/\/product\/1\/\d+\/$/);
+    await page.goBack();
 
-        // Deleting on page 2 stays there while it has rows ...
-        await page.goto(`/products/2/?q=${tag}`);
+    // Deleting on page 2 stays there while it has rows ...
+    await page.goto(`/products/2/?q=${tag}`);
 
-        const deleteFirst = async () => {
-            await listRows(page, 'products').first().getByRole('button', { name: 'Delete' }).click();
-            await page.getByTestId('confirm-button').click();
-            await expect(page.getByText(/^Deleted/)).toBeVisible();
-        };
+    const deleteFirst = async () => {
+        await listRows(page, 'products').first().getByRole('button', { name: 'Delete' }).click();
+        await page.getByTestId('confirm-button').click();
+        await expect(page.getByText(/^Deleted/)).toBeVisible();
+    };
 
-        await deleteFirst();
-        await expect(page).toHaveURL(`/products/2/?q=${tag}`);
-        await expect(listRows(page, 'products')).toHaveCount(1);
+    await deleteFirst();
+    await expect(page).toHaveURL(`/products/2/?q=${tag}`);
+    await expect(listRows(page, 'products')).toHaveCount(1);
 
-        // ... and after its last row goes to page 1, the search kept
-        await deleteFirst();
-        await expect(page).toHaveURL(`/products/1/?q=${tag}`);
-        await expect(listRows(page, 'products')).toHaveCount(15);
-        await expect(page.getByRole('button', { name: 'Go to page 2' })).toHaveCount(0);
+    // ... and after its last row goes to page 1, the search kept
+    await deleteFirst();
+    await expect(page).toHaveURL(`/products/1/?q=${tag}`);
+    await expect(listRows(page, 'products')).toHaveCount(15);
+    await expect(page.getByRole('link', { name: 'Go to page 2' })).toHaveCount(0);
 
-        // Closing the search shows the whole list again, from page 1
-        await page.getByTestId('search-button').click();
-        await expect(page).toHaveURL('/products/1/');
-    } finally {
-        for (const id of ids) {
-            await request.delete(`${apiUrl}/product/${id}/`, { headers: apiHeaders(token) });
-        }
-    }
+    // Closing the search shows the whole list again, from page 1
+    await page.getByTestId('search-button').click();
+    await expect(page).toHaveURL('/products/1/');
+});
+
+test('pages: past the end, which rows, page links, back to the top, rows per page', async ({
+    page,
+}) => {
+    const rows = listRows(page, 'customers');
+    const range = page.getByTestId('list-range');
+
+    // A page past the end shows the last page, and the address follows
+    await page.goto('/customers/999/');
+    await expect(page).not.toHaveURL('/customers/999/');
+    await expect(rows.first()).toBeVisible();
+
+    const last = Number(/\/customers\/(\d+)\/$/.exec(page.url())?.[1]);
+    const [, , to, total] = /^(\d+)–(\d+) of (\d+)$/.exec((await range.textContent()) ?? '') ?? [];
+
+    expect(last).toBeGreaterThan(1);
+    expect(to, 'the last page ends at the last row').toBe(total);
+    await expect(page.getByText('No entries')).toHaveCount(0);
+
+    // Page 1: which rows of how many, and the page numbers are links
+    await page.goto('/customers/1/');
+    await expect(range).toHaveText(`1–15 of ${total}`);
+    await expect(page.getByRole('link', { name: 'Go to page 2' })).toHaveAttribute(
+        'href',
+        '/customers/2/'
+    );
+    await expect(page.getByRole('link', { name: 'Go to last page' })).toHaveAttribute(
+        'href',
+        `/customers/${last}/`
+    );
+
+    // Another page starts at the top, not at the page numbers under the last row
+    await page.setViewportSize({ width: 1280, height: 500 });
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    await page.getByRole('link', { name: 'Go to page 2' }).click();
+    await expect(page).toHaveURL('/customers/2/');
+    await expect(range).toHaveText(`16–30 of ${total}`);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+
+    // 30 rows a page: from page 1, in the address, kept on reload and on the next page
+    await page.getByTestId('page-size').selectOption('30');
+    await expect(page).toHaveURL('/customers/1/?size=30');
+    await expect(rows).toHaveCount(30);
+    await expect(range).toHaveText(`1–30 of ${total}`);
+    await page.reload();
+    await expect(page.getByTestId('page-size')).toHaveValue('30');
+    await expect(page.getByRole('link', { name: 'Go to page 2' })).toHaveAttribute(
+        'href',
+        '/customers/2/?size=30'
+    );
 });
 
 test('a list that cannot be loaded says so instead of "No entries"', async ({ page }) => {
@@ -191,10 +258,9 @@ const testCompany = 'E2E Company';
 
 const testCompanyId = async (request: APIRequestContext, token: string): Promise<number> => {
     const found = await (
-        await request.get(
-            `${apiUrl}/tenants?keyword=${encodeURIComponent(testCompany)}&limit=50`,
-            { headers: apiHeaders(token) }
-        )
+        await request.get(`${apiUrl}/tenants?keyword=${encodeURIComponent(testCompany)}&limit=50`, {
+            headers: apiHeaders(token),
+        })
     ).json();
     const existing = (found.resource as { id: number; name: string }[])
         .filter(({ name }) => name.startsWith(testCompany))

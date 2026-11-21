@@ -10,7 +10,7 @@ import { useAuth } from '../../contexts/Auth';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import { useWorksheetActions } from '../../hooks/useWorksheetActions';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
-import { useListSearch } from '../../hooks/useListSearch';
+import { useListParams } from '../../hooks/useListParams';
 import { useResourceList } from '../../hooks/useResourceList';
 import { getSingle } from '../../utils/Getters/getSingle';
 import { formatPrice } from '../../utils/invoiceTotals';
@@ -18,7 +18,7 @@ import { Axios } from '../../Axios';
 import type { InvoiceIF, WorksheetIF } from '../../types';
 import type { CustomerIF } from '../../types/customer';
 import type { HeaderButtonIF } from '../../types/header';
-import { endpoint, listPageSize, PATHS, RESOURCE } from '../../variables';
+import { endpoint, PATHS, RESOURCE } from '../../variables';
 import { pageAfterDelete, pageFromParam } from '../_shared/List/listLogic';
 import {
     invoiceItems,
@@ -79,7 +79,7 @@ const WorksheetsPerCustomer = () => {
     const page = pageFromParam(rawPage);
     const currentPage = pageFromParam(worksheetPage);
     const pageHref = (number: number) => `${PATHS.WORKSHEETS}${page}/${customerId}/${number}/`;
-    const { keyword, setKeyword, withSearch } = useListSearch(pageHref);
+    const { keyword, size, setKeyword, setSize, withParams } = useListParams(pageHref);
     const [showInvoiceDropdown, setShowInvoiceDropdown] = useState(false);
     const { user } = useAuth();
     const showDiscount = !!Number(user?.discount);
@@ -88,14 +88,17 @@ const WorksheetsPerCustomer = () => {
     const { selectedCheckboxes, setSelectedCheckboxes, doInvoice, toggleCheckbox } =
         useWorksheetActions(Number(customerId), listKey);
 
-    const query = useResourceList<WorksheetIF>({
-        resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
-        path: PATHS.WORKSHEETS,
-        page: currentPage,
-        limit: listPageSize,
-        keyword,
-        params: { customer: customerId },
-    });
+    const query = useResourceList<WorksheetIF>(
+        {
+            resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
+            path: PATHS.WORKSHEETS,
+            page: currentPage,
+            limit: size,
+            keyword,
+            params: { customer: customerId },
+        },
+        { prefetchNext: true }
+    );
     const worksheets = query.data?.resource ?? [];
 
     const { data: customer } = useQuery<CustomerIF | null>({
@@ -136,7 +139,7 @@ const WorksheetsPerCustomer = () => {
             id,
             resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
             page: target,
-            returnTo: withSearch(pageHref(target)),
+            returnTo: withParams(pageHref(target)),
             cache: () => void queryClient.invalidateQueries({ queryKey: [RESOURCE.WORKSHEETS] }),
         });
     };
@@ -182,7 +185,8 @@ const WorksheetsPerCustomer = () => {
                 resource={RESOURCE.WORKSHEETS_PER_CUSTOMER}
                 query={query}
                 page={currentPage}
-                pageHref={(number) => withSearch(pageHref(number))}
+                pageHref={(number) => withParams(pageHref(number))}
+                pageSize={{ value: size, onChange: setSize }}
             >
                 {(rows) => (
                     <ListTable<WorksheetIF>

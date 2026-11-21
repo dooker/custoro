@@ -6,11 +6,10 @@ import ListTable from './ListTable';
 import { pageAfterDelete, pageFromParam, resolveColumns, type Columns } from './listLogic';
 import DeleteButton from './DeleteButton';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
-import { useListSearch } from '../../../hooks/useListSearch';
+import { useListParams } from '../../../hooks/useListParams';
 import { type ListParams, useResourceList } from '../../../hooks/useResourceList';
 import { useDeleteItem } from '../../../hooks/useDeleteItem';
 import type { HeaderButtonIF } from '../../../types/header';
-import { listPageSize } from '../../../variables';
 
 interface ListPageIF<T extends { id: number }> {
     // The resource: the section's class, the cache key and the delete
@@ -58,16 +57,19 @@ const ListPage = <T extends { id: number }>({
     const navigate = useNavigate();
     const page = pageFromParam(useParams().page);
     const pageHref = (number: number) => `${path}${number}/`;
-    const { keyword, setKeyword, withSearch } = useListSearch(pageHref);
+    const { keyword, size, setKeyword, setSize, withParams } = useListParams(pageHref);
     const { promptDelete } = useDeleteItem([resource]);
-    const query = useResourceList<T>({
-        resource,
-        path,
-        page,
-        limit: listPageSize,
-        keyword,
-        params,
-    });
+    const query = useResourceList<T>(
+        {
+            resource,
+            path,
+            page,
+            limit: size,
+            keyword,
+            params,
+        },
+        { prefetchNext: true }
+    );
 
     const headerButtons: HeaderButtonIF[] = [
         ...(addHref
@@ -90,7 +92,7 @@ const ListPage = <T extends { id: number }>({
             id: row.id,
             resource,
             page: target,
-            returnTo: withSearch(pageHref(target)),
+            returnTo: withParams(pageHref(target)),
         });
     };
 
@@ -106,7 +108,8 @@ const ListPage = <T extends { id: number }>({
                 resource={resource}
                 query={query}
                 page={page}
-                pageHref={(number) => withSearch(pageHref(number))}
+                pageHref={(number) => withParams(pageHref(number))}
+                pageSize={{ value: size, onChange: setSize }}
                 heading={intro}
             >
                 {(rows) => (

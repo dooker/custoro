@@ -9,7 +9,7 @@ import { Search as SearchIcon } from '../Icons/Search';
 import Button from '../Form/Button';
 import Close from '../Icons/Close';
 
-// The search box of a list. The word itself lives in the URL (useListSearch): the box starts
+// The search box of a list. The word itself lives in the URL (useListParams): the box starts
 // open with it, and closing the box clears it.
 export const Search = ({ value, onChange }: HeaderSearchIF) => {
     const { t } = useSafeTranslation();

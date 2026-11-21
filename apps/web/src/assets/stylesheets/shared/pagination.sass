@@ -1,13 +1,10 @@
 @use "src/assets/stylesheets/variables" as variables
-@use "sass:math"
 
+// The page numbers of a list (ListFrame): links and the arrows, in the list's footer
 .MuiPagination-root
-    background: variables.$white
-    border-top: 1px solid variables.$turquoise
     margin: 0
-    padding: variables.$grid-gutter math.div(variables.$grid, 2)
 
-    button
+    .MuiPaginationItem-root
         color: variables.$turquoise
         font-weight: 700
 

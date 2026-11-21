@@ -332,6 +332,8 @@
     },
     "emptyList": "Looks like there are no entries...",
     "listError": "The list wandered off. Give it a moment and try again.",
+    "listRange": "{{from}}–{{to}} of {{total}} critters",
+    "listPageSize": "Rows per gulp",
     "languages": {
         "en": "English",
         "et": "Eesti",
