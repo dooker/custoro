@@ -5,7 +5,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import Loader from '../Loader/Loader';
 import NoEntries from '../NoEntries/NoEntries';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
-import type { ListDataIF } from '../../../hooks/useResourceList';
+import { showPages, type ListDataIF } from './listLogic';
 import '@css/shared/pagination.sass';
 import styles from './List.module.sass';
 
@@ -60,7 +60,7 @@ const ListFrame = <T,>({ resource, query, page, pageHref, heading, children }: L
 
             {body()}
 
-            {pageHref && pages > 1 && (
+            {pageHref && showPages(pages) && (
                 <Pagination
                     count={pages}
                     page={page}

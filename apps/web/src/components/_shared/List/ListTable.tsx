@@ -1,16 +1,10 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
+import { cellText, rowClass, tableClass, type ColumnIF } from './listLogic';
 import '@css/shared/GeneralTable.sass';
 
-export interface ColumnIF<T> {
-    key: string;
-    // A text key (or plain text such as "#") for the column head
-    label?: string;
-    className?: string;
-    // The cell; without it the row's field of the same key
-    render?: (row: T) => ReactNode;
-}
+export type { ColumnIF };
 
 export interface ListTableIF<T> {
     columns: ColumnIF<T>[];
@@ -42,12 +36,8 @@ const ListTable = <T,>({
     compact,
 }: ListTableIF<T>) => {
     const { t } = useSafeTranslation();
-    const tableClass = ['general-table', className, compact ? 'compact' : '']
-        .filter(Boolean)
-        .join(' ');
-
     return (
-        <table className={tableClass}>
+        <table className={tableClass(className, compact)}>
             <thead>
                 <tr>
                     {columns.map(({ key, label, className: cellClass }) => (
@@ -63,14 +53,9 @@ const ListTable = <T,>({
                     const href = rowHref?.(row);
 
                     return (
-                        <tr
-                            key={rowKey(row)}
-                            className={['row', rowClassName?.(row)].filter(Boolean).join(' ')}
-                        >
+                        <tr key={rowKey(row)} className={rowClass(rowClassName?.(row))}>
                             {columns.map(({ key, className: cellClass, render }, index) => {
-                                const content = render
-                                    ? render(row)
-                                    : String((row as Record<string, unknown>)[key] ?? '');
+                                const content = render ? render(row) : cellText(row, key);
 
                                 return href ? (
                                     <td key={key} className={[cellClass, 'link'].join(' ')}>

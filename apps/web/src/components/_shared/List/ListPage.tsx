@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import Header from '../Header/Header';
 import ListFrame from './ListFrame';
-import ListTable, { type ColumnIF } from './ListTable';
+import ListTable from './ListTable';
+import { pageAfterDelete, pageFromParam, resolveColumns, type Columns } from './listLogic';
 import DeleteButton from './DeleteButton';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { useListSearch } from '../../../hooks/useListSearch';
@@ -18,7 +19,7 @@ interface ListPageIF<T extends { id: number }> {
     path: string;
     // A text key
     title: string;
-    columns: ColumnIF<T>[] | ((rows: T[]) => ColumnIF<T>[]);
+    columns: Columns<T>;
     rowHref: (row: T, page: number) => string | undefined;
     // The "Add" button's address, when the list has one
     addHref?: (page: number) => string;
@@ -57,7 +58,7 @@ const ListPage = <T extends { id: number }>({
 }: ListPageIF<T>) => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
-    const page = Number(useParams().page) || 1;
+    const page = pageFromParam(useParams().page);
     const pageHref = (number: number) => `${path}${number}/`;
     const { keyword, setKeyword, withSearch } = useListSearch(pageHref);
     const { promptDelete } = useDeleteItem([resource]);
@@ -86,7 +87,7 @@ const ListPage = <T extends { id: number }>({
 
     // Deleting the last row of a page goes to the page before, which still has rows
     const remove = (row: T, rowsOnPage: number) => {
-        const target = rowsOnPage === 1 && page > 1 ? page - 1 : page;
+        const target = pageAfterDelete(page, rowsOnPage);
 
         promptDelete({
             id: row.id,
@@ -113,7 +114,7 @@ const ListPage = <T extends { id: number }>({
             >
                 {(rows) => (
                     <ListTable<T>
-                        columns={typeof columns === 'function' ? columns(rows) : columns}
+                        columns={resolveColumns(columns, rows)}
                         rows={rows}
                         rowKey={(row) => row.id}
                         rowHref={(row) => rowHref(row, page)}

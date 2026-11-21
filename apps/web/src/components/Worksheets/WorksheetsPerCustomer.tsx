@@ -19,6 +19,14 @@ import type { InvoiceIF, WorksheetIF } from '../../types';
 import type { CustomerIF } from '../../types/customer';
 import type { HeaderButtonIF } from '../../types/header';
 import { endpoint, listPageSize, PATHS, RESOURCE } from '../../variables';
+import { pageAfterDelete, pageFromParam } from '../_shared/List/listLogic';
+import {
+    invoiceItems,
+    invoiceNumberOf,
+    isAllSelected,
+    selectableIds,
+    toggledAll,
+} from './worksheetSelection';
 import styles from './WorksheetsPerCustomer.module.sass';
 
 // A customer's worksheets: also the small list on the customer's page, without the discount price
@@ -68,8 +76,8 @@ const WorksheetsPerCustomer = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { page: rawPage, customerId = '', worksheetPage } = useParams();
-    const page = Number(rawPage) || 1;
-    const currentPage = Number(worksheetPage) || 1;
+    const page = pageFromParam(rawPage);
+    const currentPage = pageFromParam(worksheetPage);
     const pageHref = (number: number) => `${PATHS.WORKSHEETS}${page}/${customerId}/${number}/`;
     const { keyword, setKeyword, withSearch } = useListSearch(pageHref);
     const [showInvoiceDropdown, setShowInvoiceDropdown] = useState(false);
@@ -113,26 +121,17 @@ const WorksheetsPerCustomer = () => {
         doInvoice({
             invoiceId,
             customerId: Number(customerId),
-            items: selectedCheckboxes.map((worksheetId) => {
-                const worksheet = worksheets.find((item) => item.id === worksheetId);
-
-                return {
-                    worksheetId,
-                    productId: worksheet?.product_id || 0,
-                    quantity: worksheet?.quantity || 0,
-                };
-            }),
+            items: invoiceItems(selectedCheckboxes, worksheets),
         });
     };
 
-    const selectable = worksheets.filter((item) => !item.invoice).map((item) => item.id);
-    const allSelected =
-        selectable.length > 0 && selectable.every((id) => selectedCheckboxes.includes(id));
-    const toggleAll = () => setSelectedCheckboxes(allSelected ? [] : selectable);
+    const selectable = selectableIds(worksheets);
+    const allSelected = isAllSelected(selectable, selectedCheckboxes);
+    const toggleAll = () => setSelectedCheckboxes(toggledAll(selectable, selectedCheckboxes));
 
     // Deleting the last row of a page goes to the page before; the customer list's counts change
     const remove = (id: number) => {
-        const target = worksheets.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+        const target = pageAfterDelete(currentPage, worksheets.length);
 
         promptDelete({
             id,
@@ -143,8 +142,7 @@ const WorksheetsPerCustomer = () => {
         });
     };
 
-    const invoiceNumber = (invoice?: number) =>
-        customerInvoices?.find((item) => item.id === invoice)?.number;
+    const invoiceNumber = (invoice?: number) => invoiceNumberOf(customerInvoices, invoice);
 
     const buttons: HeaderButtonIF[] = [
         {

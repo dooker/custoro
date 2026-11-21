@@ -4,6 +4,7 @@ import { Axios } from '../Axios';
 import { handleError } from '../shared/helpers';
 import type { AxiosResponse } from 'axios';
 import { endpoint, PATHS, RESOURCE } from '../variables';
+import { toggled } from '../components/Worksheets/worksheetSelection';
 
 interface InvoiceMutationIF {
     invoiceId?: number;
@@ -37,9 +38,7 @@ export const useWorksheetActions = (customerId: number, queryKey: QueryKey) => {
     });
 
     const toggleCheckbox = (id: number) => {
-        setSelectedCheckboxes((prev) =>
-            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-        );
+        setSelectedCheckboxes((prev) => toggled(prev, id));
     };
 
     return {

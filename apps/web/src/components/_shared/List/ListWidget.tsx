@@ -1,5 +1,6 @@
 import ListFrame from './ListFrame';
-import ListTable, { type ColumnIF } from './ListTable';
+import ListTable from './ListTable';
+import { resolveColumns, type Columns } from './listLogic';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { type ListParams, useResourceList } from '../../../hooks/useResourceList';
 import { capitalizeFirst } from '../../../utils/_helpers';
@@ -10,7 +11,7 @@ interface ListWidgetIF<T extends { id: number }> {
     path: string;
     // A text key, shown as "Latest <title>"
     title: string;
-    columns: ColumnIF<T>[] | ((rows: T[]) => ColumnIF<T>[]);
+    columns: Columns<T>;
     rowHref: (row: T) => string | undefined;
     params?: ListParams;
     rowClassName?: (row: T) => string;
@@ -56,7 +57,7 @@ const ListWidget = <T extends { id: number }>({
         >
             {(rows) => (
                 <ListTable<T>
-                    columns={typeof columns === 'function' ? columns(rows) : columns}
+                    columns={resolveColumns(columns, rows)}
                     rows={rows}
                     rowKey={(row) => row.id}
                     rowHref={rowHref}
