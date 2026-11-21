@@ -4,8 +4,9 @@ import { apiHeaders, apiUrl, getApiToken } from './helpers/api';
 
 // The lists in the browser, as the admin (the owner of the dev install): the page's own header,
 // the search in the address, pages, rows as links, delete, a failed load, and the two issues of
-// release 5.2.0 (#41 language switcher, #42 Companies page). It creates products and a company, so
-// run it on the dev database only; the products are deleted again.
+// release 5.2.0 (#41 language switcher, #42 Companies page). It creates products and one test
+// company, so run it on the dev database only; the products are deleted again, the company is
+// reused by every later run.
 
 const listRows = (page: Page, resource: string) =>
     page.locator(`section.component.${resource} tbody tr`);
@@ -183,56 +184,103 @@ test('the language switcher changes the language on the first click after a relo
     await expect(page.getByTestId('main-link-products')).toHaveText('Products');
 });
 
+// The one company this file uses, made on the first run and reused after: companies are never
+// deleted (switched off at most), so a new one per run would pile up in the dev database. A run
+// that stopped half way may have left it renamed or switched off; it is put back first.
+const testCompany = 'E2E Company';
+
+const testCompanyId = async (request: APIRequestContext, token: string): Promise<number> => {
+    const found = await (
+        await request.get(
+            `${apiUrl}/tenants?keyword=${encodeURIComponent(testCompany)}&limit=50`,
+            { headers: apiHeaders(token) }
+        )
+    ).json();
+    const existing = (found.resource as { id: number; name: string }[])
+        .filter(({ name }) => name.startsWith(testCompany))
+        .sort((a, b) => a.id - b.id)[0];
+
+    if (existing) {
+        await putCompany(request, token, existing.id, { name: testCompany, active: true });
+
+        return existing.id;
+    }
+
+    const created = await (
+        await request.post(`${apiUrl}/tenants`, {
+            headers: apiHeaders(token),
+            data: { name: testCompany, adminEmail: 'e2e-company@example.test', adminName: 'E2E' },
+        })
+    ).json();
+
+    expect(created.success, 'the test company is made').toBe(true);
+
+    return created.insertId;
+};
+
+const putCompany = async (
+    request: APIRequestContext,
+    token: string,
+    id: number,
+    change: { name?: string; active?: boolean }
+) => {
+    const body = await (
+        await request.put(`${apiUrl}/tenants/${id}`, { headers: apiHeaders(token), data: change })
+    ).json();
+
+    expect(body.success, `company ${id} ${JSON.stringify(change)}`).toBe(true);
+};
+
 // Issue 42
 test('the owner finds, opens, renames and switches a company off and on', async ({
     page,
     request,
 }) => {
     const tag = Date.now().toString(36);
-    const name = `E2E Company ${tag}`;
+    const name = `${testCompany} ${tag}`;
     const token = await getApiToken(request);
-    const created = await (
-        await request.post(`${apiUrl}/tenants`, {
-            headers: apiHeaders(token),
-            data: { name, adminEmail: `e2e-company-${tag}@example.test`, adminName: 'E2E' },
-        })
-    ).json();
+    const id = await testCompanyId(request, token);
 
-    expect(created.success).toBe(true);
+    // A name only this run has, so the search finds it alone
+    await putCompany(request, token, id, { name });
 
-    await page.goto('/tenants/1/');
-    await expect(heading(page)).toHaveText('Companies');
-    await page.getByTestId('search-button').click();
-    await page.getByTestId('search-input').fill(tag);
-    await expect(page).toHaveURL(`/tenants/1/?q=${tag}`);
-    await expect(listRows(page, 'tenants')).toHaveCount(1);
-    await expect(listRows(page, 'tenants').first()).toContainText('Active');
+    try {
+        await page.goto('/tenants/1/');
+        await expect(heading(page)).toHaveText('Companies');
+        await page.getByTestId('search-button').click();
+        await page.getByTestId('search-input').fill(tag);
+        await expect(page).toHaveURL(`/tenants/1/?q=${tag}`);
+        await expect(listRows(page, 'tenants')).toHaveCount(1);
+        await expect(listRows(page, 'tenants').first()).toContainText('Active');
 
-    await listRows(page, 'tenants').first().getByRole('link').first().click();
-    await expect(page).toHaveURL(`/tenant/1/${created.insertId}/`);
-    await expect(heading(page)).toHaveText(`Company - ${name}`);
+        await listRows(page, 'tenants').first().getByRole('link').first().click();
+        await expect(page).toHaveURL(`/tenant/1/${id}/`);
+        await expect(heading(page)).toHaveText(`Company - ${name}`);
 
-    // Rename
-    await page.getByRole('textbox', { name: 'Name' }).fill(`${name} renamed`);
-    await page.getByTestId('save-tenant').click();
-    await expect(page.getByText(/^Saved/)).toBeVisible();
-    await expect(heading(page)).toHaveText(`Company - ${name} renamed`);
+        // Rename
+        await page.getByRole('textbox', { name: 'Name' }).fill(`${name} renamed`);
+        await page.getByTestId('save-tenant').click();
+        await expect(page.getByText(/^Saved/)).toBeVisible();
+        await expect(heading(page)).toHaveText(`Company - ${name} renamed`);
 
-    // Off (red) and on again
-    const switchButton = page.getByTestId('switch-tenant');
+        // Off (red) and on again
+        const switchButton = page.getByTestId('switch-tenant');
 
-    await expect(switchButton).toHaveText('Switch off');
-    await expect(switchButton).toHaveClass(/tertiary/);
-    await switchButton.click();
-    await expect(switchButton).toHaveText('Switch on');
-    await expect(page.getByTestId('tenant-facts')).toContainText('Switched off');
-    await switchButton.click();
-    await expect(switchButton).toHaveText('Switch off');
+        await expect(switchButton).toHaveText('Switch off');
+        await expect(switchButton).toHaveClass(/tertiary/);
+        await switchButton.click();
+        await expect(switchButton).toHaveText('Switch on');
+        await expect(page.getByTestId('tenant-facts')).toContainText('Switched off');
+        await switchButton.click();
+        await expect(switchButton).toHaveText('Switch off');
 
-    // Back to the list: the new name is there
-    await page.getByRole('button', { name: 'Go Back' }).click();
-    await expect(page).toHaveURL('/tenants/1/');
-    await page.getByTestId('search-button').click();
-    await page.getByTestId('search-input').fill(`${tag} renamed`);
-    await expect(listRows(page, 'tenants')).toHaveCount(1);
+        // Back to the list: the new name is there
+        await page.getByRole('button', { name: 'Go Back' }).click();
+        await expect(page).toHaveURL('/tenants/1/');
+        await page.getByTestId('search-button').click();
+        await page.getByTestId('search-input').fill(`${tag} renamed`);
+        await expect(listRows(page, 'tenants')).toHaveCount(1);
+    } finally {
+        await putCompany(request, token, id, { name: testCompany, active: true });
+    }
 });
