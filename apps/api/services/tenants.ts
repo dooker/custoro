@@ -4,7 +4,7 @@
 // scripts/setOwner.ts) uses the same functions.
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { query } from "../helper/query";
-import { applyPaging, getPaging, keywordOf, keywordWhere } from "../routes/_getters";
+import { applyPaging, getPaging, keywordOf, keywordWhere, pageMeta } from "../routes/_getters";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
 import { companySeed } from "../helpers/companySeed";
 import { isValidEmail } from "../helpers/credentials";
@@ -35,49 +35,45 @@ export interface TenantListIF {
     keyword?: unknown;
 }
 
-/** One page of the companies, like the other lists: { resource, meta: { total pages, page } } */
+/**
+ * One page of the companies, like the other lists: { resource, meta } (pageMeta: the rows are
+ * counted first, a page past the end gives the last page)
+ */
 export const listTenants = async (database: string, { page, limit, keyword }: TenantListIF) => {
-    const paging = getPaging(page, limit);
     const search = keywordWhere({
         keyword: keywordOf(keyword),
         table: "tenants"
     });
+    const total = await query<{ total: number }>({
+        database,
+        sql: `SELECT COUNT(*) AS total
+              FROM tenants
+              ${search.sql};`,
+        params: search.params,
+        logger: "Count the companies"
+    });
 
-    const [rows, total] = await Promise.all([
-        query<TenantRow>({
-            database,
-            sql: applyPaging(
-                `SELECT ${tenantColumns}
-                 FROM tenants
-                 ${search.sql}
-                 ORDER BY tenants.id`,
-                paging
-            ),
-            params: search.params,
-            logger: "List the companies"
-        }),
-        query<{ total: number }>({
-            database,
-            sql: `SELECT COUNT(*) AS total
-                  FROM tenants
-                  ${search.sql};`,
-            params: search.params,
-            logger: "Count the companies"
-        })
-    ]);
-
-    if (!rows.success || !total.success) {
+    if (!total.success) {
         return { success: false, message: "error" };
     }
 
-    return {
-        success: true,
-        resource: rows.data,
-        meta: {
-            total: Math.ceil((total.data?.[0]?.total ?? 0) / paging.limit),
-            page: paging.page
-        }
-    };
+    const meta = pageMeta(getPaging(page, limit), Number(total.data?.[0]?.total ?? 0));
+    const rows = await query<TenantRow>({
+        database,
+        sql: applyPaging(
+            `SELECT ${tenantColumns}
+             FROM tenants
+             ${search.sql}
+             ORDER BY tenants.id`,
+            meta
+        ),
+        params: search.params,
+        logger: "List the companies"
+    });
+
+    return rows.success
+        ? { success: true, resource: rows.data, meta }
+        : { success: false, message: "error" };
 };
 
 /** One company with its counts, in the shape of the other single reads: { data: [row] } */

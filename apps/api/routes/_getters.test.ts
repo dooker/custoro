@@ -10,6 +10,7 @@ import {
     getUsers,
     getWorksheets,
     keywordWhere,
+    pageMeta,
     keywordWords,
     limitMarker,
     type SearchTable
@@ -456,4 +457,44 @@ describe("every list filters by the caller's company first", () => {
             }
         });
     }
+});
+
+describe("pageMeta", () => {
+    it("answers the page asked for while it has rows", () => {
+        expect(pageMeta({ page: 2, limit: 15 }, 40)).toEqual({
+            page: 2,
+            pages: 3,
+            rows: 40,
+            limit: 15,
+            total: 3
+        });
+    });
+
+    it("answers the last page for a page past the end", () => {
+        expect(pageMeta({ page: 999, limit: 15 }, 40)).toMatchObject({ page: 3, pages: 3 });
+    });
+
+    it("answers page 1 and no pages when nothing matches", () => {
+        expect(pageMeta({ page: 5, limit: 15 }, 0)).toEqual({
+            page: 1,
+            pages: 0,
+            rows: 0,
+            limit: 15,
+            total: 0
+        });
+    });
+
+    it("counts a last page that is not full", () => {
+        expect(pageMeta({ page: 1, limit: 15 }, 15).pages).toBe(1);
+        expect(pageMeta({ page: 1, limit: 15 }, 16).pages).toBe(2);
+    });
+});
+
+describe("getWorksheets for one customer", () => {
+    it("counts the same rows it lists, paid (locked) worksheets too", () => {
+        const { sql, totalSql } = getWorksheets({ tenantId: 1, customerId: 9 });
+
+        expect(sql).not.toMatch(/locked\s*!=/);
+        expect(totalSql).not.toMatch(/locked\s*!=/);
+    });
 });

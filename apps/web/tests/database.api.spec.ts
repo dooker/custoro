@@ -204,7 +204,7 @@ test.describe('write bodies', () => {
         ...changes,
     });
 
-    const customerCount = async () => (await call('get', '/customers?page=1&limit=1')).meta.total;
+    const customerCount = async () => (await call('get', '/customers?page=1&limit=1')).meta.rows;
 
     test('a customer name that is an object or a list is refused, where it used to be stored as "[object Object]"', async () => {
         const before = await customerCount();
@@ -1056,10 +1056,10 @@ test.describe('worksheets grouped by customer', () => {
         );
     });
 
-    test('counts the pages by customers: the last page has rows and the one after it none', async () => {
+    test('counts the pages by customers: the last page has rows, the one after it is the last', async () => {
         const limit = 10;
         const first = await call('get', `/worksheets?page=1&limit=${limit}`);
-        const pages = first.meta.total;
+        const pages = first.meta.pages;
 
         expect(pages).toBeGreaterThanOrEqual(1);
         expect(first.resource.length).toBeGreaterThan(0);
@@ -1068,9 +1068,10 @@ test.describe('worksheets grouped by customer', () => {
 
         expect(last.resource.length).toBeGreaterThan(0);
         expect(last.resource.length).toBeLessThanOrEqual(limit);
-        expect(
-            (await call('get', `/worksheets?page=${pages + 1}&limit=${limit}`)).resource
-        ).toHaveLength(0);
+        expect(await call('get', `/worksheets?page=${pages + 1}&limit=${limit}`)).toMatchObject({
+            meta: { page: pages },
+            resource: last.resource,
+        });
     });
 
     test('is the same through the search, with and without a keyword', async () => {
@@ -1126,8 +1127,8 @@ test.describe('invoice list', () => {
 
         // A few pages, not all of them: with 50 000 invoices there are 5000 pages of 10. The first
         // three show the order carries over from one page to the next, the last one the end.
-        const sampled = [...new Set([1, 2, 3, first.meta.total])].filter(
-            (number) => number >= 1 && number <= first.meta.total
+        const sampled = [...new Set([1, 2, 3, first.meta.pages])].filter(
+            (number) => number >= 1 && number <= first.meta.pages
         );
         const rows: { id: number; number: string }[] = [];
         const start: { id: number; number: string }[] = [];
@@ -1147,8 +1148,12 @@ test.describe('invoice list', () => {
             rows.length
         );
 
-        // there is nothing after the last page
-        expect((await page(first.meta.total + 1)).resource).toHaveLength(0);
+        // a page past the end answers with the last page, and says so
+        const last = await page(first.meta.pages);
+        const after = await page(first.meta.pages + 1);
+
+        expect(after.meta.page).toBe(first.meta.pages);
+        expect(after.resource).toEqual(last.resource);
     });
 
     test('pages through the invoices of one customer, newest first, with the line count of each', async () => {
@@ -1177,8 +1182,41 @@ test.describe('invoice list', () => {
         expect(one.resource.map((row: { total: number }) => row.total)).toEqual([3, 2]);
         expect(two.resource.map((row: { id: number }) => row.id)).toEqual([ids[0]]);
         expect(two.resource[0]).toMatchObject({ total: 1, name: `Pager ${unique}` });
-        expect(one.meta.total, 'pages').toBe(2);
-        expect((await page(3)).resource).toHaveLength(0);
+        expect(one.meta).toEqual({ page: 1, pages: 2, rows: 3, limit: 2, total: 2 });
+        // page 3 is past the end: the last page, with the page it is from
+        expect(await page(3)).toMatchObject({ meta: { page: 2 }, resource: [{ id: ids[0] }] });
+    });
+
+    test("pages through one customer's worksheets, the paid ones counted too", async () => {
+        const customer = await createCustomer(`Paid sheets ${unique}`);
+        const product = await createProduct(`PDS-${unique}`);
+        const sheets: number[] = [];
+
+        for (let index = 0; index < 7; index++) {
+            sheets.push(await createWorksheet(customer, product, 1));
+        }
+
+        // six of the seven on an invoice that is then paid: those worksheets are locked
+        const invoice = await call('post', '/invoice', {
+            customerId: customer,
+            items: sheets.slice(0, 6).map((worksheetId) => ({ worksheetId, productId: product, quantity: 1 })),
+        });
+
+        expect(invoice.success).toBe(true);
+        expect((await call('put', `/invoice/paid/${invoice.lastId}`)).success).toBe(true);
+
+        const page = async (number: number) =>
+            call('get', `/worksheets?customer=${customer}&page=${number}&limit=5`);
+        const one = await page(1);
+        const two = await page(2);
+
+        // they were counted as 1 row (the unpaid one): 1 page, and rows 6 and 7 out of reach
+        expect(one.meta).toMatchObject({ page: 1, pages: 2, rows: 7 });
+        expect(one.resource).toHaveLength(5);
+        expect(two.resource).toHaveLength(2);
+        expect(
+            new Set([...one.resource, ...two.resource].map((row: { id: number }) => row.id))
+        ).toEqual(new Set(sheets));
     });
 
     test('filters by customer and keyword together', async () => {

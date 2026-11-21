@@ -1,11 +1,11 @@
-import { getFromTo, getInvoices, keywordOf } from "../routes/_getters";
+import { getInvoices, keywordOf } from "../routes/_getters";
 import { getGeneralMultiple } from "./_helpers";
 import { tenantOf } from "../helpers/tenant";
 import type { Request } from "express";
 
 export const getMultiple = async (request: Request) => {
     const {
-        query: { page, limit, customer, keyword }
+        query: { customer, keyword }
     } = request;
     const { sql, totalSql, params } = getInvoices({
         tenantId: tenantOf(request),
@@ -15,7 +15,7 @@ export const getMultiple = async (request: Request) => {
 
     return await getGeneralMultiple({
         request,
-        sql: getFromTo(sql, page, limit),
+        sql,
         params,
         totalSql,
         type: "invoices"

@@ -22,16 +22,17 @@ beforeEach(() => {
 describe("listTenants", () => {
     it("answers a page with the number of pages, like the other lists", async () => {
         queryMock
-            .mockResolvedValueOnce({ success: true, data: [row] })
-            .mockResolvedValueOnce({ success: true, data: [{ total: 21 }] });
+            .mockResolvedValueOnce({ success: true, data: [{ total: 21 }] })
+            .mockResolvedValueOnce({ success: true, data: [row] });
 
         expect(await listTenants("shop", { page: "3", limit: "10" })).toEqual({
             success: true,
             resource: [row],
-            meta: { total: 3, page: 3 }
+            meta: { page: 3, pages: 3, rows: 21, limit: 10, total: 3 }
         });
 
-        const [list, count] = queryMock.mock.calls.map(([call]) => call);
+        // counted first, so the page is known before the rows are read
+        const [count, list] = queryMock.mock.calls.map(([call]) => call);
         expect(list.sql).toContain("LIMIT 20, 10");
         expect(list.params).toEqual([]);
         expect(count.sql).toContain("COUNT(*)");
@@ -49,12 +50,25 @@ describe("listTenants", () => {
         }
     });
 
+    it("answers the last page for a page past the end", async () => {
+        queryMock
+            .mockResolvedValueOnce({ success: true, data: [{ total: 21 }] })
+            .mockResolvedValueOnce({ success: true, data: [row] });
+
+        const answer = await listTenants("shop", { page: "99", limit: "10" });
+
+        expect(answer).toMatchObject({ meta: { page: 3, pages: 3 } });
+        expect(queryMock.mock.calls[1][0].sql).toContain("LIMIT 20, 10");
+    });
+
     it("ignores a keyword that is not text and a page size over the maximum", async () => {
-        queryMock.mockResolvedValue({ success: true, data: [] });
+        queryMock
+            .mockResolvedValueOnce({ success: true, data: [{ total: 0 }] })
+            .mockResolvedValueOnce({ success: true, data: [] });
 
         await listTenants("shop", { keyword: ["x"], limit: "5000" });
 
-        const [{ sql, params }] = queryMock.mock.calls[0];
+        const [{ sql, params }] = queryMock.mock.calls[1];
         expect(sql).not.toContain("LIKE");
         expect(sql).toContain("LIMIT 0, 50");
         expect(params).toEqual([]);

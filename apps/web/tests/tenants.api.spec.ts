@@ -414,7 +414,7 @@ test('the owner pages, searches and opens the companies', async () => {
     const { b } = companies;
 
     const found = await call(ownerToken, 'get', `/tenants?keyword=${encodeURIComponent(b.name)}`);
-    expect(found).toMatchObject({ success: true, meta: { total: 1, page: 1 } });
+    expect(found).toMatchObject({ success: true, meta: { page: 1, pages: 1, rows: 1 } });
     expect(found.resource).toEqual([
         expect.objectContaining({ id: b.id, name: b.name, people: expect.any(Number) }),
     ]);
@@ -424,7 +424,8 @@ test('the owner pages, searches and opens the companies', async () => {
 
     const firstPage = await call(ownerToken, 'get', '/tenants?page=1&limit=1');
     expect(firstPage.resource).toHaveLength(1);
-    expect(firstPage.meta.total).toBeGreaterThanOrEqual(2);
+    expect(firstPage.meta.pages).toBeGreaterThanOrEqual(2);
+    expect(firstPage.meta.rows).toBe(firstPage.meta.pages);
 
     expect((await call(ownerToken, 'get', `/tenants/${b.id}`)).data).toEqual([
         expect.objectContaining({ id: b.id, name: b.name, invoices: expect.any(Number) }),

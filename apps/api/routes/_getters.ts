@@ -29,6 +29,29 @@ export const getPaging = (rawPage: unknown, rawLimit: unknown) => ({
     limit: Math.min(positiveInteger(rawLimit) ?? config.itemsPerPage, config.maxItemsPerPage)
 });
 
+export interface PageMetaIF {
+    // The page the rows are from: the one asked for, or the last one when that is past the end
+    page: number;
+    // How many pages there are (0 for no rows)
+    pages: number;
+    // How many rows match, on all pages
+    rows: number;
+    limit: number;
+    // The number of pages, under its old name: web apps before 5.2.0 read it (drop in 5.3.0)
+    total: number;
+}
+
+/**
+ * The page a list answers with, once the matching rows are counted: a page past the end gives the
+ * last page (the old /search did, the lists answered with no rows), no rows give page 1.
+ */
+export const pageMeta = (requested: { page: number; limit: number }, rows: number): PageMetaIF => {
+    const pages = Math.ceil(Math.max(rows, 0) / requested.limit);
+    const page = Math.min(requested.page, Math.max(pages, 1));
+
+    return { page, pages, rows, limit: requested.limit, total: pages };
+};
+
 // Where a statement wants its paging LIMIT instead of at the end: a getter that pages inside a
 // derived table (it picks the rows of the page first and joins the rest after) puts this comment
 // there, and applyPaging replaces it. The comment keeps the statement valid without paging.
@@ -301,9 +324,10 @@ export const getWorksheets = ({ tenantId, keyword = null, customerId }: GetterIF
             AND worksheets.customer_id = ?
                 ORDER BY worksheets.id DESC
         `);
+        // The same rows as the list: paid (locked) worksheets are listed, so they are counted (a
+        // customer with 20 worksheets, 10 of them paid, had 1 page and rows 16 to 20 out of reach)
         totalSql.push(`
             AND worksheets.customer_id = ?
-                AND worksheets.locked!="1"
         `);
         params.push(customerId as number);
     } else if (keyword) {
