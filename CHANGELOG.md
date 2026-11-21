@@ -5,6 +5,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.2.0 - 2026-11-21
+
 ### Fixed
 
 - The language switcher needed two clicks: after a page load in Estonian (or English (fun)), the
