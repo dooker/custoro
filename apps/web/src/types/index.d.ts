@@ -37,15 +37,6 @@ interface SingleGetterIF {
     config?: AxiosRequestConfig;
 }
 
-interface GetterIF {
-    path: string;
-    page?: number;
-    compact?: boolean;
-    id?: number | null;
-    customerId?: number | null;
-    limit?: number;
-}
-
 interface SelectOptionIF {
     label: string;
     value: string;
@@ -177,16 +168,6 @@ type FieldValue = string | number | SelectOptionIF | undefined | null | File;
 
 // All possible types for the "setter" state
 type FieldState = ProfileIF | SettingsIF | string | number | null;
-
-export interface DefaultListIF {
-    list: string;
-    loader: boolean;
-    renderer: () => ReactNode;
-    meta: MetaIF | null | undefined;
-    path: string;
-    compact?: boolean;
-    header: HeaderIF;
-}
 
 export interface MutateIF<T> {
     data: T;

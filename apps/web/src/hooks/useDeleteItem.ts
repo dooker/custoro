@@ -52,7 +52,9 @@ export const useDeleteItem = (queryKeyToInvalidate: string[]) => {
                 cache();
             }
 
-            if (resource === RESOURCE.INVOICE) {
+            if (variables.returnTo) {
+                navigate(variables.returnTo);
+            } else if (resource === RESOURCE.INVOICE) {
                 navigate(`/${resource}/${page}/${invoiceId}/`);
             } else if (resource === RESOURCE.WORKSHEETS_PER_CUSTOMER) {
                 navigate(`${PATHS.WORKSHEETS}${page}/${customer}/${parentPage}/`);

@@ -1,298 +1,230 @@
-import { useEffect, useState } from 'react';
-import { RESOURCE, endpoint, PATHS } from '../../variables';
-import { useNavigate, useParams } from 'react-router';
-import DefaultList from '../_shared/DefaultList';
-import NoEntries from '../_shared/NoEntries/NoEntries';
-import type { DataResponseIF, InvoiceIF, WorksheetIF } from '../../types';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Header from '../_shared/Header/Header';
+import ListFrame from '../_shared/List/ListFrame';
+import ListTable, { type ColumnIF } from '../_shared/List/ListTable';
+import DeleteButton from '../_shared/List/DeleteButton';
+import Dropdown from './Dropdown';
 import { useAuth } from '../../contexts/Auth';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getSingle } from '../../utils/Getters/getSingle';
-import { getMultiple } from '../../utils/Getters/getMultiple';
 import { useWorksheetActions } from '../../hooks/useWorksheetActions';
-
-import WorksheetRow from './WorksheetRow';
-import { useKeyword } from '../../hooks/useKeyword';
-import { getSearch } from '../../utils/Getters/getSearch';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
-import Dropdown from './Dropdown';
+import { useListSearch } from '../../hooks/useListSearch';
+import { useResourceList } from '../../hooks/useResourceList';
+import { getSingle } from '../../utils/Getters/getSingle';
+import { formatPrice } from '../../utils/invoiceTotals';
 import { Axios } from '../../Axios';
+import type { InvoiceIF, WorksheetIF } from '../../types';
 import type { CustomerIF } from '../../types/customer';
-import { visibleRowCount } from '../../shared/helpers';
-import { useHeadlineHandler } from '../../hooks/useHeadline';
-import { useButtonsHandler } from '../../hooks/useButtons';
-import type { HeaderIF } from '../../types/header';
+import type { HeaderButtonIF } from '../../types/header';
+import { endpoint, listPageSize, PATHS, RESOURCE } from '../../variables';
+import { pageAfterDelete, pageFromParam } from '../_shared/List/listLogic';
+import {
+    invoiceItems,
+    invoiceNumberOf,
+    isAllSelected,
+    selectableIds,
+    toggledAll,
+} from './worksheetSelection';
+import styles from './WorksheetsPerCustomer.module.sass';
 
-interface WorksheetsIF {
-    existingCustomer?: CustomerIF;
-    compact?: boolean;
-}
+// A customer's worksheets: also the small list on the customer's page, without the discount price
+export const customerWorksheetColumns = (showDiscount: boolean): ColumnIF<WorksheetIF>[] => [
+    { key: 'code', label: '#', className: 'id' },
+    {
+        key: 'name',
+        label: 'worksheets.form.products',
+        className: 'name',
+        render: ({ name }) => <span>{name}</span>,
+    },
+    {
+        key: 'price',
+        label: 'worksheets.form.price',
+        className: 'items',
+        render: ({ price }) => formatPrice(price),
+    },
+    ...(showDiscount
+        ? [
+              {
+                  key: 'discountPrice',
+                  label: 'worksheets.form.discountPrice',
+                  className: 'items',
+                  render: ({ discountPrice }: WorksheetIF) => formatPrice(discountPrice),
+              },
+          ]
+        : []),
+    { key: 'quantity', label: 'worksheets.form.quantity', className: 'items' },
+];
 
-const WorksheetsPerCustomer = ({ existingCustomer, compact }: WorksheetsIF) => {
-    const page = Number(useParams().page) || 1;
-    const navigate = useNavigate();
+// A worksheet on an invoice cannot be changed, so it does not open
+export const customerWorksheetHref = (
+    { id, invoice }: WorksheetIF,
+    customerId: number | string,
+    page = 1,
+    worksheetPage = 1
+) => (invoice ? undefined : `${PATHS.WORKSHEET}${page}/${customerId}/${worksheetPage}/${id}/`);
+
+export const invoicedRow = ({ invoice }: WorksheetIF) => (invoice ? `disabled ${styles.row}` : '');
+
+/**
+ * One customer's worksheets: pick some and put them on a new or an existing invoice. The address
+ * is /worksheets/<page of the customer list>/<customer>/<page of this list>/.
+ */
+const WorksheetsPerCustomer = () => {
     const { t } = useSafeTranslation();
-    const { customerId: customerIdParam, worksheetPage } = useParams();
-    const currentWorksheetPage = Number(worksheetPage) || 1;
-    const customerId = existingCustomer?.id.toString() || customerIdParam;
-    const { keyword, updateKeyword } = useKeyword();
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { page: rawPage, customerId = '', worksheetPage } = useParams();
+    const page = pageFromParam(rawPage);
+    const currentPage = pageFromParam(worksheetPage);
+    const pageHref = (number: number) => `${PATHS.WORKSHEETS}${page}/${customerId}/${number}/`;
+    const { keyword, setKeyword, withSearch } = useListSearch(pageHref);
     const [showInvoiceDropdown, setShowInvoiceDropdown] = useState(false);
     const { user } = useAuth();
-    const { discount } = user || {};
-    const limit = visibleRowCount(compact);
-    const worksheetQueryKey = [
-        RESOURCE.WORKSHEETS_PER_CUSTOMER,
-        String(limit),
-        String(customerId),
-        String(worksheetPage),
-        String(currentWorksheetPage),
-        keyword,
-    ];
-    const { promptDelete } = useDeleteItem(worksheetQueryKey);
+    const showDiscount = !!Number(user?.discount);
+    const listKey = [RESOURCE.WORKSHEETS_PER_CUSTOMER];
+    const { promptDelete } = useDeleteItem(listKey);
     const { selectedCheckboxes, setSelectedCheckboxes, doInvoice, toggleCheckbox } =
-        useWorksheetActions(Number(customerId), worksheetQueryKey);
-    const queryClient = useQueryClient();
-    const updateTitle = useHeadlineHandler();
-    const updateButtons = useButtonsHandler();
-    const enableUpdates = !existingCustomer || !existingCustomer.id;
+        useWorksheetActions(Number(customerId), listKey);
 
-    // fetch worksheets
-    const { data, isLoading: loading } = useQuery<DataResponseIF<WorksheetIF>>({
-        queryKey: worksheetQueryKey,
-        queryFn: () => {
-            if (keyword) {
-                return getSearch({
-                    keyword,
-                    resource: RESOURCE.WORKSHEETS,
-                    page,
-                    customer: customerId,
-                    limit,
-                });
-            }
-
-            return getMultiple({
-                path: PATHS.WORKSHEETS,
-                page: Number(worksheetPage),
-                customerId: Number(customerId),
-                limit,
-            });
-        },
-        placeholderData: keepPreviousData,
+    const query = useResourceList<WorksheetIF>({
+        resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
+        path: PATHS.WORKSHEETS,
+        page: currentPage,
+        limit: listPageSize,
+        keyword,
+        params: { customer: customerId },
     });
-    const { resource: worksheets, meta } = data || {};
+    const worksheets = query.data?.resource ?? [];
 
-    // fetch customer
-    const { data: customer, isLoading: customerLoading } = useQuery<CustomerIF | null>({
+    const { data: customer } = useQuery<CustomerIF | null>({
         queryKey: [RESOURCE.CUSTOMER, customerId],
         queryFn: () => getSingle<CustomerIF>({ id: Number(customerId), type: RESOURCE.CUSTOMER }),
     });
 
-    // fetch customer invoices
-    // TODO [KAN-161] refactor so this is fired not on initial load but after load or only when user can add to invoice
-    const { data: customerInvoices, isLoading: customerInvoicesLoading } = useQuery<
-        InvoiceIF[] | null
-    >({
+    // The customer's invoices and the next invoice number, for "Add to invoice"
+    const { data: customerInvoices } = useQuery<InvoiceIF[]>({
         queryKey: [RESOURCE.INVOICES, 'all', Number(customerId)],
-        queryFn: async () => {
-            const response = await Axios.get(`${endpoint}${PATHS.INVOICE}all/${customerId}/`);
-
-            return response.data.data || [];
-        },
-        enabled: !!customerId && !compact,
+        queryFn: async () =>
+            (await Axios.get(`${endpoint}${PATHS.INVOICE}all/${customerId}/`)).data.data || [],
+        enabled: !!customerId,
     });
-    const checkboxes = worksheets?.map((item) => item.id);
-
-    // fetch last invoice number
-    const { data: lastInvoiceNumber, isLoading: lastInvoiceNumberLoading } = useQuery<
-        InvoiceIF[] | null
-    >({
+    const { data: lastInvoiceNumber } = useQuery<string | null>({
         queryKey: [RESOURCE.INVOICES, 'last'],
-        queryFn: async () => {
-            const response = await Axios.get(`${endpoint}${PATHS.INVOICE}last/`);
-
-            return response.data.data;
-        },
-        enabled: !!customerId && !compact,
+        queryFn: async () => (await Axios.get(`${endpoint}${PATHS.INVOICE}last/`)).data.data,
+        enabled: !!customerId,
     });
 
-    const addToInvoice = (id?: number) => {
-        const items = selectedCheckboxes.map((item) => {
-            const worksheet = worksheets?.find((ws) => ws.id === item);
-
-            return {
-                worksheetId: item,
-                productId: worksheet?.product_id || 0,
-                quantity: worksheet?.quantity || 0,
-            };
-        });
-
+    const addToInvoice = (invoiceId?: number) => {
         doInvoice({
-            invoiceId: id,
+            invoiceId,
             customerId: Number(customerId),
-            items,
+            items: invoiceItems(selectedCheckboxes, worksheets),
         });
     };
 
-    // Set up header config
-    useEffect(() => {
-        if (!enableUpdates) {
-            return;
-        }
+    const selectable = selectableIds(worksheets);
+    const allSelected = isAllSelected(selectable, selectedCheckboxes);
+    const toggleAll = () => setSelectedCheckboxes(toggledAll(selectable, selectedCheckboxes));
 
-        updateTitle({ title: `${t('worksheets.plural')}${customer ? ` - ${customer.name}` : ''}` });
-    }, [customer, t, updateTitle]);
-    useEffect(() => {
-        if (!enableUpdates) {
-            return;
-        }
+    // Deleting the last row of a page goes to the page before; the customer list's counts change
+    const remove = (id: number) => {
+        const target = pageAfterDelete(currentPage, worksheets.length);
 
-        const searchButton = {
-            label: 'button.search',
-        };
-        const addButton = {
+        promptDelete({
+            id,
+            resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
+            page: target,
+            returnTo: withSearch(pageHref(target)),
+            cache: () => void queryClient.invalidateQueries({ queryKey: [RESOURCE.WORKSHEETS] }),
+        });
+    };
+
+    const invoiceNumber = (invoice?: number) => invoiceNumberOf(customerInvoices, invoice);
+
+    const buttons: HeaderButtonIF[] = [
+        {
             label: 'button.add',
-            onClick: () =>
-                navigate(`${PATHS.WORKSHEET}${page}/${customerId}/${currentWorksheetPage}/0/`),
-        };
-        const invoiceButton = {
-            label: 'button.toInvoice',
-            onClick: () => setShowInvoiceDropdown(!showInvoiceDropdown),
-            dropdown: (
-                <Dropdown
-                    addToInvoice={addToInvoice}
-                    lastInvoiceId={Number(lastInvoiceNumber)}
-                    customerInvoices={customerInvoices}
-                />
-            ),
-        };
-        const listButton = {
+            onClick: () => navigate(`${PATHS.WORKSHEET}${page}/${customerId}/${currentPage}/0/`),
+        },
+        ...(selectedCheckboxes.length
+            ? [
+                  {
+                      label: 'button.toInvoice',
+                      onClick: () => setShowInvoiceDropdown(!showInvoiceDropdown),
+                      dropdown: (
+                          <Dropdown
+                              addToInvoice={addToInvoice}
+                              lastInvoiceId={Number(lastInvoiceNumber)}
+                              customerInvoices={customerInvoices}
+                          />
+                      ),
+                  },
+              ]
+            : []),
+        {
             label: 'button.list',
             onClick: () => navigate(`${PATHS.WORKSHEETS}${page}/`),
             classname: 'secondary',
-        };
-
-        updateButtons({
-            buttons: [
-                searchButton,
-                addButton,
-                ...(selectedCheckboxes.length ? [invoiceButton] : []),
-                listButton,
-            ],
-        });
-    }, [
-        updateButtons,
-        navigate,
-        page,
-        customerId,
-        currentWorksheetPage,
-        showInvoiceDropdown,
-        selectedCheckboxes.length,
-        lastInvoiceNumber,
-        customerInvoices,
-    ]);
-    const header: HeaderIF = {
-        keyword: '',
-        updateKeyword: updateKeyword,
-    };
-
-    const isAllSelected =
-        checkboxes && checkboxes.length > 0 && selectedCheckboxes.length === checkboxes.length;
-    const toggleAll = () => {
-        if (isAllSelected || !checkboxes) {
-            setSelectedCheckboxes([]);
-        } else {
-            setSelectedCheckboxes(checkboxes.map((id) => id));
-        }
-    };
-
-    // Invalidate specific cache and list
-    const invalidateCache = async () => {
-        await queryClient.invalidateQueries({
-            queryKey: [RESOURCE.WORKSHEETS, page, currentWorksheetPage, Number(customerId)],
-        });
-    };
-
-    const showTable = () => {
-        const navigationPage =
-            worksheets && worksheets.length === 1 && currentWorksheetPage > 1
-                ? currentWorksheetPage - 1
-                : currentWorksheetPage;
-
-        if (!worksheets) return null;
-
-        const handleViewClick = (id: number) => {
-            navigate(`${PATHS.WORKSHEET}${page}/${customerId}/${worksheetPage}/${id}/`);
-        };
-
-        return (compact ? worksheets.slice(0, 5) : worksheets).map((item) => (
-            <WorksheetRow
-                key={item.id}
-                item={item}
-                isSelected={selectedCheckboxes.includes(item.id)}
-                onToggle={toggleCheckbox}
-                onView={handleViewClick}
-                onDelete={(id) =>
-                    promptDelete({
-                        id,
-                        resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
-                        page: navigationPage,
-                        customer: Number(customerId),
-                        parentPage: currentWorksheetPage,
-                        cache: () => invalidateCache(),
-                    })
-                }
-                customerInvoices={customerInvoices as InvoiceIF[]}
-                hasDiscount={!!discount}
-                compact={compact}
-            />
-        ));
-    };
-
-    const showList = () => {
-        if (!worksheets?.length) {
-            return <NoEntries />;
-        }
-
-        return (
-            <table className={`general-table worksheet-table worksheets-per-customer`}>
-                <thead>
-                    <tr>
-                        <th className="id">#</th>
-                        <th className="name">{t('worksheets.form.products')}</th>
-                        <th className="items">{t('worksheets.form.price')}</th>
-                        {discount && !compact && (
-                            <th className="items">{t('worksheets.form.discountPrice')}</th>
-                        )}
-                        <th className="items">{t('worksheets.form.quantity')}</th>
-                        {!compact && (
-                            <th className="actions">
-                                {worksheets?.map((item) => !item.invoice).filter(Boolean).length ? (
-                                    <input type="checkbox" onChange={() => toggleAll()} />
-                                ) : null}
-                            </th>
-                        )}
-                    </tr>
-                </thead>
-                <tbody>{showTable()}</tbody>
-            </table>
-        );
-    };
-
-    // TODO refactor these into checkbox logic instead wait for these for initial render
-    // console.log(customerLoading, customerInvoicesLoading, lastInvoiceNumberLoading);
+        },
+    ];
 
     return (
-        <DefaultList
-            list={RESOURCE.WORKSHEETS_PER_CUSTOMER}
-            loader={
-                loading || customerLoading || customerInvoicesLoading || lastInvoiceNumberLoading
-            }
-            renderer={showList}
-            meta={meta}
-            path={PATHS.WORKSHEETS}
-            compact={compact}
-            header={header}
-        />
+        <>
+            <Header
+                title={`${t('worksheets.plural')}${customer ? ` - ${customer.name}` : ''}`}
+                search={{ value: keyword, onChange: setKeyword }}
+                buttons={buttons}
+            />
+
+            <ListFrame
+                resource={RESOURCE.WORKSHEETS_PER_CUSTOMER}
+                query={query}
+                page={currentPage}
+                pageHref={(number) => withSearch(pageHref(number))}
+            >
+                {(rows) => (
+                    <ListTable<WorksheetIF>
+                        columns={customerWorksheetColumns(showDiscount)}
+                        rows={rows}
+                        rowKey={(row) => row.id}
+                        rowHref={(row) => customerWorksheetHref(row, customerId, page, currentPage)}
+                        rowClassName={invoicedRow}
+                        className="worksheet-table worksheets-per-customer"
+                        actionsHead={
+                            selectable.length ? (
+                                <input
+                                    type="checkbox"
+                                    aria-label={t('button.toInvoice')}
+                                    checked={allSelected}
+                                    onChange={toggleAll}
+                                />
+                            ) : null
+                        }
+                        actions={(row) => (
+                            <span className={styles.actions}>
+                                {row.invoice ? (
+                                    invoiceNumber(row.invoice) ? (
+                                        <Link to={`${PATHS.INVOICE}1/${row.invoice}/`}>
+                                            {invoiceNumber(row.invoice)}
+                                        </Link>
+                                    ) : null
+                                ) : (
+                                    <input
+                                        type="checkbox"
+                                        aria-label={row.name}
+                                        checked={selectedCheckboxes.includes(row.id)}
+                                        onChange={() => toggleCheckbox(row.id)}
+                                    />
+                                )}
+                                <DeleteButton onClick={() => remove(row.id)} />
+                            </span>
+                        )}
+                    />
+                )}
+            </ListFrame>
+        </>
     );
 };
 

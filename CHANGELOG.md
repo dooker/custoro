@@ -5,6 +5,44 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.2.0 - 2026-11-21
+
+### Fixed
+
+- The language switcher needed two clicks: after a page load in Estonian (or English (fun)), the
+  first click on another language moved the star but the texts stayed as they were. Now one click
+  switches, and the language is remembered from the moment it changes (issue 41)
+- Home took the title and buttons of one of its small lists (often "Invoices" with a Search and an
+  Add button), and typing in that search box failed. Home now says "Dashboard" and has no buttons
+- A search started on a later page showed that page of the matches (page 3 of the results, often
+  only a few rows or none). A search now starts on page 1
+- A list that could not be loaded (no connection, a refusal) said "No entries". It now says the
+  list could not be loaded
+- The Name column of the customer list was in English in every language
+- After an invoice was saved, the invoice list showed the old version until a reload (up to five
+  minutes later)
+- A page number in an address that is not one (`/customer/abc/5/`, `0`, `-2`, `2.5`) counts as
+  page 1 on every page, as it does in the lists
+
+### Changed
+
+- The owner's Companies page works like the other lists (issue 42): search, pages, and an Add
+  button in the header that opens the new company form. A row opens the company on its own page,
+  where it is renamed and switched off or on with coloured buttons in the header (red to switch
+  off). The buttons no longer squeeze into the table rows, where their text did not fit
+- Lists show 15 rows per page on every screen, so a page number means the same rows on a phone
+  and a laptop (it depended on the window height)
+- The search word is in the address (`?q=`): it stays when you go to another page of the list, go
+  back or forward, or reload, and a link to a search shows the same list
+- A row in a list is a link: it can be opened in a new tab and reached with the keyboard. The
+  delete button at the end of a row has a name for screen readers, and the page numbers show only
+  when there is more than one page
+- Deleting the last row of a page goes back to the page before, in every list (only products did)
+- Every list searches itself: `GET /customers?keyword=…` (and `/products`, `/worksheets`,
+  `/invoices`, `/users`, `/tenants`) instead of the shared `/search`, which is gone. The web app
+  is changed with it. **Scripts or integrations that call the API's `/search` must call the list
+  with `keyword` instead** (the same words, the same matches; `/search` now answers 404)
+
 ## 5.1.0 - 2026-11-15
 
 ### Added

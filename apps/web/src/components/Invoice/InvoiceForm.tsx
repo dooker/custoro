@@ -1,7 +1,7 @@
 import { useImperativeHandle, useState } from 'react';
 import { isForeignVatNumber } from '../../utils/foreignVatNumber';
 import type { EntityOnChangeIF, InvoiceIF, MutateIF, ProductIF } from '../../types';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -43,7 +43,6 @@ type TypedInvoiceIF = Partial<InvoiceIF> & {
 };
 
 export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF) => {
-    const page = Number(useParams().page) || 1;
     const [draft, setDraft] = useState<InvoiceIF>(() => {
         if (isNew || !initialInvoice) {
             return {} as InvoiceIF;
@@ -73,7 +72,8 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
 
     const invalidator = async () => {
         await queryClient.invalidateQueries({ queryKey: [type, String(draft.id)] });
-        await queryClient.invalidateQueries({ queryKey: [RESOURCE.INVOICES, page, undefined, ''] });
+        // Every page of the invoice lists (the old key, with the page, never matched a list)
+        await queryClient.invalidateQueries({ queryKey: [RESOURCE.INVOICES] });
     };
 
     const { mutate: doSave } = useMutation<AxiosResponse, Error, MutateIF<TypedInvoiceIF>>({

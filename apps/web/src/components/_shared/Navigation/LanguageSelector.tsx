@@ -1,30 +1,20 @@
-import { useState } from 'react';
 import { supportedLngs } from '../../../i18n';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import styles from './LanguageSelector.module.sass';
 
-export const languageStorage = 'language';
-
 const LanguageSelector = () => {
     const { t, i18n } = useSafeTranslation();
-    const localLanguage = localStorage.getItem(languageStorage) || supportedLngs[0];
-    const [currentLanguage, setCurrentLanguage] = useState(localLanguage);
-
-    const changeLanguage = (language: string) => {
-        i18n.changeLanguage(language).then(() => {
-            setCurrentLanguage(language);
-            localStorage.setItem(languageStorage, language);
-        });
-    };
+    // i18n saves the choice (i18n.tsx); the star follows the language the texts are shown in
+    const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
 
     return (
         <ul className={`pb-24 mx-12 ${styles.languageSelector}`}>
-            {supportedLngs.map((item, index) => {
+            {supportedLngs.map((item) => {
                 return (
                     <li
                         className={currentLanguage === item ? styles.active : ''}
-                        key={index}
-                        onClick={() => changeLanguage(item)}
+                        key={item}
+                        onClick={() => i18n.changeLanguage(item).then()}
                     >
                         {t(`languages.${item}`)}
                     </li>

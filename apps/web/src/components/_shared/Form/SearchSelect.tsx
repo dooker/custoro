@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import AsyncSelect from 'react-select/async';
 import type { SingleValue } from 'react-select';
 import type { SelectOptionIF } from '../../../types';
-import { getSearch } from '../../../utils/Getters/getSearch';
+import { fetchResourceList } from '../../../hooks/useResourceList';
+import { handleError } from '../../../shared/helpers';
 import {
     pickerDelayMs,
     pickerLimit,
@@ -39,11 +40,17 @@ const SearchSelect = <
     const loadOptions = useMemo(
         () =>
             searchLoader(async (keyword: string) => {
-                const { resource: items = [] } = await getSearch<T>({
+                // The list endpoint with the word, like the lists; a failure shows no options
+                const { resource: items } = await fetchResourceList<T>({
                     resource,
-                    keyword,
+                    path: `/${resource}/`,
                     page: 1,
                     limit: pickerLimit,
+                    keyword,
+                }).catch((error: unknown) => {
+                    handleError(String(error));
+
+                    return { resource: [] as T[] };
                 });
 
                 return items.map((item) => toPickerOption(resource, item));

@@ -9,6 +9,11 @@ export const sessionEndedEvent = 'sessionEnded';
 
 export const debounceTimer = 350;
 
+// Rows on a page of a list, the same on every screen so a page number means the same rows for
+// everyone (the API allows at most 50), and rows in a small list on Home or a customer's page
+export const listPageSize = 15;
+export const widgetSize = 5;
+
 // resources
 export const RESOURCE = {
     HOME: `home`,
@@ -32,6 +37,7 @@ export const RESOURCE = {
     USERS: 'users',
     USER: 'user',
     USER_AVATAR: 'users.avatar',
+    TENANT: 'tenant',
     TENANTS: 'tenants',
 } as const;
 
@@ -57,6 +63,7 @@ export const PATHS = {
     PRODUCTS: `/${RESOURCE.PRODUCTS}/`,
     USER: `/${RESOURCE.USER}/`,
     USERS: `/${RESOURCE.USERS}/`,
+    TENANT: `/${RESOURCE.TENANT}/`,
     TENANTS: `/${RESOURCE.TENANTS}/`,
 } as const;
 

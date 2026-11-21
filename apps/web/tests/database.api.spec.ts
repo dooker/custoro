@@ -129,7 +129,7 @@ test.describe('search', () => {
             (
                 await call(
                     'get',
-                    `/search?resource=products&keyword=${encodeURIComponent(keyword)}&page=1&limit=10`
+                    `/products/?keyword=${encodeURIComponent(keyword)}&page=1&limit=10`
                 )
             ).resource;
 
@@ -151,7 +151,7 @@ test.describe('search', () => {
         const started = Date.now();
         const found = await call(
             'get',
-            `/search?resource=products&keyword=${encodeURIComponent(keyword.join(' '))}&page=1&limit=10`
+            `/products/?keyword=${encodeURIComponent(keyword.join(' '))}&page=1&limit=10`
         );
 
         expect(found.success).toBe(true);
@@ -164,7 +164,7 @@ test.describe('search', () => {
             (
                 await call(
                     'get',
-                    `/search?resource=products&keyword=${encodeURIComponent(words.join(' '))}&page=1&limit=10`
+                    `/products/?keyword=${encodeURIComponent(words.join(' '))}&page=1&limit=10`
                 )
             ).resource;
 
@@ -593,7 +593,7 @@ test.describe('errors', () => {
 
         // the failed change did not create the user
         expect(
-            (await call('get', `/search?resource=users&keyword=${ann.username}&page=1&limit=10`))
+            (await call('get', `/users/?keyword=${ann.username}&page=1&limit=10`))
                 .resource ?? []
         ).toHaveLength(0);
     });
@@ -1083,7 +1083,7 @@ test.describe('worksheets grouped by customer', () => {
         const search = async (keyword: string) =>
             call(
                 'get',
-                `/search?resource=worksheets&keyword=${encodeURIComponent(keyword)}&page=1&limit=10`
+                `/worksheets/?keyword=${encodeURIComponent(keyword)}&page=1&limit=10`
             );
 
         // without a keyword the customer with the newest worksheets comes first
@@ -1193,7 +1193,7 @@ test.describe('invoice list', () => {
         // a customer and a keyword in one request used to be a SQL error
         const found = await call(
             'get',
-            `/search?resource=invoices&keyword=${encodeURIComponent(`Lister ${unique}`)}&customer=${customer}&page=1&limit=10`
+            `/invoices/?keyword=${encodeURIComponent(`Lister ${unique}`)}&customer=${customer}&page=1&limit=10`
         );
 
         expect(found.success).toBe(true);
@@ -1202,7 +1202,7 @@ test.describe('invoice list', () => {
 
         const none = await call(
             'get',
-            `/search?resource=invoices&keyword=nothing-like-this&customer=${customer}&page=1&limit=10`
+            `/invoices/?keyword=nothing-like-this&customer=${customer}&page=1&limit=10`
         );
 
         expect(none.success).toBe(true);

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import type { FormHandleIF } from '../../types/form';
 import Loader from '../_shared/Loader/Loader';
 import type { WorksheetIF } from '../../types';
@@ -12,17 +12,18 @@ import { getSingle } from '../../utils/Getters/getSingle';
 import Header from '../_shared/Header/Header';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import type { CustomerIF } from '../../types/customer';
-import { useHeadlineHandler } from '../../hooks/useHeadline';
-import { useButtonsHandler } from '../../hooks/useButtons';
+import { usePageParam } from '../../hooks/usePageParam';
 
 const Worksheet = () => {
-    const { customerId, worksheetId, page, worksheetPage } = useParams();
+    const { customerId, worksheetId, worksheetPage: rawWorksheetPage } = useParams();
+    const page = usePageParam();
+    const worksheetPageNumber = usePageParam('worksheetPage');
+    // Only the customer's worksheet list has a page of its own in the address
+    const worksheetPage = rawWorksheetPage ? worksheetPageNumber : undefined;
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
     const isNew = !worksheetId || worksheetId === '0';
     const formRef = useRef<FormHandleIF>(null);
-    const updateTitle = useHeadlineHandler();
-    const updateButtons = useButtonsHandler();
 
     // fetch worksheet
     const { data: worksheet, isLoading: isWorksheetLoading } = useQuery({
@@ -40,39 +41,23 @@ const Worksheet = () => {
 
     const isEverythingLoading = isWorksheetLoading || isCustomerLoading;
 
-    // Set up header config
-    useEffect(() => {
-        let title = '';
-
-        if (isNew) {
-            title = `${t('new')} `;
-        }
-
-        title += `${t('worksheets.singular')}`;
-
-        const customerName =
-            customer && Number(customer.id) === Number(customerId) ? customer.name : '';
-
-        title += ` ${customerName ? ` - ${customerName}` : ''}`;
-
-        updateTitle({ title });
-    }, [t, updateTitle, customer, customerId, isNew]);
-    useEffect(() => {
-        const saveButton = {
+    const customerName =
+        customer && Number(customer.id) === Number(customerId) ? customer.name : '';
+    const title = `${isNew ? `${t('new')} ` : ''}${t('worksheets.singular')}${customerName ? ` - ${customerName}` : ''}`;
+    const buttons = [
+        {
             label: 'button.save',
-            onClick: () => formRef.current && formRef.current.submitSave(),
-        };
-        const goBackButton = {
+            onClick: () => formRef.current?.submitSave(),
+        },
+        {
             label: 'button.goBack',
             onClick: () =>
                 navigate(
-                    `${PATHS.WORKSHEETS}${page || '1'}/${customerId && worksheetPage ? `${customerId}/${worksheetPage}/` : ''}`
+                    `${PATHS.WORKSHEETS}${page}/${customerId && worksheetPage ? `${customerId}/${worksheetPage}/` : ''}`
                 ),
             classname: 'secondary',
-        };
-
-        updateButtons({ buttons: [saveButton, goBackButton] });
-    }, [updateButtons, navigate, page, customerId, worksheetPage]);
+        },
+    ];
 
     if (isEverythingLoading) {
         return <Loader />;
@@ -80,7 +65,7 @@ const Worksheet = () => {
 
     return (
         <>
-            <Header />
+            <Header title={title} buttons={buttons} />
 
             <WorksheetForm ref={formRef} initialWorksheet={worksheet ?? null} isNew={isNew} />
         </>

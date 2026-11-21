@@ -33,6 +33,7 @@ const Restore = lazy(() => import('./components/Login/Restore'));
 const ChangeLog = lazy(() => import('./components/ChangeLog/ChangeLog'));
 const Users = lazy(() => import('./components/Users/Users'));
 const Tenants = lazy(() => import('./components/Tenants/Tenants'));
+const Tenant = lazy(() => import('./components/Tenant/Tenant'));
 const User = lazy(() => import('./components/User/User'));
 
 const AppContent = () => {
@@ -117,6 +118,8 @@ const AppContent = () => {
 
                         <Route element={<OwnerRoute />}>
                             <Route path={PATHS.TENANTS} element={<Tenants />} />
+                            <Route path={`${PATHS.TENANTS}:page/`} element={<Tenants />} />
+                            <Route path={`${PATHS.TENANT}:page/:id/`} element={<Tenant />} />
                         </Route>
                     </Route>
 

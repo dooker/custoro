@@ -1,0 +1,41 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+
+.intro
+    color: variables.$asbestos
+    max-width: 80ch
+    padding: variables.$grid-gutter variables.$grid-gutter 0
+
+.form
+    @include mixins.for-tablet-landscape-up
+        grid-template-columns: 1fr 1fr
+
+// What the owner may see of a company: counts, never its data
+.facts
+    display: flex
+    flex-wrap: wrap
+    gap: variables.$grid-gutter*3
+    padding: 0 variables.$grid-gutter variables.$grid-gutter*2
+    margin: 0
+
+    dt
+        font-size: 12px
+        color: variables.$asbestos
+        margin-bottom: 4px
+
+    dd
+        margin: 0
+        font-weight: 700
+
+.state
+    display: inline-block
+    padding: 2px variables.$grid
+    border-radius: 4px
+    font-size: 12px
+    color: variables.$white
+
+    &.on
+        background: variables.$nephritis
+
+    &.off
+        background: variables.$concrete

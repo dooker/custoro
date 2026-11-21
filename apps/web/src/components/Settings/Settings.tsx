@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormHandleIF } from '../../types/form';
 import Loader from '../_shared/Loader/Loader';
 import { getGeneral } from '../../utils/Getters/getGeneral';
@@ -9,8 +9,6 @@ import { RESOURCE } from '../../variables';
 import Header from '../_shared/Header/Header';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useParams } from 'react-router';
-import { useHeadlineHandler } from '../../hooks/useHeadline';
-import { useButtonsHandler } from '../../hooks/useButtons';
 
 const tabs = {
     general: 'general',
@@ -30,8 +28,6 @@ const SettingsPage = () => {
         tabType || (Object.values(tabs)[0] as TabKey)
     );
     const formRef = useRef<FormHandleIF>(null);
-    const updateTitle = useHeadlineHandler();
-    const updateButtons = useButtonsHandler();
 
     // fetch settings
     const { data: settings, isLoading } = useQuery({
@@ -39,24 +35,13 @@ const SettingsPage = () => {
         queryFn: () => getGeneral({ type: RESOURCE.SETTINGS }),
     });
 
-    // Set up header config
-    useEffect(() => {
-        updateTitle({ title: t(`settings.titles.${activeTab}Settings`) });
-    }, [t, updateTitle, activeTab]);
-    useEffect(() => {
-        const saveButton = {
-            label: 'button.save',
-            onClick: () => formRef.current && formRef.current.submitSave(),
-        };
-
-        updateButtons({ buttons: [saveButton] });
-    }, [updateButtons, activeTab]);
+    const buttons = [{ label: 'button.save', onClick: () => formRef.current?.submitSave() }];
 
     if (isLoading) return <Loader />;
 
     return (
         <>
-            <Header />
+            <Header title={t(`settings.titles.${activeTab}Settings`)} buttons={buttons} />
 
             <SettingsForm
                 ref={formRef}

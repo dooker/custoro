@@ -17,7 +17,8 @@
         "generatePdf": "Genereeri PDF",
         "send": "Saada arve",
         "upload": "Vali fail",
-        "cancel": "Tühista"
+        "cancel": "Tühista",
+        "search": "Otsi"
     },
     "products": {
         "singular": "Toode",
@@ -331,6 +332,7 @@
         "add": "Lisa uus"
     },
     "emptyList": "Nimekiri on tühi",
+    "listError": "Nimekirja ei õnnestunud laadida. Proovi hetke pärast uuesti.",
     "languages": {
         "en": "English",
         "et": "Eesti",
@@ -348,13 +350,17 @@
         "state": "Olek",
         "active": "Aktiivne",
         "inactive": "Välja lülitatud",
-        "rename": "Nimeta ümber",
         "deactivate": "Lülita välja",
         "activate": "Lülita sisse",
         "new": "Uus ettevõte",
         "newHelp": "Ettevõte saab vaikimisi seaded ja selle esimene admin kirja lingiga, et parool määrata.",
         "adminEmail": "Esimese admini e-post",
         "adminName": "Esimese admini nimi",
-        "create": "Loo ettevõte"
+        "create": "Loo ettevõte",
+        "form": {
+            "name": "Nimi",
+            "adminEmail": "Esimese admini e-post",
+            "adminName": "Esimese admini nimi"
+        }
     }
 }

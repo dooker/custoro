@@ -1,0 +1,17 @@
+@use "src/assets/stylesheets/variables" as variables
+
+.error
+    padding: variables.$grid-gutter
+    color: variables.$alizarin
+
+// The next page is on its way; the rows shown are the previous page's
+.fetching table
+    opacity: 0.6
+    transition: opacity .2s
+
+.delete
+    display: inline-flex
+    padding: 0
+    border: 0
+    background: none
+    cursor: pointer

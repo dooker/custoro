@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { endpoint, PATHS, RESOURCE } from '../../variables';
 import { Axios } from '../../Axios';
 import { handleError } from '../../shared/helpers';
@@ -13,8 +13,6 @@ import Field from '../_shared/Form/Field';
 import Header from '../_shared/Header/Header';
 import type { AxiosResponse } from 'axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
-import { useHeadlineHandler } from '../../hooks/useHeadline';
-import { useButtonsHandler } from '../../hooks/useButtons';
 
 const Profile = () => {
     const { t } = useSafeTranslation();
@@ -30,8 +28,6 @@ const Profile = () => {
     // const currentTheme = themes.filter((item) => item.value === draft?.theme)[0] || themes[0];
     const queryClient = useQueryClient();
     const notification = useNotificationHandler();
-    const updateTitle = useHeadlineHandler();
-    const updateButtons = useButtonsHandler();
 
     const invalidator = async () => {
         await queryClient.invalidateQueries({ queryKey: [RESOURCE.PROFILE] });
@@ -95,23 +91,13 @@ const Profile = () => {
         doSave(draft);
     };
 
-    // Set up header config
-    useEffect(() => {
-        updateTitle({ title: t('profile.singular') });
-    }, [t, updateTitle]);
-    useEffect(() => {
-        const saveButton = {
-            label: 'button.save',
-            onClick: () => doSave(draft as ProfileIF),
-        };
-        updateButtons({ buttons: [saveButton] });
-    }, [updateButtons, doSave, draft]);
+    const buttons = [{ label: 'button.save', onClick: () => doSave(draft as ProfileIF) }];
 
     if (!draft) return <Loader />;
 
     return (
         <>
-            <Header />
+            <Header title={t('profile.singular')} buttons={buttons} />
 
             <section className="component customer">
                 <form className="general-form profile" onSubmit={(e) => handleSubmit(e)}>

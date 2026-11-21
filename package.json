@@ -1,6 +1,6 @@
 {
     "name": "custoro",
-    "version": "5.1.0",
+    "version": "5.2.0",
     "private": true,
     "description": "Self-hostable invoicing and worksheet app (API + web)",
     "author": "Ingmar Ross <dooker@dooker.eu>",
