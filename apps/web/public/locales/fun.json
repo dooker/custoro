@@ -17,7 +17,8 @@
         "generatePdf": "Generate PDF",
         "send": "Send email",
         "upload": "Pick file",
-        "cancel": "Never mind"
+        "cancel": "Never mind",
+        "search": "Hunt"
     },
     "products": {
         "singular": "Product",
@@ -330,6 +331,7 @@
         "add": "Add new"
     },
     "emptyList": "Looks like there are no entries...",
+    "listError": "The list wandered off. Give it a moment and try again.",
     "languages": {
         "en": "English",
         "et": "Eesti",

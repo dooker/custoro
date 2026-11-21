@@ -1,12 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Axios } from '../../Axios';
 import { endpoint, PATHS, RESOURCE } from '../../variables';
 import { getSingle } from '../../utils/Getters/getSingle';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
-import { useHeadlineHandler } from '../../hooks/useHeadline';
-import { useButtonsHandler } from '../../hooks/useButtons';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import Header from '../_shared/Header/Header';
 import Loader from '../_shared/Loader/Loader';
@@ -14,6 +12,7 @@ import Field from '../_shared/Form/Field';
 import PageNotFound from '../PageNotFound/PageNotFound';
 import type { EntityOnChangeIF } from '../../types';
 import type { NewTenantIF, TenantIF } from '../../types/tenant';
+import type { HeaderButtonIF } from '../../types/header';
 import '@css/shared/Form.sass';
 import styles from './Tenant.module.sass';
 
@@ -35,8 +34,6 @@ const Tenant = () => {
     const id = Number(rawId);
     const page = Number(rawPage) || 1;
     const isNew = id === 0;
-    const updateTitle = useHeadlineHandler();
-    const updateButtons = useButtonsHandler();
     const notification = useNotificationHandler();
     const queryClient = useQueryClient();
     const [draft, setDraft] = useState<NewTenantIF>(emptyDraft);
@@ -55,82 +52,79 @@ const Tenant = () => {
         setDraft({ ...emptyDraft, name: tenant.name });
     }
 
-    useEffect(() => {
-        updateTitle({
-            title: isNew
-                ? t('tenants.new')
-                : `${t('tenants.singular')}${tenant ? ` - ${tenant.name}` : ''}`,
-        });
-    }, [isNew, tenant, t, updateTitle]);
+    const title = isNew
+        ? t('tenants.new')
+        : `${t('tenants.singular')}${tenant ? ` - ${tenant.name}` : ''}`;
 
-    useEffect(() => {
-        const invalidator = async () => {
-            await queryClient.invalidateQueries({ queryKey: [RESOURCE.TENANTS] });
-            await queryClient.invalidateQueries({ queryKey: [RESOURCE.TENANT] });
-        };
+    const invalidator = async () => {
+        await queryClient.invalidateQueries({ queryKey: [RESOURCE.TENANTS] });
+        await queryClient.invalidateQueries({ queryKey: [RESOURCE.TENANT] });
+    };
 
-        // Every change answers like the rest of the API; the lists are read again after a success
-        const send = async (change: () => Promise<{ data: ApiAnswer }>) => {
-            setBusy(true);
+    // Every change answers like the rest of the API; the lists are read again after a success
+    const send = async (change: () => Promise<{ data: ApiAnswer }>) => {
+        setBusy(true);
 
-            try {
-                const answer = (await change()).data;
+        try {
+            const answer = (await change()).data;
 
-                await notification({
-                    success: answer.success,
-                    message: answer.message ?? (answer.success ? 'saved' : 'error'),
-                    show: true,
-                    invalidator,
-                });
+            await notification({
+                success: answer.success,
+                message: answer.message ?? (answer.success ? 'saved' : 'error'),
+                show: true,
+                invalidator,
+            });
 
-                return answer;
-            } catch {
-                await notification({ success: false, message: 'error', show: true });
+            return answer;
+        } catch {
+            await notification({ success: false, message: 'error', show: true });
 
-                return null;
-            } finally {
-                setBusy(false);
-            }
-        };
+            return null;
+        } finally {
+            setBusy(false);
+        }
+    };
 
-        const save = async () => {
-            if (isNew) {
-                const answer = await send(() => Axios.post(url, draft));
+    const save = async () => {
+        if (isNew) {
+            const answer = await send(() => Axios.post(url, draft));
 
-                if (answer?.success && answer.insertId) {
-                    navigate(`${PATHS.TENANT}${page}/${answer.insertId}/`);
-                }
-
-                return;
+            if (answer?.success && answer.insertId) {
+                navigate(`${PATHS.TENANT}${page}/${answer.insertId}/`);
             }
 
-            await send(() => Axios.put(`${url}${id}`, { name: draft.name }));
-        };
+            return;
+        }
 
-        const saveButton = {
+        await send(() => Axios.put(`${url}${id}`, { name: draft.name }));
+    };
+
+    const buttons: HeaderButtonIF[] = [
+        {
             label: isNew ? 'tenants.create' : 'button.save',
             onClick: () => void save(),
             dataTestId: 'save-tenant',
-            ...(busy ? { classname: 'primary disabled' } : {}),
-        };
-        const switchButton = tenant && {
-            label: tenant.active ? 'tenants.deactivate' : 'tenants.activate',
-            onClick: () => void send(() => Axios.put(`${url}${id}`, { active: !tenant.active })),
-            // Switching off locks the company's people out: red, like other actions that take
-            // something away
-            classname: `${tenant.active ? 'tertiary' : 'primary'}${busy ? ' disabled' : ''}`,
-            dataTestId: 'switch-tenant',
-        };
-        const goBackButton = {
+            classname: `primary${busy ? ' disabled' : ''}`,
+        },
+        ...(tenant
+            ? [
+                  {
+                      label: tenant.active ? 'tenants.deactivate' : 'tenants.activate',
+                      onClick: () =>
+                          void send(() => Axios.put(`${url}${id}`, { active: !tenant.active })),
+                      // Switching off locks the company's people out: red, like other actions
+                      // that take something away
+                      classname: `${tenant.active ? 'tertiary' : 'primary'}${busy ? ' disabled' : ''}`,
+                      dataTestId: 'switch-tenant',
+                  },
+              ]
+            : []),
+        {
             label: 'button.goBack',
             onClick: () => navigate(`${PATHS.TENANTS}${page}/`),
             classname: 'secondary',
-        };
-
-        updateButtons({
-            buttons: [saveButton, ...(switchButton ? [switchButton] : []), goBackButton],
-        });
-    }, [updateButtons, navigate, notification, queryClient, isNew, id, page, draft, tenant, busy]);
+        },
+    ];
 
     const onChange = ({ name, value }: EntityOnChangeIF) =>
         setDraft((previous) => ({ ...previous, [name]: String(value ?? '') }));
@@ -138,7 +132,10 @@ const Tenant = () => {
     // Enter in a field saves, like the header's Save button
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
-        document.querySelector<HTMLElement>('[data-testid="save-tenant"]')?.click();
+
+        if (!busy) {
+            void save();
+        }
     };
 
     if (!isNew && isLoading) return <Loader />;
@@ -150,7 +147,7 @@ const Tenant = () => {
 
     return (
         <>
-            <Header />
+            <Header title={title} buttons={buttons} />
 
             <section className="component tenant">
                 <p className={styles.intro}>{isNew ? t('tenants.newHelp') : t('tenants.intro')}</p>

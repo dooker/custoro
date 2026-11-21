@@ -2,43 +2,35 @@ import { useState } from 'react';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { debounceTimer } from '../../../variables';
+import type { HeaderSearchIF } from '../../../types/header';
 import styles from './Search.module.sass';
 
 import { Search as SearchIcon } from '../Icons/Search';
 import Button from '../Form/Button';
 import Close from '../Icons/Close';
 
-interface SearchIF {
-    updateKeyword: (keyword: string) => void;
-}
-
-export const Search = ({ updateKeyword }: SearchIF) => {
+// The search box of a list. The word itself lives in the URL (useListSearch): the box starts
+// open with it, and closing the box clears it.
+export const Search = ({ value, onChange }: HeaderSearchIF) => {
     const { t } = useSafeTranslation();
-    const [showSearch, setShowSearch] = useState(false);
-    const [draft, setDraft] = useState<string>('');
+    const [showSearch, setShowSearch] = useState(!!value);
+    const [draft, setDraft] = useState(value);
 
-    const handleEscape = (key: string) => {
-        if (key !== 'Escape') {
-            return;
-        }
-
-        handleSearchInput();
-    };
-
-    const debouncedAutoSave = useDebounce((data: string) => {
-        updateKeyword(data);
+    const debouncedChange = useDebounce((keyword: string) => {
+        onChange(keyword.trim());
     }, debounceTimer);
 
-    const onChange = (value: string) => {
-        setDraft(value);
-        debouncedAutoSave(value);
+    const type = (next: string) => {
+        setDraft(next);
+        debouncedChange(next);
     };
 
-    const handleSearchInput = () => {
+    const toggle = () => {
         setDraft('');
-        setShowSearch((prev) => !prev);
-
-        updateKeyword('');
+        setShowSearch((previous) => !previous);
+        // Also drops a word still waiting in the debounce
+        debouncedChange('');
+        onChange('');
     };
 
     return (
@@ -47,22 +39,24 @@ export const Search = ({ updateKeyword }: SearchIF) => {
                 <>
                     <input
                         autoFocus
+                        type="search"
+                        aria-label={t('button.search')}
                         placeholder={t('search')}
                         className={styles.search}
                         value={draft}
-                        onChange={(e) => onChange(e.target.value)}
-                        onKeyUp={(e) => handleEscape(e.key)}
+                        onChange={(event) => type(event.target.value)}
+                        onKeyUp={(event) => event.key === 'Escape' && toggle()}
                         data-testid="search-input"
                     />
-                    <Close callback={() => handleSearchInput()}></Close>
+                    <Close callback={toggle}></Close>
                 </>
             )}
 
             <Button
-                additionalClassName={`large primary`}
-                onClick={() => handleSearchInput()}
+                additionalClassName="large primary"
+                onClick={toggle}
                 Element={SearchIcon}
-                dataTestId="search-product"
+                dataTestId="search-button"
             />
         </div>
     );

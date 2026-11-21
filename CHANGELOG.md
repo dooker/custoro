@@ -5,6 +5,27 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+### Fixed
+
+- Home took the title and buttons of one of its small lists (often "Invoices" with a Search and an
+  Add button), and typing in that search box failed. Home now says "Dashboard" and has no buttons
+- A search started on a later page showed that page of the matches (page 3 of the results, often
+  only a few rows or none). A search now starts on page 1
+- A list that could not be loaded (no connection, a refusal) said "No entries". It now says the
+  list could not be loaded
+- The Name column of the customer list was in English in every language
+
+### Changed
+
+- Lists show 15 rows per page on every screen, so a page number means the same rows on a phone
+  and a laptop (it depended on the window height)
+- The search word is in the address (`?q=`): it stays when you go to another page of the list, go
+  back or forward, or reload, and a link to a search shows the same list
+- A row in a list is a link: it can be opened in a new tab and reached with the keyboard. The
+  delete button at the end of a row has a name for screen readers, and the page numbers show only
+  when there is more than one page
+- Deleting the last row of a page goes back to the page before, in every list (only products did)
+
 ## 5.1.1 - 2026-11-21
 
 ### Fixed

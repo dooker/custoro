@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import type { FormHandleIF } from '../../types/form';
 import Loader from '../_shared/Loader/Loader';
 import type { InvoiceIF } from '../../types';
@@ -11,8 +11,6 @@ import { InvoiceForm } from './InvoiceForm';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { PATHS, RESOURCE } from '../../variables';
 import Header from '../_shared/Header/Header';
-import { useHeadlineHandler } from '../../hooks/useHeadline';
-import { useButtonsHandler } from '../../hooks/useButtons';
 import styles from './Invoice.module.sass';
 
 const Invoice = () => {
@@ -21,8 +19,6 @@ const Invoice = () => {
     const { invoiceId, page } = useParams();
     const isNew = invoiceId === '0';
     const formRef = useRef<FormHandleIF>(null);
-    const updateTitle = useHeadlineHandler();
-    const updateButtons = useButtonsHandler();
 
     const { data: invoice, isLoading } = useQuery<InvoiceIF | null>({
         queryKey: [RESOURCE.INVOICE, invoiceId],
@@ -31,28 +27,20 @@ const Invoice = () => {
     });
     const { locked } = invoice || {};
 
-    // Set up header config
-    useEffect(() => {
-        const title = isNew
-            ? `${t('new')} ${t('invoices.singular')}`
-            : `${t('invoices.singular')}${invoice ? ` #${invoice.number}` : ''}`;
-
-        updateTitle({ title });
-    }, [isNew, invoice, t, updateTitle]);
-    useEffect(() => {
-        const saveButton = {
-            label: 'button.save',
-            onClick: () => formRef.current && formRef.current.submitSave(),
-        };
-
-        const goBackButton = {
-            label: 'button.goBack',
-            onClick: () => navigate(`${PATHS.INVOICES}${page || '1'}`),
-            classname: 'secondary',
-        };
-
-        updateButtons({ buttons: [...(locked === 1 ? [] : [saveButton]), goBackButton] });
-    }, [updateButtons, navigate, page, locked]);
+    const title = isNew
+        ? `${t('new')} ${t('invoices.singular')}`
+        : `${t('invoices.singular')}${invoice ? ` #${invoice.number}` : ''}`;
+    const saveButton = {
+        label: 'button.save',
+        onClick: () => formRef.current?.submitSave(),
+    };
+    const goBackButton = {
+        label: 'button.goBack',
+        onClick: () => navigate(`${PATHS.INVOICES}${page || '1'}/`),
+        classname: 'secondary',
+    };
+    // A paid invoice cannot be changed: no Save
+    const buttons = [...(locked === 1 ? [] : [saveButton]), goBackButton];
 
     if (isLoading) return <Loader />;
     if (!isNew && !invoice) return <PageNotFound />;
@@ -62,7 +50,7 @@ const Invoice = () => {
 
     return (
         <>
-            <Header />
+            <Header title={title} buttons={buttons} />
 
             <section className={`component ${styles.invoice}`}>
                 <InvoiceForm

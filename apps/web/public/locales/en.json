@@ -17,7 +17,8 @@
         "generatePdf": "Generate PDF",
         "send": "Send email",
         "upload": "Pick file",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "search": "Search"
     },
     "products": {
         "singular": "Product",
@@ -330,6 +331,7 @@
         "add": "Add new"
     },
     "emptyList": "No entries",
+    "listError": "The list could not be loaded. Try again in a moment.",
     "languages": {
         "en": "English",
         "et": "Eesti",

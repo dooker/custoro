@@ -5,6 +5,8 @@ export interface PromptDeleteIF {
     customer?: number;
     parentPage?: number;
     cache?: () => void;
+    // Where to go after the delete, such as the list page with its search kept
+    returnTo?: string;
     callback?: () => void;
     invalidators?: string[][];
 }

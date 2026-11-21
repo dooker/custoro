@@ -40,7 +40,7 @@ test('login, go to products page', async ({ page }) => {
     await goAndCheck({page, key: 'products'})
 
     // Search for the product and verify that it is visible in the search results
-    await page.getByTestId('search-product').click();
+    await page.getByTestId('search-button').click();
     await page.getByTestId('search-input').fill(code)
     await expect(page.locator('.component.products')).toContainText(name);
 

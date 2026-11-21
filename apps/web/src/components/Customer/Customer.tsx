@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import type { FormHandleIF } from '../../types/form';
 import { CustomerForm } from './CustomerForm';
 import { useNavigate, useParams } from 'react-router';
@@ -12,8 +12,6 @@ import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import Header from '../_shared/Header/Header';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import type { CustomerIF } from '../../types/customer';
-import { useHeadlineHandler } from '../../hooks/useHeadline';
-import { useButtonsHandler } from '../../hooks/useButtons';
 
 const Customer = () => {
     const { t } = useSafeTranslation();
@@ -23,8 +21,6 @@ const Customer = () => {
     const isNew = customerId === '0';
     const formRef = useRef<FormHandleIF>(null);
     const { promptDelete } = useDeleteItem([RESOURCE.CUSTOMERS]);
-    const updateTitle = useHeadlineHandler();
-    const updateButtons = useButtonsHandler();
 
     // fetch customer
     const { data: customer, isLoading } = useQuery<CustomerIF | null>({
@@ -32,54 +28,42 @@ const Customer = () => {
         queryFn: () => getSingle<CustomerIF>({ id: Number(customerId), type: RESOURCE.CUSTOMER }),
     });
 
-    // Set up header config
-    useEffect(() => {
-        updateTitle({
-            title: isNew
-                ? `${t('new')} ${t('customers.singular')}`
-                : `${t('customers.singular')}${customer ? ` - ${customer.name}` : ''}`,
-        });
-    }, [isNew, customer, t, updateTitle]);
-    useEffect(() => {
-        const saveButton = {
+    const title = isNew
+        ? `${t('new')} ${t('customers.singular')}`
+        : `${t('customers.singular')}${customer ? ` - ${customer.name}` : ''}`;
+    const buttons = [
+        {
             label: 'button.save',
-            onClick: () => formRef.current && formRef.current.submitSave(),
-        };
-        const goBackButton = {
+            onClick: () => formRef.current?.submitSave(),
+        },
+        {
             label: 'button.goBack',
-            onClick: () => navigate(`${PATHS.CUSTOMERS}${page}`),
+            onClick: () => navigate(`${PATHS.CUSTOMERS}${page}/`),
             classname: 'secondary',
-        };
-        const worksheetsButton = {
-            label: 'worksheets.plural',
-            onClick: () => (customer ? navigate(`${PATHS.WORKSHEETS}1/${customer.id}/1`) : null),
-            classname: 'secondary',
-        };
-        const deleteButton = {
-            label: 'button.delete',
-            onClick: () =>
-                customer
-                    ? promptDelete({ id: customer.id, resource: RESOURCE.CUSTOMERS, page })
-                    : null,
-            classname: 'tertiary',
-        };
-
-        updateButtons({
-            buttons: [
-                saveButton,
-                goBackButton,
-                ...(customer ? [worksheetsButton] : []),
-                ...(customer ? [deleteButton] : []),
-            ],
-        });
-    }, [updateButtons, navigate, page, promptDelete, customer]);
+        },
+        ...(customer
+            ? [
+                  {
+                      label: 'worksheets.plural',
+                      onClick: () => navigate(`${PATHS.WORKSHEETS}1/${customer.id}/1/`),
+                      classname: 'secondary',
+                  },
+                  {
+                      label: 'button.delete',
+                      onClick: () =>
+                          promptDelete({ id: customer.id, resource: RESOURCE.CUSTOMERS, page }),
+                      classname: 'tertiary',
+                  },
+              ]
+            : []),
+    ];
 
     if (isLoading) return <Loader />;
     if (!isNew && !customer) return <PageNotFound />;
 
     return (
         <>
-            <Header />
+            <Header title={title} buttons={buttons} />
 
             <CustomerForm
                 ref={formRef}
