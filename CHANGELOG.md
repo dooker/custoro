@@ -5,6 +5,19 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+### Fixed
+
+- The language switcher needed two clicks: after a page load in Estonian (or English (fun)), the
+  first click on another language moved the star but the texts stayed as they were. Now one click
+  switches, and the language is remembered from the moment it changes (issue 41)
+
+### Changed
+
+- The owner's Companies page works like the other lists (issue 42): search, pages, and an Add
+  button in the header that opens the new company form. A row opens the company on its own page,
+  where it is renamed and switched off or on with coloured buttons in the header (red to switch
+  off). The buttons no longer squeeze into the table rows, where their text did not fit
+
 ## 5.1.0 - 2026-11-15
 
 ### Added

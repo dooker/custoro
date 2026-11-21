@@ -347,13 +347,17 @@
         "state": "State",
         "active": "Active",
         "inactive": "Switched off",
-        "rename": "Rename",
         "deactivate": "Switch off",
         "activate": "Switch on",
         "new": "New company",
         "newHelp": "The company gets the default settings, and its first admin an email with a link to set their password.",
         "adminEmail": "Email of its first admin",
         "adminName": "Name of its first admin",
-        "create": "Create company"
+        "create": "Create company",
+        "form": {
+            "name": "Name",
+            "adminEmail": "Email of its first admin",
+            "adminName": "Name of its first admin"
+        }
     }
 }

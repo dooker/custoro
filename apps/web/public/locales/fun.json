@@ -347,13 +347,17 @@
         "state": "State",
         "active": "Humming",
         "inactive": "Asleep",
-        "rename": "Rename",
         "deactivate": "Put to sleep",
         "activate": "Wake up",
         "new": "Brand new company",
         "newHelp": "It gets the default knobs, and its first admin gets a mail with a link to pick a password.",
         "adminEmail": "First admin's email",
         "adminName": "First admin's name",
-        "create": "Make it so"
+        "create": "Make it so",
+        "form": {
+            "name": "Name",
+            "adminEmail": "First admin's email",
+            "adminName": "First admin's name"
+        }
     }
 }

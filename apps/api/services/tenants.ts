@@ -4,6 +4,7 @@
 // scripts/setOwner.ts) uses the same functions.
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { query } from "../helper/query";
+import { applyPaging, getPaging, keywordWhere } from "../routes/_getters";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
 import { companySeed } from "../helpers/companySeed";
 import { isValidEmail } from "../helpers/credentials";
@@ -19,22 +20,82 @@ export interface TenantRow {
 
 const duplicateEntry = "ER_DUP_ENTRY";
 
-export const listTenants = async (database: string) => {
-    const { success, data } = await query<TenantRow>({
-        database,
-        sql: `SELECT tenants.id,
+// A company with its counts; the counts are read per row, so a page of the list reads them only
+// for the companies it shows
+const tenantColumns = `tenants.id,
                      tenants.name,
                      tenants.active,
                      tenants.created,
                      (SELECT COUNT(*) FROM users WHERE users.tenant_id = tenants.id) AS people,
-                     (SELECT COUNT(*) FROM invoices WHERE invoices.tenant_id = tenants.id) AS invoices
-              FROM tenants
-              ORDER BY tenants.id;`,
-        params: [],
-        logger: "List the companies"
+                     (SELECT COUNT(*) FROM invoices WHERE invoices.tenant_id = tenants.id) AS invoices`;
+
+export interface TenantListIF {
+    page?: unknown;
+    limit?: unknown;
+    keyword?: unknown;
+}
+
+/** One page of the companies, like the other lists: { resource, meta: { total pages, page } } */
+export const listTenants = async (database: string, { page, limit, keyword }: TenantListIF) => {
+    const paging = getPaging(page, limit);
+    const search = keywordWhere({
+        keyword: typeof keyword === "string" ? keyword : "",
+        table: "tenants"
     });
 
-    return success ? { success: true, data } : { success: false, message: "error" };
+    const [rows, total] = await Promise.all([
+        query<TenantRow>({
+            database,
+            sql: applyPaging(
+                `SELECT ${tenantColumns}
+                 FROM tenants
+                 ${search.sql}
+                 ORDER BY tenants.id`,
+                paging
+            ),
+            params: search.params,
+            logger: "List the companies"
+        }),
+        query<{ total: number }>({
+            database,
+            sql: `SELECT COUNT(*) AS total
+                  FROM tenants
+                  ${search.sql};`,
+            params: search.params,
+            logger: "Count the companies"
+        })
+    ]);
+
+    if (!rows.success || !total.success) {
+        return { success: false, message: "error" };
+    }
+
+    return {
+        success: true,
+        resource: rows.data,
+        meta: {
+            total: Math.ceil((total.data?.[0]?.total ?? 0) / paging.limit),
+            page: paging.page
+        }
+    };
+};
+
+/** One company with its counts, in the shape of the other single reads: { data: [row] } */
+export const getTenant = async (database: string, id: number) => {
+    const { success, data } = await query<TenantRow>({
+        database,
+        sql: `SELECT ${tenantColumns}
+              FROM tenants
+              WHERE tenants.id = ?;`,
+        params: [id],
+        logger: "Get a company"
+    });
+
+    if (!success) {
+        return { success: false, message: "error" };
+    }
+
+    return data?.length ? { success: true, data } : { success: false, message: "notFound" };
 };
 
 export interface NewTenantIF {

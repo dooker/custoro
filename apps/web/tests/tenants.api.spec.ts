@@ -370,6 +370,10 @@ test("only the owner reaches the owner page, and a switched-off company's people
         success: false,
         message: 'forbidden',
     });
+    expect(await call(a.token, 'get', `/tenants/${b.id}`)).toEqual({
+        success: false,
+        message: 'forbidden',
+    });
     expect(await call(a.token, 'put', `/tenants/${b.id}`, { active: false })).toEqual({
         success: false,
         message: 'forbidden',
@@ -397,4 +401,35 @@ test("only the owner reaches the owner page, and a switched-off company's people
         success: true,
     });
     await getApiToken(request, { username: b.admin, password });
+});
+
+// Issue 42: the owner page is a list like the others, paged and searched by the API, and a
+// company opens on its own page
+test('the owner pages, searches and opens the companies', async () => {
+    const { b } = companies;
+
+    const found = await call(ownerToken, 'get', `/tenants?keyword=${encodeURIComponent(b.name)}`);
+    expect(found).toMatchObject({ success: true, meta: { total: 1, page: 1 } });
+    expect(found.resource).toEqual([
+        expect.objectContaining({ id: b.id, name: b.name, people: expect.any(Number) }),
+    ]);
+
+    // every word must match; LIKE's wildcards are text
+    expect((await call(ownerToken, 'get', '/tenants?keyword=%25')).resource).toEqual([]);
+
+    const firstPage = await call(ownerToken, 'get', '/tenants?page=1&limit=1');
+    expect(firstPage.resource).toHaveLength(1);
+    expect(firstPage.meta.total).toBeGreaterThanOrEqual(2);
+
+    expect((await call(ownerToken, 'get', `/tenants/${b.id}`)).data).toEqual([
+        expect.objectContaining({ id: b.id, name: b.name, invoices: expect.any(Number) }),
+    ]);
+    expect(await call(ownerToken, 'get', '/tenants/999999999')).toEqual({
+        success: false,
+        message: 'notFound',
+    });
+    expect(await call(ownerToken, 'get', '/tenants/1%20OR%201=1')).toEqual({
+        success: false,
+        message: 'error',
+    });
 });

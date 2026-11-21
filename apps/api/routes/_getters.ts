@@ -2,7 +2,8 @@ import { sanitize } from "../helper";
 import { config } from "../config/config";
 import { GetterIF } from "../types/getter";
 
-export type SearchTable = "customers" | "products" | "users" | "invoices" | "worksheets";
+export type SearchTable =
+    "customers" | "products" | "users" | "invoices" | "worksheets" | "tenants";
 
 interface KeywordWhereIF {
     keyword?: string | null;
@@ -118,6 +119,9 @@ export const keywordWhere = ({ keyword, table, customer, prefix = "WHERE" }: Key
         } else if (table === "users") {
             groups.push(`(${table}.username LIKE ? OR ${table}.name LIKE ?)`);
             params.push(pattern, pattern);
+        } else if (table === "tenants") {
+            groups.push(`(${table}.name LIKE ?)`);
+            params.push(pattern);
         } else {
             groups.push(`(${table}.name LIKE ? OR ${table}.contact LIKE ?)`);
             params.push(pattern, pattern);

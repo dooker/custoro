@@ -4,16 +4,23 @@ import { requireOwner } from "../helpers/authorize";
 import { companyName } from "../helpers/companySeed";
 import { tenantOf } from "../helpers/tenant";
 import { requireIds } from "../helpers/routeParams";
-import { createTenant, listTenants, updateTenant } from "../services/tenants";
+import { createTenant, getTenant, listTenants, updateTenant } from "../services/tenants";
 import { sendPasswordSetupLink } from "../services/profile";
 
 // The owner page: only the owner of the install (users.owner), whatever their role in their own
 // company. Everyone else gets the same 403 as any other route they may not use.
 const router = Router();
 
-/* GET the companies, with counts */
+/* GET a page of the companies, with counts (query: page, limit, keyword) */
 router.get("/", authenticate, requireOwner, async (req, res) => {
-    res.json(await listTenants(req.database));
+    const { page, limit, keyword } = req.query;
+
+    res.json(await listTenants(req.database, { page, limit, keyword }));
+});
+
+/* GET one company, with counts */
+router.get("/:id", authenticate, requireOwner, requireIds("id"), async (req, res) => {
+    res.json(await getTenant(req.database, Number(req.params.id)));
 });
 
 /* POST a new company and its first admin, who gets the "set your password" email */

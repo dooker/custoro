@@ -348,13 +348,17 @@
         "state": "Olek",
         "active": "Aktiivne",
         "inactive": "Välja lülitatud",
-        "rename": "Nimeta ümber",
         "deactivate": "Lülita välja",
         "activate": "Lülita sisse",
         "new": "Uus ettevõte",
         "newHelp": "Ettevõte saab vaikimisi seaded ja selle esimene admin kirja lingiga, et parool määrata.",
         "adminEmail": "Esimese admini e-post",
         "adminName": "Esimese admini nimi",
-        "create": "Loo ettevõte"
+        "create": "Loo ettevõte",
+        "form": {
+            "name": "Nimi",
+            "adminEmail": "Esimese admini e-post",
+            "adminName": "Esimese admini nimi"
+        }
     }
 }

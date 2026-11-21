@@ -32,6 +32,7 @@ export const RESOURCE = {
     USERS: 'users',
     USER: 'user',
     USER_AVATAR: 'users.avatar',
+    TENANT: 'tenant',
     TENANTS: 'tenants',
 } as const;
 
@@ -57,6 +58,7 @@ export const PATHS = {
     PRODUCTS: `/${RESOURCE.PRODUCTS}/`,
     USER: `/${RESOURCE.USER}/`,
     USERS: `/${RESOURCE.USERS}/`,
+    TENANT: `/${RESOURCE.TENANT}/`,
     TENANTS: `/${RESOURCE.TENANTS}/`,
 } as const;
 
