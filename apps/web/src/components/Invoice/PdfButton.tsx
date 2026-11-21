@@ -3,7 +3,7 @@ import { t } from 'i18next';
 import { useRef, useState } from 'react';
 import { useOutsideAlerter } from '../../hooks/clickOutside';
 import { endpoint, PATHS, RESOURCE } from '../../variables';
-import { languageStorage } from '../_shared/Navigation/LanguageSelector';
+import { languageStorage } from '../../i18n';
 import { handleError } from '../../shared/helpers';
 import type { InvoiceIF } from '../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
