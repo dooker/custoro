@@ -169,32 +169,35 @@ test('a search starts on page 1, lives in the address, and survives pages, reloa
 
 test('pages: past the end, which rows, page links, back to the top, rows per page', async ({
     page,
+    request,
 }) => {
-    const rows = listRows(page, 'customers');
+    test.setTimeout(90_000);
+
+    // 31 products of its own, found by their tag: 3 pages of 15, 2 of 30, whatever else the
+    // database holds (CI starts with the demo data only)
+    const tag = Date.now().toString(36);
+    const token = await getApiToken(request);
+
+    madeProducts = await createProducts(request, token, tag, 31);
+
+    const rows = listRows(page, 'products');
     const range = page.getByTestId('list-range');
+    const at = (number: number, size = '') => `/products/${number}/?q=${tag}${size}`;
 
     // A page past the end shows the last page, and the address follows
-    await page.goto('/customers/999/');
-    await expect(page).not.toHaveURL('/customers/999/');
-    await expect(rows.first()).toBeVisible();
-
-    const last = Number(/\/customers\/(\d+)\/$/.exec(page.url())?.[1]);
-    const [, , to, total] = /^(\d+)–(\d+) of (\d+)$/.exec((await range.textContent()) ?? '') ?? [];
-
-    expect(last).toBeGreaterThan(1);
-    expect(to, 'the last page ends at the last row').toBe(total);
+    await page.goto(at(999));
+    await expect(page).toHaveURL(at(3));
+    await expect(rows).toHaveCount(1);
+    await expect(range).toHaveText('31–31 of 31');
     await expect(page.getByText('No entries')).toHaveCount(0);
 
-    // Page 1: which rows of how many, and the page numbers are links
-    await page.goto('/customers/1/');
-    await expect(range).toHaveText(`1–15 of ${total}`);
-    await expect(page.getByRole('link', { name: 'Go to page 2' })).toHaveAttribute(
-        'href',
-        '/customers/2/'
-    );
+    // Page 1: which rows of how many, and the page numbers are links with first and last
+    await page.goto(at(1));
+    await expect(range).toHaveText('1–15 of 31');
+    await expect(page.getByRole('link', { name: 'Go to page 2' })).toHaveAttribute('href', at(2));
     await expect(page.getByRole('link', { name: 'Go to last page' })).toHaveAttribute(
         'href',
-        `/customers/${last}/`
+        at(3)
     );
 
     // Another page starts at the top, not at the page numbers under the last row
@@ -202,20 +205,20 @@ test('pages: past the end, which rows, page links, back to the top, rows per pag
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     await page.getByRole('link', { name: 'Go to page 2' }).click();
-    await expect(page).toHaveURL('/customers/2/');
-    await expect(range).toHaveText(`16–30 of ${total}`);
+    await expect(page).toHaveURL(at(2));
+    await expect(range).toHaveText('16–30 of 31');
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 
-    // 30 rows a page: from page 1, in the address, kept on reload and on the next page
+    // 30 rows a page: from page 1, in the address with the search, kept on reload and paging
     await page.getByTestId('page-size').selectOption('30');
-    await expect(page).toHaveURL('/customers/1/?size=30');
+    await expect(page).toHaveURL(at(1, '&size=30'));
     await expect(rows).toHaveCount(30);
-    await expect(range).toHaveText(`1–30 of ${total}`);
+    await expect(range).toHaveText('1–30 of 31');
     await page.reload();
     await expect(page.getByTestId('page-size')).toHaveValue('30');
     await expect(page.getByRole('link', { name: 'Go to page 2' })).toHaveAttribute(
         'href',
-        '/customers/2/?size=30'
+        at(2, '&size=30')
     );
 });
 
