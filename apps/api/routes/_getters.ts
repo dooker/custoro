@@ -45,6 +45,10 @@ export const applyPaging = (sql: string, { page, limit }: { page: number; limit:
         `;
 };
 
+// The search word of a list request (?keyword=); anything but one text (a repeated or bracketed
+// parameter) searches nothing
+export const keywordOf = (value: unknown) => (typeof value === "string" ? value : "");
+
 export const getFromTo = (sql: string, page: unknown, limit: unknown) =>
     applyPaging(sql, getPaging(page, limit));
 

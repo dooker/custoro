@@ -3,7 +3,6 @@ import customer from "../routes/customer";
 import customers from "../routes/customers";
 import product from "../routes/product";
 import products from "../routes/products";
-import search from "../routes/search";
 import worksheet from "../routes/worksheet";
 import worksheets from "../routes/worksheets";
 import invoice from "../routes/invoice";
@@ -22,7 +21,6 @@ export default (app: Express): void => {
     app.use("/customers", customers);
     app.use("/product", product);
     app.use("/products", products);
-    app.use("/search", search);
     app.use("/worksheet", worksheet);
     app.use("/worksheets", worksheets);
     app.use("/invoice", invoice);

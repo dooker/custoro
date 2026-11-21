@@ -30,7 +30,6 @@ const protectedRoutes: [Method, string][] = [
     ['get', '/worksheet/1'],
     ['get', '/invoices'],
     ['get', '/invoice/last/'],
-    ['get', '/search'],
     ['get', '/settings'],
     ['put', '/settings'],
     ['delete', '/settings'],
@@ -112,9 +111,10 @@ test.describe('admin-only routes', () => {
 });
 
 test.describe('searching users', () => {
-    // The user list is admin-only; the search must not be a way around that
+    // Searching a list is that list with a word (?keyword=), so the user list stays admin-only
+    // with a word too; the shared /search, which had to repeat that check, is gone
     const search = (resource: string, keyword = '') =>
-        `/search/?resource=${resource}&keyword=${encodeURIComponent(keyword)}&page=1&limit=10`;
+        `/${resource}/?keyword=${encodeURIComponent(keyword)}&page=1&limit=10`;
 
     test('is forbidden for a regular user, with or without a keyword', async ({ request }) => {
         const token = await getApiToken(request, getRegularUser());
@@ -123,7 +123,8 @@ test.describe('searching users', () => {
             search('users'),
             search('users', 'admin'),
             search('users', 'quantumdesk'),
-            '/search/?resource=users',
+            '/users/?keyword=a&keyword=b',
+            '/users/?keyword[]=a',
         ]) {
             const response = await call(request, 'get', path, token);
 
@@ -132,29 +133,25 @@ test.describe('searching users', () => {
         }
     });
 
-    test('cannot be reached by writing the resource differently', async ({ request }) => {
-        const token = await getApiToken(request, getRegularUser());
-
-        for (const path of [
-            search('Users'),
-            search('users%20'),
-            '/search/?resource=customers&resource=users&page=1&limit=10',
-            '/search/?resource[]=users&page=1&limit=10',
-            '/search/?resource=constructor&page=1&limit=10',
-            '/search/?resource=__proto__&page=1&limit=10',
+    test('the old shared search is gone, for everyone', async ({ request }) => {
+        for (const token of [
+            await getApiToken(request, getRegularUser()),
+            await getApiToken(request),
         ]) {
-            const body = await (await call(request, 'get', path, token)).json();
-
-            expect(body.success, path).toBe(false);
-            expect(body, path).not.toHaveProperty('resource');
+            for (const path of [
+                '/search/?resource=users&keyword=a&page=1&limit=10',
+                '/search/?resource=customers&page=1&limit=10',
+            ]) {
+                expect((await call(request, 'get', path, token)).status(), path).toBe(404);
+            }
         }
     });
 
-    test('still works for a regular user on the other resources', async ({ request }) => {
+    test('still works for a regular user on the other lists', async ({ request }) => {
         const token = await getApiToken(request, getRegularUser());
 
         for (const resource of ['customers', 'products', 'worksheets', 'invoices']) {
-            const body = await (await call(request, 'get', search(resource), token)).json();
+            const body = await (await call(request, 'get', search(resource, 'a'), token)).json();
 
             expect(body.success, resource).toBe(true);
         }

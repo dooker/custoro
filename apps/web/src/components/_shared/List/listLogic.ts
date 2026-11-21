@@ -29,10 +29,6 @@ export interface ListRequestIF {
     keyword?: string;
     // Extra query parameters, such as { customer: 4 } or { order: 'id', direction: 'DESC' }
     params?: ListParams;
-    // Where a keyword goes: the shared /search endpoint (default) with this resource name, or the
-    // list endpoint's own keyword parameter (GET /tenants)
-    searchResource?: string;
-    searchIn?: 'search' | 'list';
 }
 
 export interface ListDataIF<T> {
@@ -81,32 +77,17 @@ export const listQueryKey = ({ resource, page, limit, keyword = '', params }: Li
     { page, limit, keyword, ...params },
 ];
 
-/** The request for one page: the list endpoint, or /search when there is a word to look for */
-export const listRequest = ({
-    resource,
-    path,
-    page,
-    limit,
-    keyword,
-    params = {},
-    searchResource = resource,
-    searchIn = 'search',
-}: ListRequestIF) => {
-    // The API decodes the keyword once more (older callers sent it encoded)
-    const encoded = keyword ? encodeURIComponent(keyword) : undefined;
-
-    if (encoded && searchIn === 'search') {
-        return {
-            url: `${endpoint}/search/`,
-            params: { resource: searchResource, keyword: encoded, page, limit, ...params },
-        };
-    }
-
-    return {
-        url: `${endpoint}${path}`,
-        params: { page, limit, ...params, ...(encoded ? { keyword: encoded } : {}) },
-    };
-};
+/** The request for one page: the list endpoint, with the search word when there is one */
+export const listRequest = ({ path, page, limit, keyword, params = {} }: ListRequestIF) => ({
+    url: `${endpoint}${path}`,
+    params: {
+        page,
+        limit,
+        ...params,
+        // The API decodes the word once more (older callers sent it encoded)
+        ...(keyword ? { keyword: encodeURIComponent(keyword) } : {}),
+    },
+});
 
 /**
  * The rows of an answer. A refusal is an error, not an empty list, so the page can say the list

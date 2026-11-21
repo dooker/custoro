@@ -13,7 +13,7 @@ import type { HeaderButtonIF } from '../../../types/header';
 import { listPageSize } from '../../../variables';
 
 interface ListPageIF<T extends { id: number }> {
-    // The resource: the section's class, the cache key, the /search resource and the delete
+    // The resource: the section's class, the cache key and the delete
     resource: string;
     // The list's address, the same for the page and the API: /customers/ (pages at /customers/2/)
     path: string;
@@ -28,7 +28,6 @@ interface ListPageIF<T extends { id: number }> {
     // A delete button in every row
     deletable?: boolean;
     params?: ListParams;
-    searchIn?: 'search' | 'list';
     rowClassName?: (row: T) => string;
     tableClassName?: string;
     // Above the table, such as an explanation
@@ -51,7 +50,6 @@ const ListPage = <T extends { id: number }>({
     buttons = [],
     deletable,
     params,
-    searchIn,
     rowClassName,
     tableClassName,
     intro,
@@ -69,7 +67,6 @@ const ListPage = <T extends { id: number }>({
         limit: listPageSize,
         keyword,
         params,
-        searchIn,
     });
 
     const headerButtons: HeaderButtonIF[] = [

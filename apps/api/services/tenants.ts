@@ -4,7 +4,7 @@
 // scripts/setOwner.ts) uses the same functions.
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { query } from "../helper/query";
-import { applyPaging, getPaging, keywordWhere } from "../routes/_getters";
+import { applyPaging, getPaging, keywordOf, keywordWhere } from "../routes/_getters";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
 import { companySeed } from "../helpers/companySeed";
 import { isValidEmail } from "../helpers/credentials";
@@ -39,7 +39,7 @@ export interface TenantListIF {
 export const listTenants = async (database: string, { page, limit, keyword }: TenantListIF) => {
     const paging = getPaging(page, limit);
     const search = keywordWhere({
-        keyword: typeof keyword === "string" ? keyword : "",
+        keyword: keywordOf(keyword),
         table: "tenants"
     });
 

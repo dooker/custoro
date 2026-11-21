@@ -69,8 +69,8 @@ describe('ListPage', () => {
         });
 
         expect(lastCall()).toEqual([
-            `${endpoint}/search/`,
-            { params: { resource: 'customers', keyword: 'orb', page: 1, limit: listPageSize } },
+            `${endpoint}/customers/`,
+            { params: { page: 1, limit: listPageSize, keyword: 'orb' } },
         ]);
     });
 
@@ -80,7 +80,9 @@ describe('ListPage', () => {
 
         expect(await screen.findByText('Orbit')).toBeInTheDocument();
         expect(screen.getByTestId('search-input')).toHaveValue('orb');
-        expect(lastCall()?.[0]).toBe(`${endpoint}/search/`);
+        expect(lastCall()?.[1]).toEqual({
+            params: { page: 1, limit: listPageSize, keyword: 'orb' },
+        });
     });
 
     it('says the list could not be loaded instead of "No entries"', async () => {

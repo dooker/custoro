@@ -5,8 +5,7 @@ import { PATHS, RESOURCE } from '../../variables';
 import styles from './Tenants.module.sass';
 
 // The owner page (docs/multi-tenant.md), a list like the others: every company with its number of
-// people and invoices, never its customers or invoices. A row opens the company (Tenant.tsx). The
-// API pages and searches the companies itself: GET /tenants is owner only, so /search has none.
+// people and invoices, never its customers or invoices. A row opens the company (Tenant.tsx).
 const Tenants = () => {
     const { t } = useSafeTranslation();
 
@@ -15,7 +14,6 @@ const Tenants = () => {
             resource={RESOURCE.TENANTS}
             path={PATHS.TENANTS}
             title="tenants.plural"
-            searchIn="list"
             columns={[
                 { key: 'id', label: '#', className: 'id' },
                 { key: 'name', label: 'tenants.name', className: 'name' },

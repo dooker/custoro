@@ -107,31 +107,25 @@ describe('listRequest', () => {
         });
     });
 
-    it('asks /search for a word, with the resource and the encoded word', () => {
+    it('asks the same endpoint for a word, encoded', () => {
         expect(listRequest({ ...base, keyword: 'Õnne 50%' })).toEqual({
-            url: `${endpoint}/search/`,
-            params: { resource: 'customers', keyword: '%C3%95nne%2050%25', page: 2, limit: 15 },
+            url: `${endpoint}/customers/`,
+            params: { page: 2, limit: 15, keyword: '%C3%95nne%2050%25' },
         });
     });
 
-    it('searches under another resource name when asked (a customer’s worksheets)', () => {
+    it('searches one customer\u2019s worksheets with the customer kept', () => {
         expect(
             listRequest({
                 ...base,
                 resource: 'worksheets-per-customer',
-                searchResource: 'worksheets',
+                path: '/worksheets/',
                 keyword: 'cable',
                 params: { customer: 9 },
-            }).params
-        ).toEqual({ resource: 'worksheets', keyword: 'cable', page: 2, limit: 15, customer: 9 });
-    });
-
-    it('searches in the list endpoint itself when it has its own keyword (companies)', () => {
-        expect(
-            listRequest({ ...base, path: '/tenants/', keyword: 'orbit', searchIn: 'list' })
+            })
         ).toEqual({
-            url: `${endpoint}/tenants/`,
-            params: { page: 2, limit: 15, keyword: 'orbit' },
+            url: `${endpoint}/worksheets/`,
+            params: { page: 2, limit: 15, customer: 9, keyword: 'cable' },
         });
     });
 });

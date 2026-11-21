@@ -178,17 +178,22 @@ test("a company's lists and searches never show another company's rows", async (
         const body = await call(
             a.token,
             'get',
-            `/search?resource=${resource}&keyword=${encodeURIComponent(keyword)}`
+            `/${resource}/?keyword=${encodeURIComponent(keyword)}`
         );
+        const found = JSON.stringify(body.resource ?? []);
 
-        expect(body.resource ?? [], `search ${resource}`).toEqual([]);
+        // Not "no rows": every word must match, and "B" also matches a "b" in the tag, so A's own
+        // "Company A <tag> customer" can come back when the tag has one (mwqhfb11 did)
+        expect(found, `search ${resource}`).not.toContain(b.name);
+        expect(found, `search ${resource}`).not.toContain(`P-b-${unique}`);
+        expect(found, `search ${resource}`).not.toContain(b.admin);
     }
 
     // its own rows are found the same way
     const own = await call(
         a.token,
         'get',
-        `/search?resource=customers&keyword=${encodeURIComponent(a.name)}`
+        `/customers/?keyword=${encodeURIComponent(a.name)}`
     );
     expect(own.resource).toHaveLength(1);
 });

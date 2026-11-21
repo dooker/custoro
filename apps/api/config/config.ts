@@ -9,7 +9,6 @@ export const config = {
         "customers",
         "product",
         "products",
-        "search",
         "worksheet",
         "worksheets",
         "invoice",

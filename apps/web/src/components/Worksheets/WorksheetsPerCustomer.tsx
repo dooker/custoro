@@ -90,7 +90,6 @@ const WorksheetsPerCustomer = () => {
 
     const query = useResourceList<WorksheetIF>({
         resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
-        searchResource: RESOURCE.WORKSHEETS,
         path: PATHS.WORKSHEETS,
         page: currentPage,
         limit: listPageSize,

@@ -19,6 +19,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - A list that could not be loaded (no connection, a refusal) said "No entries". It now says the
   list could not be loaded
 - The Name column of the customer list was in English in every language
+- After an invoice was saved, the invoice list showed the old version until a reload (up to five
+  minutes later)
+- A page number in an address that is not one (`/customer/abc/5/`, `0`, `-2`, `2.5`) counts as
+  page 1 on every page, as it does in the lists
 
 ### Changed
 
@@ -34,6 +38,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   delete button at the end of a row has a name for screen readers, and the page numbers show only
   when there is more than one page
 - Deleting the last row of a page goes back to the page before, in every list (only products did)
+- Every list searches itself: `GET /customers?keyword=…` (and `/products`, `/worksheets`,
+  `/invoices`, `/users`, `/tenants`) instead of the shared `/search`, which is gone. The web app
+  is changed with it. **Scripts or integrations that call the API's `/search` must call the list
+  with `keyword` instead** (the same words, the same matches; `/search` now answers 404)
 
 ## 5.1.0 - 2026-11-15
 
