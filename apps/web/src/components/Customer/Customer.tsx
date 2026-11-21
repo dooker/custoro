@@ -12,12 +12,13 @@ import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import Header from '../_shared/Header/Header';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import type { CustomerIF } from '../../types/customer';
+import { usePageParam } from '../../hooks/usePageParam';
 
 const Customer = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
-    const { id: customerId, page: rawPage } = useParams();
-    const page = Number(rawPage || 1);
+    const { id: customerId } = useParams();
+    const page = usePageParam();
     const isNew = customerId === '0';
     const formRef = useRef<FormHandleIF>(null);
     const { promptDelete } = useDeleteItem([RESOURCE.CUSTOMERS]);

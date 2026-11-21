@@ -15,6 +15,7 @@ import type { NewTenantIF, TenantIF } from '../../types/tenant';
 import type { HeaderButtonIF } from '../../types/header';
 import '@css/shared/Form.sass';
 import styles from './Tenant.module.sass';
+import { usePageParam } from '../../hooks/usePageParam';
 
 interface ApiAnswer {
     success: boolean;
@@ -30,9 +31,9 @@ const emptyDraft: NewTenantIF = { name: '', adminEmail: '', adminName: '' };
 const Tenant = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
-    const { id: rawId, page: rawPage } = useParams();
+    const { id: rawId } = useParams();
     const id = Number(rawId);
-    const page = Number(rawPage) || 1;
+    const page = usePageParam();
     const isNew = id === 0;
     const notification = useNotificationHandler();
     const queryClient = useQueryClient();

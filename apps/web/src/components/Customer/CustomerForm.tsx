@@ -5,7 +5,7 @@ import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
 import Field from '../_shared/Form/Field';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
@@ -21,9 +21,10 @@ import {
 } from '../Worksheets/WorksheetsPerCustomer';
 import { invoiceColumns, invoiceHref } from '../Invoices/Invoices';
 import type { InvoiceWithCustomerIF, WorksheetIF } from '../../types';
+import { usePageParam } from '../../hooks/usePageParam';
 
 export const CustomerForm = ({ initialCustomer, isNew, type, ref }: CustomerFormIF & FormRefIF) => {
-    const page = Number(useParams().page) || 1;
+    const page = usePageParam();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [draft, setDraft] = useState<CustomerIF>(() => {

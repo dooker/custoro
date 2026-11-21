@@ -14,6 +14,7 @@ import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import { usePickedItem } from '../../hooks/usePickedItem';
 import { toPickerOption } from '../../utils/pickers';
 import type { FormRefIF } from '../../types/form';
+import { usePageParam } from '../../hooks/usePageParam';
 
 interface WorksheetFormIF extends FormRefIF {
     initialWorksheet: WorksheetIF | null;
@@ -30,9 +31,9 @@ export const WorksheetForm = ({ initialWorksheet, isNew, ref }: WorksheetFormIF)
     const navigate = useNavigate();
     const { t } = useSafeTranslation();
     const queryClient = useQueryClient();
-    const page = Number(useParams().page) || 1;
+    const page = usePageParam();
     const { customerId, worksheetPage } = useParams();
-    const currentWorksheetPage = Number(worksheetPage) || 1;
+    const currentWorksheetPage = usePageParam('worksheetPage');
     const [errors, setErrors] = useState<WorksheetErrorsIF>({
         customer: null,
         product: null,
@@ -95,20 +96,10 @@ export const WorksheetForm = ({ initialWorksheet, isNew, ref }: WorksheetFormIF)
     };
 
     const invalidator = async () => {
-        await queryClient.invalidateQueries({
-            predicate: (query) => {
-                const key = query.queryKey;
-
-                // we do not know "limit"
-                return (
-                    key[0] === RESOURCE.WORKSHEETS_PER_CUSTOMER &&
-                    key[2] === String(customerId) &&
-                    key[3] === String(worksheetPage) &&
-                    key[4] === String(currentWorksheetPage) &&
-                    key[5] === ''
-                );
-            },
-        });
+        // Every page of the customer's worksheets and of the customer list with its counts (the
+        // old key pattern matched no list since the lists share one key, useResourceList)
+        await queryClient.invalidateQueries({ queryKey: [RESOURCE.WORKSHEETS_PER_CUSTOMER] });
+        await queryClient.invalidateQueries({ queryKey: [RESOURCE.WORKSHEETS] });
     };
 
     const { mutate: doSave } = useMutation<AxiosResponse, Error, MutateIF<WorksheetIF>>({

@@ -12,9 +12,14 @@ import { getSingle } from '../../utils/Getters/getSingle';
 import Header from '../_shared/Header/Header';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import type { CustomerIF } from '../../types/customer';
+import { usePageParam } from '../../hooks/usePageParam';
 
 const Worksheet = () => {
-    const { customerId, worksheetId, page, worksheetPage } = useParams();
+    const { customerId, worksheetId, worksheetPage: rawWorksheetPage } = useParams();
+    const page = usePageParam();
+    const worksheetPageNumber = usePageParam('worksheetPage');
+    // Only the customer's worksheet list has a page of its own in the address
+    const worksheetPage = rawWorksheetPage ? worksheetPageNumber : undefined;
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
     const isNew = !worksheetId || worksheetId === '0';
@@ -48,7 +53,7 @@ const Worksheet = () => {
             label: 'button.goBack',
             onClick: () =>
                 navigate(
-                    `${PATHS.WORKSHEETS}${page || '1'}/${customerId && worksheetPage ? `${customerId}/${worksheetPage}/` : ''}`
+                    `${PATHS.WORKSHEETS}${page}/${customerId && worksheetPage ? `${customerId}/${worksheetPage}/` : ''}`
                 ),
             classname: 'secondary',
         },

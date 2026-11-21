@@ -12,12 +12,13 @@ import { useRef } from 'react';
 import type { FormHandleIF } from '../../types/form';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
+import { usePageParam } from '../../hooks/usePageParam';
 
 const Product = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
-    const { id: productId, page: rawPage } = useParams();
-    const page = Number(rawPage || 1);
+    const { id: productId } = useParams();
+    const page = usePageParam();
     const isNew = productId === '0';
     const formRef = useRef<FormHandleIF>(null);
     // The products list is read again after a delete (it said customers)

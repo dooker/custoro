@@ -12,12 +12,13 @@ import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import Header from '../_shared/Header/Header';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import type { UserIF } from '../../types/user';
+import { usePageParam } from '../../hooks/usePageParam';
 
 const User = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
-    const { id: userId, page: rawPage } = useParams();
-    const page = Number(rawPage || 1);
+    const { id: userId } = useParams();
+    const page = usePageParam();
     const isNew = userId === '0';
     const formRef = useRef<FormHandleIF>(null);
     const { promptDelete } = useDeleteItem([RESOURCE.USERS]);

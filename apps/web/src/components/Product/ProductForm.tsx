@@ -5,13 +5,14 @@ import { debounceTimer, endpoint, PATHS } from '../../variables';
 import { handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
 import Field from '../_shared/Form/Field';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import HelpField from '../HelpField/Helpfield';
 import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
 import type { FormRefIF } from '../../types/form';
+import { usePageParam } from '../../hooks/usePageParam';
 
 interface ProductFormIF extends FormRefIF {
     initialProduct: ProductIF | null;
@@ -23,7 +24,7 @@ export const ProductForm = ({ initialProduct, isNew, type, ref }: ProductFormIF)
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { t } = useSafeTranslation();
-    const page = Number(useParams().page) || 1;
+    const page = usePageParam();
     const [codeExists, setCodeExists] = useState(false);
     const notification = useNotificationHandler();
     // TODO these could be config one day?
