@@ -17,7 +17,7 @@ H="Authorization: Bearer $ADMIN"; J='Content-Type: application/json'
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------- |
 | `curl -s -w ' %{http_code}' $API/customers/`                                                  | `{"success":false,"message":"auth.header"}` 401 |
 | `-H 'Authorization: Bearer x.y.z'` on any route                                               | `invalid.token`, HTTP 200                       |
-| regular user: `GET /users/`, `PUT /settings/`, `GET /search/?resource=users&keyword=a&page=1` | `{"success":false,"message":"forbidden"}` 403   |
+| regular user: `GET /users/`, `PUT /settings/`, `GET /users/?keyword=a&page=1`                 | `{"success":false,"message":"forbidden"}` 403   |
 | a token after the password was changed (PUT `/profile/`) or the user deleted                  | `invalid.token`                                 |
 
 Run every row of `scripts/route-table.mjs` that is admin-only as the regular user, and every route without a token. A 200 with data is a finding.
@@ -32,8 +32,8 @@ curl -s -w ' %{http_code}\n' -X POST $API/customer/ -H "$H" -H "$J" -d '{bad jso
 head -c 200000 /dev/zero | tr '\0' a | jq -Rs '{name: .}' | \
   curl -s -w ' %{http_code}\n' -X POST $API/customer/ -H "$H" -H "$J" --data-binary @-   # Payload Too Large 413
 KW=$(python3 -c "print('%20'.join('zz%d' % i for i in range(1000)))")
-# the keyword is read by the search (and the invoice and worksheet lists), not by the customer list
-curl -s -o /dev/null -w '%{time_total}s\n' "$API/search/?resource=invoices&keyword=$KW&page=1" -H "$H"   # milliseconds, 8 words used
+# every list reads the keyword (?keyword=, since 5.2.0; /search is gone)
+curl -s -o /dev/null -w '%{time_total}s\n' "$API/invoices/?keyword=$KW&page=1" -H "$H"   # milliseconds, 8 words used
 # the sort column and direction are read from the QUERY string (the path segments are ignored), and allowlisted
 curl -s -o /dev/null -w '%{time_total}s\n' "$API/customers/1?order=id%20DESC,(SELECT%20SLEEP(5))&direction=ASC,(SELECT%20SLEEP(5))" -H "$H"   # instant: falls back to ORDER BY name ASC
 curl -s "$API/customers/1?page=0&limit=1000000" -H "$H" | jq '.resource | length'          # at most 50 (1000 without page and limit)

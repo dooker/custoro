@@ -7,7 +7,7 @@ import { tenantOf } from "../helpers/tenant";
 import type { QueryIF, TotalRow } from "../types";
 import type { InvoiceIF, InvoiceItemIF } from "../types/invoice";
 import type { AllowedEmailKey, EmailConfigIF, EmailConfigResult, EmailIF } from "../types/email";
-import { getPaging } from "../routes/_getters";
+import { applyPaging, getPaging, pageMeta } from "../routes/_getters";
 import type { ProductIF } from "../types/product";
 import type { Request } from "express";
 import type {
@@ -172,6 +172,10 @@ export const deleteImageFile = (filename: string) => {
     });
 };
 
+/**
+ * One page of a list: the matching rows are counted first, so a page past the end answers with
+ * the last page instead of no rows; `sql` comes without its LIMIT (the page is known only then).
+ */
 export const getGeneralMultiple = async ({
     request,
     sql,
@@ -183,22 +187,24 @@ export const getGeneralMultiple = async ({
         database,
         query: { page, limit }
     } = request;
-    // The same page size the list's SQL used (see getFromTo), so the page count matches the rows
-    const { limit: pageSize } = getPaging(page, limit);
-
-    const { success, data: rows } = await query({
-        database,
-        sql,
-        params,
-        logger: `Get multiple ${type}`
-    });
     const { success: totalSuccess, data: totalRows } = await query<TotalRow>({
         database,
         sql: totalSql,
         params,
+        logger: `Count ${type}`
+    });
+    const meta = pageMeta(getPaging(page, limit), Number(totalRows?.[0]?.total ?? 0));
+
+    if (!totalSuccess) {
+        return { success: false, resource: [], meta };
+    }
+
+    const { success, data: rows } = await query({
+        database,
+        sql: applyPaging(sql, meta),
+        params,
         logger: `Get multiple ${type}`
     });
-    const total = totalRows?.[0]?.total ?? 0;
 
     if (type === "products" && Array.isArray(rows)) {
         rows.forEach((element, index) => {
@@ -206,14 +212,7 @@ export const getGeneralMultiple = async ({
         });
     }
 
-    return {
-        success: success && totalSuccess,
-        resource: rows,
-        meta: {
-            total: Math.ceil(total / pageSize),
-            page: parseInt(page as string) || 1
-        }
-    };
+    return { success, resource: rows, meta };
 };
 
 export const postGeneralSingle = async ({ sql, params, logger, database }: PostGeneralSingleIF) => {

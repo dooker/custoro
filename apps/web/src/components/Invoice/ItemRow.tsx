@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/Auth';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import { useParams } from 'react-router';
 import { formatCents, formatPrice, lineCents } from '../../utils/invoiceTotals';
+import { usePageParam } from '../../hooks/usePageParam';
 
 interface ItemRowIF {
     item: InvoiceProductIF;
@@ -17,7 +18,8 @@ export const ItemRow = ({ item, index, onChange, invoiceIsLocked }: ItemRowIF) =
     const { id, name, price, discountPrice, quantity = 0, unit } = item;
     const { user } = useAuth();
     const { discount } = user || {};
-    const { page, invoiceId } = useParams();
+    const { invoiceId } = useParams();
+    const page = usePageParam();
     const { promptDelete } = useDeleteItem([RESOURCE.INVOICE, String(invoiceId)]);
 
     return (
@@ -65,7 +67,7 @@ export const ItemRow = ({ item, index, onChange, invoiceIsLocked }: ItemRowIF) =
                         onClick={() =>
                             promptDelete({
                                 id,
-                                page: Number(page),
+                                page,
                                 resource: RESOURCE.INVOICE,
                             })
                         }

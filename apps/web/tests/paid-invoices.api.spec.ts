@@ -140,7 +140,7 @@ test('a paid invoice keeps its customer as billed when the customer changes', as
     for (const keyword of [`Paid ${unique}`, `Renamed ${unique}`]) {
         const found = await call(
             'get',
-            `/search/?resource=invoices&keyword=${encodeURIComponent(keyword)}&page=1&limit=10`
+            `/invoices/?keyword=${encodeURIComponent(keyword)}&page=1&limit=10`
         );
 
         expect(

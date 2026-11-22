@@ -5,6 +5,56 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.2.0 - 2026-11-21
+
+### Fixed
+
+- Language switcher: it needed two clicks. After a page load in Estonian (or English (fun)), the
+  first click on another language moved the star but the texts stayed as they were. Now one click
+  switches, and the language is remembered from the moment it changes (issue 41)
+- Home: it took the title and buttons of one of its small lists (often "Invoices" with a Search
+  and an Add button), and typing in that search box failed. Home now says "Dashboard" and has no
+  buttons
+- Search on a later page: it showed that page of the matches (page 3 of the results, often only a
+  few rows or none). A search now starts on page 1
+- A list that could not be loaded: it said "No entries" (no connection, a refusal). It now says
+  the list could not be loaded
+- A page past the end: `/customers/999/` showed "No entries" under the page numbers. It now shows
+  the last page, and the address follows
+- One customer's worksheets: the page count left out the paid ones, which the list shows. With
+  more than 15 worksheets, some of them paid, the last rows could not be reached
+- Invoice list after a save: it showed the old version until a reload (up to five minutes later)
+- Page numbers in an address: one that is not a page (`abc`, `0`, `-2`, `2.5`) counts as page 1
+  on every page, as it does in the lists
+- Customer list: its Name column was in English in every language
+
+### Changed
+
+- Companies page: it works like the other lists (issue 42), with search, pages and an Add button
+  in the header that opens the new company form. A row opens the company on its own page, where
+  it is renamed and switched off or on with coloured buttons in the header (red to switch off).
+  The buttons no longer squeeze into the table rows, where their text did not fit
+- Rows per page: 15 on every screen, so a page number means the same rows on a phone and a laptop
+  (it depended on the window height). 30 or 50 can be chosen under the list, and the choice stays
+  in the address (`?size=30`)
+- Under every list: which rows are shown ("16–30 of 212"), the rows per page, and the page numbers
+  as links (a page opens in a new tab too) with first and last page buttons, fewer of them on a
+  narrow screen. Another page starts at the top of the list, and the next page is loaded ahead
+- Search word: it is in the address (`?q=`), so it stays when you go to another page of the list,
+  go back or forward, or reload, and a link to a search shows the same list. A record opened from
+  a list keeps the list's search and rows per page, and its Go Back returns to the same rows
+- Rows: a row in a list is a link, so it can be opened in a new tab and reached with the keyboard.
+  The delete button at the end of a row has a name for screen readers
+- Deleting the last row of a page: it goes back to the page before, in every list (only products
+  did)
+- List search in the API: every list searches itself, `GET /customers?keyword=…` (and
+  `/products`, `/worksheets`, `/invoices`, `/users`, `/tenants`), instead of the shared `/search`,
+  which is gone. **Scripts or integrations that call `/search` must call the list with `keyword`
+  instead** (the same words, the same matches; `/search` now answers 404)
+- List answers in the API: `meta` has `page` (the page the rows are from, the last one for a page
+  past the end), `pages`, `rows` (the matching rows on all pages) and `limit`. `total` is still the
+  number of pages, for one release. **Scripts that read `meta.total` should read `meta.pages`**
+
 ## 5.1.0 - 2026-11-15
 
 ### Added

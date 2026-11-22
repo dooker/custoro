@@ -27,6 +27,26 @@
             width: 80px
             white-space: nowrap
 
+        // A row that leads somewhere: the link fills the cell, so the whole row is the link
+        &.link
+            padding: 0
+
+            > a
+                display: block
+                padding: variables.$grid
+                color: inherit
+                text-decoration: none
+
+                &:focus-visible
+                    outline: 2px solid variables.$green-sea
+                    outline-offset: -2px
+
+        &.link:first-of-type > a
+            padding-left: variables.$grid-gutter
+
+        &.link:last-of-type > a
+            padding-right: variables.$grid-gutter
+
     th
         border-bottom: 1px solid variables.$green-sea
         font-weight: bold

@@ -32,28 +32,6 @@ export const formatDateTime = (date: string | Date) => {
     });
 };
 
-export const visibleRowCount = (compact?: boolean) => {
-    // for Customer view it will create random number, for now this is ok
-
-    const rowHeight = 41;
-    const headerHeight = 83;
-    const padding = (compact ? 3 : 2) * 12;
-    let tableHeaderHeight, tableFooterHeight;
-
-    if (compact) {
-        tableHeaderHeight = 2 * 55 + 2 * 41;
-        tableFooterHeight = 0;
-    } else {
-        tableHeaderHeight = 40;
-        tableFooterHeight = 57;
-    }
-    const tableContentHeight =
-        window.innerHeight - headerHeight - padding - tableHeaderHeight - tableFooterHeight;
-    const availableHeight = tableContentHeight / (compact ? 2 : 1);
-
-    return Math.max(5, Math.floor(availableHeight / rowHeight));
-};
-
 export const Formify = <T extends object>(data: T): FormData => {
     const formData = new FormData();
 

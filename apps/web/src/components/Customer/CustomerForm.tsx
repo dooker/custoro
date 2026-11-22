@@ -1,11 +1,11 @@
 import type { EntityOnChangeIF, MutateIF, SelectOptionIF } from '../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FormEvent, lazy, Suspense, useImperativeHandle, useState } from 'react';
-import { debounceTimer, endpoint, PATHS } from '../../variables';
+import { FormEvent, useImperativeHandle, useState } from 'react';
+import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { handleError } from '../../shared/helpers';
 import { useDebounce } from '../../hooks/useDebounce';
 import Field from '../_shared/Form/Field';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import type { AxiosResponse } from 'axios';
 import { Axios } from '../../Axios';
 import { useNotificationHandler } from '../../hooks/useNotificationHandler';
@@ -13,11 +13,20 @@ import type { CustomerFormIF, CustomerIF } from '../../types/customer';
 import type { InputFieldsIF, FormRefIF } from '../../types/form';
 import styles from './CustomerForm.module.sass';
 
-const WorksheetsPerCustomer = lazy(() => import('../Worksheets/WorksheetsPerCustomer'));
-const Invoices = lazy(() => import('../Invoices/Invoices'));
+import ListWidget from '../_shared/List/ListWidget';
+import {
+    customerWorksheetColumns,
+    customerWorksheetHref,
+    invoicedRow,
+} from '../Worksheets/WorksheetsPerCustomer';
+import { invoiceColumns, invoiceHref } from '../Invoices/Invoices';
+import type { InvoiceWithCustomerIF, WorksheetIF } from '../../types';
+import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 export const CustomerForm = ({ initialCustomer, isNew, type, ref }: CustomerFormIF & FormRefIF) => {
-    const page = Number(useParams().page) || 1;
+    const page = usePageParam();
+    const { keep } = useListReturn(PATHS.CUSTOMERS);
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [draft, setDraft] = useState<CustomerIF>(() => {
@@ -96,7 +105,7 @@ export const CustomerForm = ({ initialCustomer, isNew, type, ref }: CustomerForm
             await notification({ success, message, invalidator, show: variables.show });
 
             if (isNew) {
-                navigate(`${PATHS.CUSTOMER}${page}/${insertId}/`);
+                navigate(keep(`${PATHS.CUSTOMER}${page}/${insertId}/`));
             }
         },
         onError: (err: Error) => handleError(err.message),
@@ -145,14 +154,28 @@ export const CustomerForm = ({ initialCustomer, isNew, type, ref }: CustomerForm
                 </form>
             </section>
 
-            <Suspense fallback={null}>
-                {draft.id && (
-                    <div className="splitter">
-                        <WorksheetsPerCustomer compact existingCustomer={draft} />
-                        <Invoices compact existingCustomer={draft} />
-                    </div>
-                )}
-            </Suspense>
+            {/* The customer's latest worksheets and invoices; they leave the page header alone */}
+            {draft.id && (
+                <div className="splitter">
+                    <ListWidget<WorksheetIF>
+                        resource={RESOURCE.WORKSHEETS_PER_CUSTOMER}
+                        path={PATHS.WORKSHEETS}
+                        title="worksheets.plural"
+                        params={{ customer: draft.id }}
+                        columns={customerWorksheetColumns(false)}
+                        rowHref={(row) => customerWorksheetHref(row, draft.id)}
+                        rowClassName={invoicedRow}
+                    />
+                    <ListWidget<InvoiceWithCustomerIF>
+                        resource={RESOURCE.INVOICES}
+                        path={PATHS.INVOICES}
+                        title="invoices.plural"
+                        params={{ customer: draft.id }}
+                        columns={invoiceColumns(false)}
+                        rowHref={(row) => invoiceHref(row)}
+                    />
+                </div>
+            )}
         </div>
     );
 };

@@ -1,7 +1,7 @@
 import { useImperativeHandle, useState } from 'react';
 import { isForeignVatNumber } from '../../utils/foreignVatNumber';
 import type { EntityOnChangeIF, InvoiceIF, MutateIF, ProductIF } from '../../types';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { debounceTimer, endpoint, PATHS, RESOURCE } from '../../variables';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import { useConfirmationHandler } from '../../hooks/useConfirmationHandler';
 import type { CustomerIF } from '../../types/customer';
 import styles from './InvoiceForm.module.sass';
 import type { FormRefIF } from '../../types/form';
+import { useListReturn } from '../../hooks/useListReturn';
 
 interface InvoiceFormIF extends FormRefIF {
     initialInvoice: InvoiceIF | null;
@@ -43,7 +44,6 @@ type TypedInvoiceIF = Partial<InvoiceIF> & {
 };
 
 export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF) => {
-    const page = Number(useParams().page) || 1;
     const [draft, setDraft] = useState<InvoiceIF>(() => {
         if (isNew || !initialInvoice) {
             return {} as InvoiceIF;
@@ -53,6 +53,7 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
     const { items, locked, customerId } = draft;
     const isLocked = locked === 1;
     const navigate = useNavigate();
+    const { keep } = useListReturn(PATHS.INVOICES);
     const queryClient = useQueryClient();
     const addString = 'add';
     const updateString = 'update';
@@ -73,7 +74,8 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
 
     const invalidator = async () => {
         await queryClient.invalidateQueries({ queryKey: [type, String(draft.id)] });
-        await queryClient.invalidateQueries({ queryKey: [RESOURCE.INVOICES, page, undefined, ''] });
+        // Every page of the invoice lists (the old key, with the page, never matched a list)
+        await queryClient.invalidateQueries({ queryKey: [RESOURCE.INVOICES] });
     };
 
     const { mutate: doSave } = useMutation<AxiosResponse, Error, MutateIF<TypedInvoiceIF>>({
@@ -102,7 +104,7 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
             await notification({ success, message, invalidator, show: variables.show });
 
             if (isNew) {
-                navigate(`${PATHS.INVOICE}1/${lastId}/`);
+                navigate(keep(`${PATHS.INVOICE}1/${lastId}/`));
             }
         },
         onError: (err: Error) => handleError(err.message),

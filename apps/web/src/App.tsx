@@ -11,22 +11,11 @@ import { BrowserRouter } from 'react-router';
 import { AuthProvider } from './contexts/Auth';
 import AppContent from './AppContent';
 
-import { useTranslation } from 'react-i18next';
-import { languageStorage } from './components/_shared/Navigation/LanguageSelector';
 import { lastUrl } from './variables';
 import Logo from '@images/background.svg?react';
 
+// The saved language is restored by i18n itself (i18n.tsx)
 const App = () => {
-    const { i18n } = useTranslation();
-
-    useEffect(() => {
-        const localLanguage = localStorage.getItem(languageStorage);
-
-        if (localLanguage && i18n.language !== localLanguage) {
-            i18n.changeLanguage(localLanguage).then();
-        }
-    }, [i18n]);
-
     useEffect(() => {
         const isPdf = location.pathname.startsWith('/pdf');
 

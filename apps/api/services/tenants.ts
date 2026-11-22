@@ -4,6 +4,7 @@
 // scripts/setOwner.ts) uses the same functions.
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { query } from "../helper/query";
+import { applyPaging, getPaging, keywordOf, keywordWhere, pageMeta } from "../routes/_getters";
 import { TransactionRefusal, withTransaction } from "../helper/transaction";
 import { companySeed } from "../helpers/companySeed";
 import { isValidEmail } from "../helpers/credentials";
@@ -19,22 +20,78 @@ export interface TenantRow {
 
 const duplicateEntry = "ER_DUP_ENTRY";
 
-export const listTenants = async (database: string) => {
-    const { success, data } = await query<TenantRow>({
-        database,
-        sql: `SELECT tenants.id,
+// A company with its counts; the counts are read per row, so a page of the list reads them only
+// for the companies it shows
+const tenantColumns = `tenants.id,
                      tenants.name,
                      tenants.active,
                      tenants.created,
                      (SELECT COUNT(*) FROM users WHERE users.tenant_id = tenants.id) AS people,
-                     (SELECT COUNT(*) FROM invoices WHERE invoices.tenant_id = tenants.id) AS invoices
+                     (SELECT COUNT(*) FROM invoices WHERE invoices.tenant_id = tenants.id) AS invoices`;
+
+export interface TenantListIF {
+    page?: unknown;
+    limit?: unknown;
+    keyword?: unknown;
+}
+
+/**
+ * One page of the companies, like the other lists: { resource, meta } (pageMeta: the rows are
+ * counted first, a page past the end gives the last page)
+ */
+export const listTenants = async (database: string, { page, limit, keyword }: TenantListIF) => {
+    const search = keywordWhere({
+        keyword: keywordOf(keyword),
+        table: "tenants"
+    });
+    const total = await query<{ total: number }>({
+        database,
+        sql: `SELECT COUNT(*) AS total
               FROM tenants
-              ORDER BY tenants.id;`,
-        params: [],
+              ${search.sql};`,
+        params: search.params,
+        logger: "Count the companies"
+    });
+
+    if (!total.success) {
+        return { success: false, message: "error" };
+    }
+
+    const meta = pageMeta(getPaging(page, limit), Number(total.data?.[0]?.total ?? 0));
+    const rows = await query<TenantRow>({
+        database,
+        sql: applyPaging(
+            `SELECT ${tenantColumns}
+             FROM tenants
+             ${search.sql}
+             ORDER BY tenants.id`,
+            meta
+        ),
+        params: search.params,
         logger: "List the companies"
     });
 
-    return success ? { success: true, data } : { success: false, message: "error" };
+    return rows.success
+        ? { success: true, resource: rows.data, meta }
+        : { success: false, message: "error" };
+};
+
+/** One company with its counts, in the shape of the other single reads: { data: [row] } */
+export const getTenant = async (database: string, id: number) => {
+    const { success, data } = await query<TenantRow>({
+        database,
+        sql: `SELECT ${tenantColumns}
+              FROM tenants
+              WHERE tenants.id = ?;`,
+        params: [id],
+        logger: "Get a company"
+    });
+
+    if (!success) {
+        return { success: false, message: "error" };
+    }
+
+    return data?.length ? { success: true, data } : { success: false, message: "notFound" };
 };
 
 export interface NewTenantIF {

@@ -17,7 +17,8 @@
         "generatePdf": "Generate PDF",
         "send": "Send email",
         "upload": "Pick file",
-        "cancel": "Never mind"
+        "cancel": "Never mind",
+        "search": "Hunt"
     },
     "products": {
         "singular": "Product",
@@ -330,6 +331,9 @@
         "add": "Add new"
     },
     "emptyList": "Looks like there are no entries...",
+    "listError": "The list wandered off. Give it a moment and try again.",
+    "listRange": "{{from}}–{{to}} of {{total}} critters",
+    "listPageSize": "Rows per gulp",
     "languages": {
         "en": "English",
         "et": "Eesti",
@@ -347,13 +351,17 @@
         "state": "State",
         "active": "Humming",
         "inactive": "Asleep",
-        "rename": "Rename",
         "deactivate": "Put to sleep",
         "activate": "Wake up",
         "new": "Brand new company",
         "newHelp": "It gets the default knobs, and its first admin gets a mail with a link to pick a password.",
         "adminEmail": "First admin's email",
         "adminName": "First admin's name",
-        "create": "Make it so"
+        "create": "Make it so",
+        "form": {
+            "name": "Name",
+            "adminEmail": "First admin's email",
+            "adminName": "First admin's name"
+        }
     }
 }

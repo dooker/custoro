@@ -27,7 +27,7 @@ const menuItems = [
     { selector: RESOURCE.INVOICES, link: `${PATHS.INVOICES}1/`, Icon: Invoice },
     { selector: RESOURCE.USERS, link: `${PATHS.USERS}1/`, Icon: Users, level: 'admin' },
     { selector: RESOURCE.SETTINGS, link: `${PATHS.SETTINGS}`, Icon: Settings, level: 'admin' },
-    { selector: RESOURCE.TENANTS, link: PATHS.TENANTS, Icon: Users, level: 'owner' },
+    { selector: RESOURCE.TENANTS, link: `${PATHS.TENANTS}1/`, Icon: Users, level: 'owner' },
 ];
 
 const Navigation = () => {

@@ -21,6 +21,8 @@ export const getSingle = async <T>({
         [RESOURCE.WORKSHEET]: PATHS.WORKSHEET,
         [RESOURCE.PDF]: PATHS.PDF,
         [RESOURCE.USER]: PATHS.USER,
+        // The API reads one company at /tenants/:id; /tenant/ is the web page
+        [RESOURCE.TENANT]: PATHS.TENANTS,
     };
     const path = mapper[type as keyof typeof mapper];
 

@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import Header from '../_shared/Header/Header';
-import { useHeadlineHandler } from '../../hooks/useHeadline';
 import { boldLeads, sectionKind, splitChangeLog, type ChangeLogParts } from './releases';
 import styles from './ChangeLog.module.sass';
 
@@ -18,12 +17,6 @@ const markdownComponents: Components = {
 const ChangeLog = () => {
     const [changelog, setChangelog] = useState<ChangeLogParts>({ intro: '', releases: [] });
     const { t } = useSafeTranslation();
-    const updateTitle = useHeadlineHandler();
-
-    useEffect(() => {
-        updateTitle({ title: t('changelog') });
-    }, [t, updateTitle]);
-
     useEffect(() => {
         // Copied from the repository root by the build (see package.json scripts). Leaving the
         // page before it arrives cancels the request instead of setting state on a gone screen.
@@ -41,7 +34,7 @@ const ChangeLog = () => {
 
     return (
         <>
-            <Header />
+            <Header title={t('changelog')} />
 
             <section className={`component ${styles.changelog}`}>
                 <div className="p-3">

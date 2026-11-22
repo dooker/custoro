@@ -1,53 +1,47 @@
 import { ConditionalWrapper } from '../../../utils/_helpers';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
-import { useHeadline } from '../../../store/headline';
 import { Search } from './Search';
 import Button from '../Form/Button';
-import { useButtons } from '../../../store/buttons';
-import type { HeaderIF, ListButtonIF } from '../../../types/header';
+import type { HeaderButtonIF, HeaderIF } from '../../../types/header';
 import styles from './Header.module.sass';
 
-const Header = (props: HeaderIF) => {
-    const { updateKeyword } = props;
+/**
+ * The page's title and buttons. Every page renders its own, so nothing else on the screen (the
+ * small lists on Home, a list inside a form) can change them.
+ */
+const Header = ({ title, buttons = [], search }: HeaderIF) => {
     const { t } = useSafeTranslation();
-    const headline = useHeadline((state) => state.title);
-    const buttons = useButtons((state) => state.buttons);
 
     const renderButton = (
-        { label, classname, onClick, dropdown, dataTestId }: ListButtonIF,
+        { label, classname, onClick, dropdown, dataTestId, disabled }: HeaderButtonIF,
         index: number
-    ) => {
-        return (
-            <ConditionalWrapper
-                condition={!!dropdown}
-                wrapper={(children) => <div className={styles.wrapper}>{children}</div>}
-                key={index}
-            >
-                <Button
-                    additionalClassName={`large ${classname || 'primary'}`}
-                    text={t(label)}
-                    onClick={onClick}
-                    {...(dataTestId ? { dataTestId: dataTestId } : {})}
-                />
+    ) => (
+        <ConditionalWrapper
+            condition={!!dropdown}
+            wrapper={(children) => <div className={styles.wrapper}>{children}</div>}
+            key={index}
+        >
+            <Button
+                additionalClassName={`large ${classname || 'primary'}`}
+                text={t(label)}
+                onClick={onClick}
+                // The native disabled attribute: Enter and Space on a focused button too
+                disabled={disabled || /\bdisabled\b/.test(classname ?? '')}
+                {...(dataTestId ? { dataTestId } : {})}
+            />
 
-                {dropdown && dropdown}
-            </ConditionalWrapper>
-        );
-    };
+            {dropdown}
+        </ConditionalWrapper>
+    );
 
     return (
         <header className="flex justify-between items-center px-6 bg-midnightBlue sticky top-0 z-20">
-            <h1 className="text-2xl text-logo no-underline">{headline}</h1>
+            <h1 className="text-2xl text-logo no-underline">{title}</h1>
 
-            {buttons && (
+            {(search || buttons.length > 0) && (
                 <div className="flex gap-12 flex-wrap flex-[1_0_auto] justify-end">
-                    {buttons.map((item: ListButtonIF, index: number) =>
-                        item.label.includes('search') ? (
-                            <Search updateKeyword={updateKeyword} key={index} />
-                        ) : (
-                            renderButton(item, index)
-                        )
-                    )}
+                    {search && <Search value={search.value} onChange={search.onChange} />}
+                    {buttons.map(renderButton)}
                 </div>
             )}
         </header>
