@@ -176,6 +176,17 @@ export const listAnswer = <T>(answer: ListAnswerIF<T> | undefined): ListDataIF<T
 export const resolveColumns = <T>(columns: Columns<T>, rows: T[]): ColumnIF<T>[] =>
     typeof columns === 'function' ? columns(rows) : columns;
 
+/**
+ * The column whose link Tab reaches in each row: the first one with a heading, so a row is named
+ * by its number or name and not by a column without a heading (the invoice lock, a user's
+ * picture). The first column when none has one.
+ */
+export const tabStopColumn = <T>(columns: ColumnIF<T>[]): number =>
+    Math.max(
+        columns.findIndex(({ label }) => !!label),
+        0
+    );
+
 /** A cell without its own render: the row's field as text, nothing for a missing one */
 export const cellText = <T>(row: T, key: string): string => {
     const value = (row as Record<string, unknown>)[key];

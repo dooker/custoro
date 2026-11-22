@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
-import { cellText, rowClass, tableClass, type ColumnIF } from './listLogic';
+import { cellText, rowClass, tableClass, tabStopColumn, type ColumnIF } from './listLogic';
 import '@css/shared/GeneralTable.sass';
 
 export type { ColumnIF };
@@ -36,6 +36,7 @@ const ListTable = <T,>({
     compact,
 }: ListTableIF<T>) => {
     const { t } = useSafeTranslation();
+    const tabStop = tabStopColumn(columns);
     return (
         <table className={tableClass(className, compact)}>
             <thead>
@@ -59,7 +60,7 @@ const ListTable = <T,>({
 
                                 return href ? (
                                     <td key={key} className={[cellClass, 'link'].join(' ')}>
-                                        <Link to={href} tabIndex={index === 0 ? 0 : -1}>
+                                        <Link to={href} tabIndex={index === tabStop ? 0 : -1}>
                                             {content}
                                         </Link>
                                     </td>

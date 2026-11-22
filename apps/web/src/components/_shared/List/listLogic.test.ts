@@ -18,6 +18,7 @@ import {
     showPages,
     sizeTarget,
     tableClass,
+    tabStopColumn,
     withListParams,
     type ColumnIF,
 } from './listLogic';
@@ -331,5 +332,17 @@ describe('tableClass and rowClass', () => {
         expect(rowClass()).toBe('row');
         expect(rowClass('')).toBe('row');
         expect(rowClass('disabled')).toBe('row disabled');
+    });
+});
+
+describe('tabStopColumn', () => {
+    it('is the first column with a heading', () => {
+        expect(tabStopColumn([{ key: 'locked' }, { key: 'number', label: '#' }])).toBe(1);
+        expect(tabStopColumn([{ key: 'id', label: '#' }, { key: 'avatar' }])).toBe(0);
+    });
+
+    it('is the first column when none has a heading', () => {
+        expect(tabStopColumn([{ key: 'a' }, { key: 'b' }])).toBe(0);
+        expect(tabStopColumn([])).toBe(0);
     });
 });
