@@ -136,12 +136,18 @@ test('a search starts on page 1, lives in the address, and survives pages, reloa
 
     // (every cell but the last, which holds the delete button)
     await expect(links).toHaveCount((await row.getByRole('cell').count()) - 1);
-    await expect(links.first()).toHaveAttribute('href', /^\/product\/1\/\d+\/$/);
+    await expect(links.first()).toHaveAttribute(
+        'href',
+        new RegExp(`^/product/1/\\d+/\\?q=${tag}$`)
+    );
     await expect(links.first()).toHaveAttribute('tabindex', '0');
     await expect(links.nth(1)).toHaveAttribute('tabindex', '-1');
     await row.getByRole('link').nth(2).click();
-    await expect(page).toHaveURL(/\/product\/1\/\d+\/$/);
-    await page.goBack();
+    // The product carries the list's search, and Go Back returns to the same rows
+    await expect(page).toHaveURL(new RegExp(`/product/1/\\d+/\\?q=${tag}$`));
+    await page.getByRole('button', { name: 'Go Back' }).click();
+    await expect(page).toHaveURL(`/products/1/?q=${tag}`);
+    await expect(listRows(page, 'products')).toHaveCount(15);
 
     // Deleting on page 2 stays there while it has rows ...
     await page.goto(`/products/2/?q=${tag}`);
@@ -240,6 +246,9 @@ test('a list that cannot be loaded says so instead of "No entries"', async ({ pa
 test('the language switcher changes the language on the first click after a reload', async ({
     page,
 }) => {
+    // Once the page has its texts: i18n saves the language it starts with, and a setItem made
+    // while it was still starting was overwritten with "en" half of the time
+    await expect(page.getByTestId('main-link-products')).toHaveText('Products');
     await page.evaluate(() => localStorage.setItem('language', 'et'));
     await page.reload();
     await expect(page.getByTestId('main-link-products')).toHaveText('Tooted');
@@ -323,7 +332,7 @@ test('the owner finds, opens, renames and switches a company off and on', async 
         await expect(listRows(page, 'tenants').first()).toContainText('Active');
 
         await listRows(page, 'tenants').first().getByRole('link').first().click();
-        await expect(page).toHaveURL(`/tenant/1/${id}/`);
+        await expect(page).toHaveURL(`/tenant/1/${id}/?q=${tag}`);
         await expect(heading(page)).toHaveText(`Company - ${name}`);
 
         // Rename
@@ -343,12 +352,11 @@ test('the owner finds, opens, renames and switches a company off and on', async 
         await switchButton.click();
         await expect(switchButton).toHaveText('Switch off');
 
-        // Back to the list: the new name is there
+        // Back to the list, its search kept: the new name is there
         await page.getByRole('button', { name: 'Go Back' }).click();
-        await expect(page).toHaveURL('/tenants/1/');
-        await page.getByTestId('search-button').click();
-        await page.getByTestId('search-input').fill(`${tag} renamed`);
+        await expect(page).toHaveURL(`/tenants/1/?q=${tag}`);
         await expect(listRows(page, 'tenants')).toHaveCount(1);
+        await expect(listRows(page, 'tenants').first()).toContainText(`${name} renamed`);
     } finally {
         await putCompany(request, token, id, { name: testCompany, active: true });
     }
