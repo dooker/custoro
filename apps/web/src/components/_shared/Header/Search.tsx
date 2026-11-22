@@ -16,9 +16,15 @@ export const Search = ({ value, onChange }: HeaderSearchIF) => {
     const [showSearch, setShowSearch] = useState(!!value);
     const [draft, setDraft] = useState(value);
 
-    const debouncedChange = useDebounce((keyword: string) => {
-        onChange(keyword.trim());
-    }, debounceTimer);
+    // Dropped when the search box is gone: a word typed just before opening a row must not move
+    // the user back to the list they left
+    const debouncedChange = useDebounce(
+        (keyword: string) => {
+            onChange(keyword.trim());
+        },
+        debounceTimer,
+        { cancelOnUnmount: true }
+    );
 
     const type = (next: string) => {
         setDraft(next);
