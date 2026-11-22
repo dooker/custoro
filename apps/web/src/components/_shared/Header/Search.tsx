@@ -10,16 +10,36 @@ import Button from '../Form/Button';
 import Close from '../Icons/Close';
 
 // The search box of a list. The word itself lives in the URL (useListParams): the box starts
-// open with it, and closing the box clears it.
+// open with it, follows it on Back, Forward or a link, and closing the box clears it.
 export const Search = ({ value, onChange }: HeaderSearchIF) => {
     const { t } = useSafeTranslation();
     const [showSearch, setShowSearch] = useState(!!value);
     const [draft, setDraft] = useState(value);
+    // The address's word this box last saw, and the last word it sent itself: a new word in the
+    // address that the box did not send came from Back, Forward or a link
+    const [seen, setSeen] = useState(value);
+    const [sent, setSent] = useState(value);
+
+    if (value !== seen) {
+        setSeen(value);
+
+        if (value !== sent) {
+            setDraft(value);
+            setSent(value);
+            setShowSearch(!!value);
+        }
+    }
 
     // Dropped when the search box is gone: a word typed just before opening a row must not move
-    // the user back to the list they left
+    // the user back to the list they left. A word typed while the address changed elsewhere (Back)
+    // is dropped too: `typedOver` is the address's word when it was typed.
     const debouncedChange = useDebounce(
-        (keyword: string) => {
+        (keyword: string, typedOver: string) => {
+            if (typedOver !== value) {
+                return;
+            }
+
+            setSent(keyword.trim());
             onChange(keyword.trim());
         },
         debounceTimer,
@@ -28,14 +48,15 @@ export const Search = ({ value, onChange }: HeaderSearchIF) => {
 
     const type = (next: string) => {
         setDraft(next);
-        debouncedChange(next);
+        debouncedChange(next, value);
     };
 
     const toggle = () => {
         setDraft('');
         setShowSearch((previous) => !previous);
+        setSent('');
         // Also drops a word still waiting in the debounce
-        debouncedChange('');
+        debouncedChange('', value);
         onChange('');
     };
 
