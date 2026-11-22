@@ -105,7 +105,7 @@ const Tenant = () => {
             label: isNew ? 'tenants.create' : 'button.save',
             onClick: () => void save(),
             dataTestId: 'save-tenant',
-            classname: `primary${busy ? ' disabled' : ''}`,
+            disabled: busy,
         },
         ...(tenant
             ? [
@@ -115,7 +115,8 @@ const Tenant = () => {
                           void send(() => Axios.put(`${url}${id}`, { active: !tenant.active })),
                       // Switching off locks the company's people out: red, like other actions
                       // that take something away
-                      classname: `${tenant.active ? 'tertiary' : 'primary'}${busy ? ' disabled' : ''}`,
+                      classname: tenant.active ? 'tertiary' : 'primary',
+                      disabled: busy,
                       dataTestId: 'switch-tenant',
                   },
               ]

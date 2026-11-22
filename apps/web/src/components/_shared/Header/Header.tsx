@@ -13,7 +13,7 @@ const Header = ({ title, buttons = [], search }: HeaderIF) => {
     const { t } = useSafeTranslation();
 
     const renderButton = (
-        { label, classname, onClick, dropdown, dataTestId }: HeaderButtonIF,
+        { label, classname, onClick, dropdown, dataTestId, disabled }: HeaderButtonIF,
         index: number
     ) => (
         <ConditionalWrapper
@@ -25,6 +25,8 @@ const Header = ({ title, buttons = [], search }: HeaderIF) => {
                 additionalClassName={`large ${classname || 'primary'}`}
                 text={t(label)}
                 onClick={onClick}
+                // The native disabled attribute: Enter and Space on a focused button too
+                disabled={disabled || /\bdisabled\b/.test(classname ?? '')}
                 {...(dataTestId ? { dataTestId } : {})}
             />
 

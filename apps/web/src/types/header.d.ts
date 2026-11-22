@@ -7,6 +7,9 @@ export interface HeaderButtonIF {
     // primary (default, green), secondary (blue), tertiary (red); "disabled" can be added
     classname?: string;
     onClick?: () => void;
+    // Off for mouse and keyboard while a request runs (a "disabled" class alone stopped only the
+    // mouse)
+    disabled?: boolean;
     // Shown under the button, such as the "Add to invoice" choices
     dropdown?: ReactNode;
     dataTestId?: string;
