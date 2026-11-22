@@ -41,7 +41,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
   as links (a page opens in a new tab too) with first and last page buttons, fewer of them on a
   narrow screen. Another page starts at the top of the list, and the next page is loaded ahead
 - Search word: it is in the address (`?q=`), so it stays when you go to another page of the list,
-  go back or forward, or reload, and a link to a search shows the same list
+  go back or forward, or reload, and a link to a search shows the same list. A record opened from
+  a list keeps the list's search and rows per page, and its Go Back returns to the same rows
 - Rows: a row in a list is a link, so it can be opened in a new tab and reached with the keyboard.
   The delete button at the end of a row has a name for screen readers
 - Deleting the last row of a page: it goes back to the page before, in every list (only products
