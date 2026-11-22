@@ -15,6 +15,7 @@ import { usePickedItem } from '../../hooks/usePickedItem';
 import { toPickerOption } from '../../utils/pickers';
 import type { FormRefIF } from '../../types/form';
 import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 interface WorksheetFormIF extends FormRefIF {
     initialWorksheet: WorksheetIF | null;
@@ -32,6 +33,8 @@ export const WorksheetForm = ({ initialWorksheet, isNew, ref }: WorksheetFormIF)
     const { t } = useSafeTranslation();
     const queryClient = useQueryClient();
     const page = usePageParam();
+    // The list's search and page size, kept on the way back to it
+    const { keep } = useListReturn(PATHS.WORKSHEETS);
     const { customerId, worksheetPage } = useParams();
     const currentWorksheetPage = usePageParam('worksheetPage');
     const [errors, setErrors] = useState<WorksheetErrorsIF>({
@@ -114,10 +117,12 @@ export const WorksheetForm = ({ initialWorksheet, isNew, ref }: WorksheetFormIF)
 
             if (isNew) {
                 if (worksheetPage) {
-                    navigate(`${PATHS.WORKSHEETS}${url}${worksheetPage ? `1/` : ''}`);
+                    navigate(keep(`${PATHS.WORKSHEETS}${url}${worksheetPage ? `1/` : ''}`));
                 } else {
                     navigate(
-                        `${PATHS.WORKSHEETS}${page}/${variables.data.customer}/${currentWorksheetPage}/`
+                        keep(
+                            `${PATHS.WORKSHEETS}${page}/${variables.data.customer}/${currentWorksheetPage}/`
+                        )
                     );
                 }
             }

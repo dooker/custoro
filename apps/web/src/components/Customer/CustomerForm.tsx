@@ -22,9 +22,11 @@ import {
 import { invoiceColumns, invoiceHref } from '../Invoices/Invoices';
 import type { InvoiceWithCustomerIF, WorksheetIF } from '../../types';
 import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 export const CustomerForm = ({ initialCustomer, isNew, type, ref }: CustomerFormIF & FormRefIF) => {
     const page = usePageParam();
+    const { keep } = useListReturn(PATHS.CUSTOMERS);
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [draft, setDraft] = useState<CustomerIF>(() => {
@@ -103,7 +105,7 @@ export const CustomerForm = ({ initialCustomer, isNew, type, ref }: CustomerForm
             await notification({ success, message, invalidator, show: variables.show });
 
             if (isNew) {
-                navigate(`${PATHS.CUSTOMER}${page}/${insertId}/`);
+                navigate(keep(`${PATHS.CUSTOMER}${page}/${insertId}/`));
             }
         },
         onError: (err: Error) => handleError(err.message),

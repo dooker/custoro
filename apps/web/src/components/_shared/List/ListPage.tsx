@@ -26,6 +26,9 @@ interface ListPageIF<T extends { id: number }> {
     buttons?: HeaderButtonIF[];
     // A delete button in every row
     deletable?: boolean;
+    // A row leads to a record of this list and carries its search and page size, so the record's
+    // Go back returns to the same rows (useListReturn). Off for rows that lead to another list.
+    rowsKeepParams?: boolean;
     params?: ListParams;
     rowClassName?: (row: T) => string;
     tableClassName?: string;
@@ -48,6 +51,7 @@ const ListPage = <T extends { id: number }>({
     addTestId,
     buttons = [],
     deletable,
+    rowsKeepParams = true,
     params,
     rowClassName,
     tableClassName,
@@ -76,7 +80,7 @@ const ListPage = <T extends { id: number }>({
             ? [
                   {
                       label: 'button.add',
-                      onClick: () => navigate(addHref(page)),
+                      onClick: () => navigate(withParams(addHref(page))),
                       ...(addTestId ? { dataTestId: addTestId } : {}),
                   },
               ]
@@ -117,7 +121,11 @@ const ListPage = <T extends { id: number }>({
                         columns={resolveColumns(columns, rows)}
                         rows={rows}
                         rowKey={(row) => row.id}
-                        rowHref={(row) => rowHref(row, page)}
+                        rowHref={(row) => {
+                            const href = rowHref(row, page);
+
+                            return href && rowsKeepParams ? withParams(href) : href;
+                        }}
                         rowClassName={rowClassName}
                         className={tableClassName}
                         {...(deletable

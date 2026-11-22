@@ -13,12 +13,15 @@ import Header from '../_shared/Header/Header';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import type { UserIF } from '../../types/user';
 import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 const User = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
     const { id: userId } = useParams();
     const page = usePageParam();
+    // Back to the list it was opened from, with its search and page size
+    const { listHref } = useListReturn(PATHS.USERS);
     const isNew = userId === '0';
     const formRef = useRef<FormHandleIF>(null);
     const { promptDelete } = useDeleteItem([RESOURCE.USERS]);
@@ -39,14 +42,20 @@ const User = () => {
         },
         {
             label: 'button.goBack',
-            onClick: () => navigate(`${PATHS.USERS}${page}/`),
+            onClick: () => navigate(listHref),
             classname: 'secondary',
         },
         ...(user
             ? [
                   {
                       label: 'button.delete',
-                      onClick: () => promptDelete({ id: user.id, resource: RESOURCE.USERS, page }),
+                      onClick: () =>
+                          promptDelete({
+                              id: user.id,
+                              resource: RESOURCE.USERS,
+                              page,
+                              returnTo: listHref,
+                          }),
                       classname: 'tertiary',
                   },
               ]

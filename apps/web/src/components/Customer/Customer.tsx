@@ -13,12 +13,15 @@ import Header from '../_shared/Header/Header';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import type { CustomerIF } from '../../types/customer';
 import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 const Customer = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
     const { id: customerId } = useParams();
     const page = usePageParam();
+    // Back to the list it was opened from, with its search and page size
+    const { listHref } = useListReturn(PATHS.CUSTOMERS);
     const isNew = customerId === '0';
     const formRef = useRef<FormHandleIF>(null);
     const { promptDelete } = useDeleteItem([RESOURCE.CUSTOMERS]);
@@ -39,7 +42,7 @@ const Customer = () => {
         },
         {
             label: 'button.goBack',
-            onClick: () => navigate(`${PATHS.CUSTOMERS}${page}/`),
+            onClick: () => navigate(listHref),
             classname: 'secondary',
         },
         ...(customer
@@ -52,7 +55,12 @@ const Customer = () => {
                   {
                       label: 'button.delete',
                       onClick: () =>
-                          promptDelete({ id: customer.id, resource: RESOURCE.CUSTOMERS, page }),
+                          promptDelete({
+                              id: customer.id,
+                              resource: RESOURCE.CUSTOMERS,
+                              page,
+                              returnTo: listHref,
+                          }),
                       classname: 'tertiary',
                   },
               ]

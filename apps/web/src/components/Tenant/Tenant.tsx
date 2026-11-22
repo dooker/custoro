@@ -16,6 +16,7 @@ import type { HeaderButtonIF } from '../../types/header';
 import '@css/shared/Form.sass';
 import styles from './Tenant.module.sass';
 import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 interface ApiAnswer {
     success: boolean;
@@ -34,6 +35,8 @@ const Tenant = () => {
     const { id: rawId } = useParams();
     const id = Number(rawId);
     const page = usePageParam();
+    // Back to the list it was opened from, with its search and page size
+    const { listHref, keep } = useListReturn(PATHS.TENANTS);
     const isNew = id === 0;
     const notification = useNotificationHandler();
     const queryClient = useQueryClient();
@@ -100,7 +103,7 @@ const Tenant = () => {
             const answer = await send(() => Axios.post(url, draft));
 
             if (answer?.success && answer.insertId) {
-                navigate(`${PATHS.TENANT}${page}/${answer.insertId}/`);
+                navigate(keep(`${PATHS.TENANT}${page}/${answer.insertId}/`));
             }
 
             return;
@@ -132,7 +135,7 @@ const Tenant = () => {
             : []),
         {
             label: 'button.goBack',
-            onClick: () => navigate(`${PATHS.TENANTS}${page}/`),
+            onClick: () => navigate(listHref),
             classname: 'secondary',
         },
     ];

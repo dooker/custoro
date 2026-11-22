@@ -15,9 +15,11 @@ import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useAuth } from '../../contexts/Auth';
 import style from './UserForm.module.sass';
 import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 export const UserForm = ({ initialUser, isNew, type, ref }: UserFormIF & FormRefIF) => {
     const page = usePageParam();
+    const { keep } = useListReturn(PATHS.USERS);
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [draft, setDraft] = useState<UserIF>(() => {
@@ -139,7 +141,7 @@ export const UserForm = ({ initialUser, isNew, type, ref }: UserFormIF & FormRef
             await notification({ success, message, invalidator, show: variables.show });
 
             if (success && isNew) {
-                navigate(`${PATHS.USER}${page}/${insertId}/`);
+                navigate(keep(`${PATHS.USER}${page}/${insertId}/`));
             }
         },
         onError: (err: Error) => handleError(err.message),

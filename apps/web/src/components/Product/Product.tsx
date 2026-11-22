@@ -13,12 +13,15 @@ import type { FormHandleIF } from '../../types/form';
 import { useDeleteItem } from '../../hooks/useDeleteItem';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 const Product = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
     const { id: productId } = useParams();
     const page = usePageParam();
+    // Back to the list it was opened from, with its search and page size
+    const { listHref } = useListReturn(PATHS.PRODUCTS);
     const isNew = productId === '0';
     const formRef = useRef<FormHandleIF>(null);
     // The products list is read again after a delete (it said customers)
@@ -41,7 +44,7 @@ const Product = () => {
         },
         {
             label: 'button.goBack',
-            onClick: () => navigate(`${PATHS.PRODUCTS}${page}/`),
+            onClick: () => navigate(listHref),
             classname: 'secondary',
         },
         ...(product
@@ -49,7 +52,12 @@ const Product = () => {
                   {
                       label: 'button.delete',
                       onClick: () =>
-                          promptDelete({ id: product.id, resource: RESOURCE.PRODUCTS, page }),
+                          promptDelete({
+                              id: product.id,
+                              resource: RESOURCE.PRODUCTS,
+                              page,
+                              returnTo: listHref,
+                          }),
                       classname: 'tertiary',
                       dataTestId: 'delete-product',
                   },

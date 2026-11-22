@@ -9,8 +9,12 @@ import en from '../../public/locales/en.json';
 // The real English texts, so a test reads what the user reads and a renamed key fails it
 await i18n.use(initReactI18next).init({ lng: 'en', resources: { en: { translation: en } } });
 
-// Stands in for every page the screen can navigate to
-const Elsewhere = () => <p data-testid="path">{useLocation().pathname}</p>;
+// Stands in for every page the screen can navigate to, with the address's query (?q=...)
+const Elsewhere = () => {
+    const { pathname, search } = useLocation();
+
+    return <p data-testid="path">{`${pathname}${search}`}</p>;
+};
 
 interface RenderScreenOptions {
     // The URL the screen is opened at

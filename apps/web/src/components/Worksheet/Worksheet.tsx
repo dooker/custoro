@@ -13,10 +13,13 @@ import Header from '../_shared/Header/Header';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import type { CustomerIF } from '../../types/customer';
 import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 const Worksheet = () => {
     const { customerId, worksheetId, worksheetPage: rawWorksheetPage } = useParams();
     const page = usePageParam();
+    // The list's search and page size, kept on the way back to it
+    const { keep } = useListReturn(PATHS.WORKSHEETS);
     const worksheetPageNumber = usePageParam('worksheetPage');
     // Only the customer's worksheet list has a page of its own in the address
     const worksheetPage = rawWorksheetPage ? worksheetPageNumber : undefined;
@@ -53,7 +56,9 @@ const Worksheet = () => {
             label: 'button.goBack',
             onClick: () =>
                 navigate(
-                    `${PATHS.WORKSHEETS}${page}/${customerId && worksheetPage ? `${customerId}/${worksheetPage}/` : ''}`
+                    keep(
+                        `${PATHS.WORKSHEETS}${page}/${customerId && worksheetPage ? `${customerId}/${worksheetPage}/` : ''}`
+                    )
                 ),
             classname: 'secondary',
         },

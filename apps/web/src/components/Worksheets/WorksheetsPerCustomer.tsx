@@ -149,7 +149,8 @@ const WorksheetsPerCustomer = () => {
     const buttons: HeaderButtonIF[] = [
         {
             label: 'button.add',
-            onClick: () => navigate(`${PATHS.WORKSHEET}${page}/${customerId}/${currentPage}/0/`),
+            onClick: () =>
+                navigate(withParams(`${PATHS.WORKSHEET}${page}/${customerId}/${currentPage}/0/`)),
         },
         ...(selectedCheckboxes.length
             ? [
@@ -193,7 +194,11 @@ const WorksheetsPerCustomer = () => {
                         columns={customerWorksheetColumns(showDiscount)}
                         rows={rows}
                         rowKey={(row) => row.id}
-                        rowHref={(row) => customerWorksheetHref(row, customerId, page, currentPage)}
+                        rowHref={(row) => {
+                            const href = customerWorksheetHref(row, customerId, page, currentPage);
+
+                            return href && withParams(href);
+                        }}
                         rowClassName={invoicedRow}
                         className="worksheet-table worksheets-per-customer"
                         actionsHead={

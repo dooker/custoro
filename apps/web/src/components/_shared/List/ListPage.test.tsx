@@ -58,6 +58,7 @@ const list = (path = '/customers/1/') =>
             ]}
             rowHref={({ id }, page) => `/customer/${page}/${id}/`}
             addHref={(page) => `/customer/${page}/0/`}
+            addTestId="add-customer"
             deletable
         />,
         { path, route: '/customers/:page/' }
@@ -117,6 +118,25 @@ describe('ListPage', () => {
         expect(screen.getByRole('link', { name: 'page 3' })).toHaveAttribute(
             'aria-current',
             'page'
+        );
+    });
+
+    // Copilot review of PR 46, round 2: opening a row dropped the list's search and page size, so
+    // Go back on the record returned to an unfiltered list of 15 rows a page
+    it('opens a row and Add with the list\u2019s search and page size', async () => {
+        serve(100);
+        list('/customers/3/?q=cust&size=30');
+        await screen.findByText('Customer 61');
+
+        expect(screen.getByRole('link', { name: '61' })).toHaveAttribute(
+            'href',
+            '/customer/3/61/?q=cust&size=30'
+        );
+
+        fireEvent.click(screen.getByTestId('add-customer'));
+
+        expect(await screen.findByTestId('path')).toHaveTextContent(
+            '/customer/3/0/?q=cust&size=30'
         );
     });
 

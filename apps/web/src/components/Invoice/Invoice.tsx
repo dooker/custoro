@@ -12,13 +12,14 @@ import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { PATHS, RESOURCE } from '../../variables';
 import Header from '../_shared/Header/Header';
 import styles from './Invoice.module.sass';
-import { usePageParam } from '../../hooks/usePageParam';
+import { useListReturn } from '../../hooks/useListReturn';
 
 const Invoice = () => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
     const { invoiceId } = useParams();
-    const page = usePageParam();
+    // Back to the list it was opened from, with its search and page size
+    const { listHref } = useListReturn(PATHS.INVOICES);
     const isNew = invoiceId === '0';
     const formRef = useRef<FormHandleIF>(null);
 
@@ -38,7 +39,7 @@ const Invoice = () => {
     };
     const goBackButton = {
         label: 'button.goBack',
-        onClick: () => navigate(`${PATHS.INVOICES}${page}/`),
+        onClick: () => navigate(listHref),
         classname: 'secondary',
     };
     // A paid invoice cannot be changed: no Save

@@ -20,6 +20,7 @@ import { useConfirmationHandler } from '../../hooks/useConfirmationHandler';
 import type { CustomerIF } from '../../types/customer';
 import styles from './InvoiceForm.module.sass';
 import type { FormRefIF } from '../../types/form';
+import { useListReturn } from '../../hooks/useListReturn';
 
 interface InvoiceFormIF extends FormRefIF {
     initialInvoice: InvoiceIF | null;
@@ -52,6 +53,7 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
     const { items, locked, customerId } = draft;
     const isLocked = locked === 1;
     const navigate = useNavigate();
+    const { keep } = useListReturn(PATHS.INVOICES);
     const queryClient = useQueryClient();
     const addString = 'add';
     const updateString = 'update';
@@ -102,7 +104,7 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
             await notification({ success, message, invalidator, show: variables.show });
 
             if (isNew) {
-                navigate(`${PATHS.INVOICE}1/${lastId}/`);
+                navigate(keep(`${PATHS.INVOICE}1/${lastId}/`));
             }
         },
         onError: (err: Error) => handleError(err.message),

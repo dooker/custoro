@@ -23,6 +23,8 @@ const Worksheets = () => (
         addHref={(page) => `${PATHS.WORKSHEET}${page}/0/`}
         addTestId="add-worksheet"
         tableClassName="worksheet-table"
+        // A row is a customer's own worksheet list, where this list's search means nothing
+        rowsKeepParams={false}
     />
 );
 
