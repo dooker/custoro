@@ -52,14 +52,20 @@ export const useDeleteItem = (queryKeyToInvalidate: string[]) => {
                 cache();
             }
 
-            if (variables.returnTo) {
-                navigate(variables.returnTo);
-            } else if (resource === RESOURCE.INVOICE) {
-                navigate(`/${resource}/${page}/${invoiceId}/`);
-            } else if (resource === RESOURCE.WORKSHEETS_PER_CUSTOMER) {
-                navigate(`${PATHS.WORKSHEETS}${page}/${customer}/${parentPage}/`);
-            } else {
-                navigate(`/${resource}/${page}/`);
+            // Only after a delete: a refusal (the customer is on an invoice) keeps the page as it
+            // is, with the reason shown below, instead of moving away as if the row were gone
+            const destination = !success
+                ? null
+                : variables.returnTo
+                  ? variables.returnTo
+                  : resource === RESOURCE.INVOICE
+                    ? `/${resource}/${page}/${invoiceId}/`
+                    : resource === RESOURCE.WORKSHEETS_PER_CUSTOMER
+                      ? `${PATHS.WORKSHEETS}${page}/${customer}/${parentPage}/`
+                      : `/${resource}/${page}/`;
+
+            if (destination) {
+                navigate(destination);
             }
 
             await notification({

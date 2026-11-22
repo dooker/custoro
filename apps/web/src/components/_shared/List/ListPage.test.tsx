@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Axios } from '../../../Axios';
 import { renderScreen } from '../../../test/renderScreen';
 import { useConfirmation } from '../../../store/confirmation';
+import { useNotification } from '../../../store/notification';
 import { endpoint, listPageSize } from '../../../variables';
 import ListPage from './ListPage';
 
@@ -229,6 +230,37 @@ describe('ListPage', () => {
             resource: 'customers',
             page: 2,
             returnTo: '/customers/2/?q=la&size=30',
+        });
+    });
+
+    // Copilot review of PR 46: a refused delete (the customer is on an invoice) still moved the
+    // user to the page before, as if the row were gone
+    describe('after the confirmation', () => {
+        const confirmDelete = async (answer: { success: boolean; message?: string }) => {
+            serve(61);
+            vi.mocked(Axios.delete).mockResolvedValue({ data: answer } as AxiosResponse);
+            list('/customers/3/?q=la&size=30');
+            await screen.findByText('Customer 61');
+
+            fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+            const { callback, params } = useConfirmation.getState();
+            await act(async () => callback(params));
+        };
+
+        it('stays on the page when the delete is refused, and says why', async () => {
+            await confirmDelete({ success: false, message: 'customer.inUse' });
+
+            await waitFor(() => expect(useNotification.getState().message).toBe('customer.inUse'));
+            expect(asked().map(({ page }) => page)).not.toContain(2);
+            expect(screen.getByText('Customer 61')).toBeInTheDocument();
+        });
+
+        it('goes to the page before when the last row of the page is deleted', async () => {
+            await confirmDelete({ success: true });
+
+            await waitFor(() =>
+                expect(asked()).toContainEqual({ page: 2, limit: 30, keyword: 'la' })
+            );
         });
     });
 });
