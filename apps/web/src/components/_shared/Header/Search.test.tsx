@@ -86,6 +86,22 @@ describe('Search', () => {
             expect(screen.getByTestId('search-input')).toHaveValue('abcd');
         });
 
+        // Copilot review of PR 46, round 2: "abcd" typed before the address showed the earlier
+        // "abc" was dropped, so the box said abcd and the list showed abc
+        it('sends newer typing that came before its own earlier word was in the address', () => {
+            const onChange = vi.fn();
+            const { rerender } = render(<Search value="" onChange={onChange} />);
+
+            fireEvent.click(screen.getByTestId('search-button'));
+            type('abc');
+            wait();
+            type('abcd');
+            rerender(<Search value="abc" onChange={onChange} />);
+            wait();
+
+            expect(onChange).toHaveBeenLastCalledWith('abcd');
+        });
+
         it('drops a word still waiting when the address changes elsewhere', () => {
             const onChange = vi.fn();
             const { rerender } = render(<Search value="a" onChange={onChange} />);

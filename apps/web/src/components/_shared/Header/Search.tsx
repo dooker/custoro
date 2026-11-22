@@ -19,6 +19,8 @@ export const Search = ({ value, onChange }: HeaderSearchIF) => {
     // address that the box did not send came from Back, Forward or a link
     const [seen, setSeen] = useState(value);
     const [sent, setSent] = useState(value);
+    // Counts the words that came from elsewhere; a word typed before one of them is dropped
+    const [elsewhere, setElsewhere] = useState(0);
 
     if (value !== seen) {
         setSeen(value);
@@ -27,15 +29,17 @@ export const Search = ({ value, onChange }: HeaderSearchIF) => {
             setDraft(value);
             setSent(value);
             setShowSearch(!!value);
+            setElsewhere(elsewhere + 1);
         }
     }
 
     // Dropped when the search box is gone: a word typed just before opening a row must not move
-    // the user back to the list they left. A word typed while the address changed elsewhere (Back)
-    // is dropped too: `typedOver` is the address's word when it was typed.
+    // the user back to the list they left. A word typed before the address changed elsewhere
+    // (Back) is dropped too; the box's own earlier word arriving in the address is not a change
+    // from elsewhere, so newer typing is still sent.
     const debouncedChange = useDebounce(
-        (keyword: string, typedOver: string) => {
-            if (typedOver !== value) {
+        (keyword: string, typedAt: number) => {
+            if (typedAt !== elsewhere) {
                 return;
             }
 
@@ -48,7 +52,7 @@ export const Search = ({ value, onChange }: HeaderSearchIF) => {
 
     const type = (next: string) => {
         setDraft(next);
-        debouncedChange(next, value);
+        debouncedChange(next, elsewhere);
     };
 
     const toggle = () => {
@@ -56,7 +60,7 @@ export const Search = ({ value, onChange }: HeaderSearchIF) => {
         setShowSearch((previous) => !previous);
         setSent('');
         // Also drops a word still waiting in the debounce
-        debouncedChange('', value);
+        debouncedChange('', elsewhere);
         onChange('');
     };
 
