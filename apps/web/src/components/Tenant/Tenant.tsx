@@ -48,7 +48,16 @@ const Tenant = () => {
 
     // The form starts with the saved name once it is loaded
     const [loadedId, setLoadedId] = useState<number | null>(null);
-    if (tenant && tenant.id !== loadedId) {
+    // Another company in the address, without leaving the page (Back from the company just made
+    // to the new company form): the form starts over, so it cannot send the saved company again
+    const [formFor, setFormFor] = useState(rawId);
+    if (rawId !== formFor) {
+        setFormFor(rawId);
+        setLoadedId(null);
+        setDraft(emptyDraft);
+    }
+
+    if (tenant && !isNew && tenant.id !== loadedId) {
         setLoadedId(tenant.id);
         setDraft({ ...emptyDraft, name: tenant.name });
     }
