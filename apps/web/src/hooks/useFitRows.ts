@@ -75,6 +75,8 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
     const [size, setSize] = useState<number | null>(null);
     const latestRef = useRef({ page, pageHref, size });
     const shownRef = useRef<ShownRowsIF | undefined>(undefined);
+    // A window resize is settling (resizeWait): layout changes then wait for it
+    const resizingRef = useRef(false);
 
     useLayoutEffect(() => {
         latestRef.current = { page, pageHref, size };
@@ -127,17 +129,50 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
         shownRef.current = rows;
     }, []);
 
+    // The layout can change without a resize: the page header gets higher when a customer's name
+    // arrives in the title, the footer when the page numbers appear and wrap. The list is measured
+    // again then, without moving the page (Copilot review of PR 47). Measuring again when nothing
+    // changed costs nothing: the size stays and no request is made.
+    useEffect(() => {
+        const section = ref.current;
+
+        if (typeof ResizeObserver === 'undefined' || !section) {
+            return;
+        }
+
+        const observer = new ResizeObserver(() => {
+            // A window resize is handled once it settles, keeping the first row seen
+            if (!resizingRef.current) {
+                fit(false);
+            }
+        });
+
+        // The list (its rows and footer) and the page header above it
+        observer.observe(section);
+
+        if (section.previousElementSibling) {
+            observer.observe(section.previousElementSibling);
+        }
+
+        return () => observer.disconnect();
+    }, [fit]);
+
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout> | undefined;
         const onResize = () => {
+            resizingRef.current = true;
             clearTimeout(timer);
-            timer = setTimeout(() => fit(true), resizeWait);
+            timer = setTimeout(() => {
+                resizingRef.current = false;
+                fit(true);
+            }, resizeWait);
         };
 
         window.addEventListener('resize', onResize);
 
         return () => {
             clearTimeout(timer);
+            resizingRef.current = false;
             window.removeEventListener('resize', onResize);
         };
     }, [fit]);

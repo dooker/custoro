@@ -104,8 +104,53 @@ const drawRowsAt = (height: number) =>
         return DOMRect.fromRect({ x: 0, y: 0, width: 0, height: row ? height : 0 });
     });
 
+// The page's layout as a browser would measure it: where the table starts and how high the page
+// header above the list is (jsdom measures everything as 0)
+const layout = { top: 0, header: 0, row: 0, footer: 0 };
+
+const drawLayout = () =>
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement
+    ) {
+        const height =
+            this.tagName === 'TR' && this.parentElement?.tagName === 'TBODY'
+                ? layout.row
+                : this.tagName === 'HEADER'
+                  ? layout.header
+                  : this.hasAttribute('data-list-footer')
+                    ? layout.footer
+                    : 0;
+        const top = this.tagName === 'TABLE' || this.tagName === 'SECTION' ? layout.top : 0;
+
+        return DOMRect.fromRect({ x: 0, y: top, width: 0, height });
+    });
+
+// ResizeObserver, which jsdom lacks: a test says when the layout changed
+class FakeResizeObserver {
+    static all: FakeResizeObserver[] = [];
+    constructor(public callback: ResizeObserverCallback) {
+        FakeResizeObserver.all.push(this);
+    }
+    observe() {}
+    unobserve() {}
+    disconnect() {
+        FakeResizeObserver.all = FakeResizeObserver.all.filter((observer) => observer !== this);
+    }
+}
+
+const layoutChanged = async () => {
+    await act(async () => {
+        for (const observer of FakeResizeObserver.all) {
+            observer.callback([], observer as unknown as ResizeObserver);
+        }
+    });
+};
+
 afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    FakeResizeObserver.all = [];
+    Object.assign(layout, { top: 0, header: 0, row: 0, footer: 0 });
 });
 
 beforeEach(() => {
@@ -303,6 +348,48 @@ describe('ListPage', () => {
 
         expect(screen.getByTestId('path')).toHaveTextContent('/customer/3/31/');
         expect(asked().map(({ limit }) => limit)).not.toContain(30);
+    });
+
+    // Copilot review of PR 47: a header that gets higher after the rows are drawn (a customer's
+    // name arriving late in the title) pushed the footer below the window until the next resize
+    it('fits the rows again when the header above the list gets higher', async () => {
+        vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+        layout.header = 50;
+        drawLayout();
+        serve(100);
+        list('/customers/2/');
+        await screen.findByText('Customer 16');
+
+        // Two rows higher: 13 rows fit, and the page stays the one in the address
+        Object.assign(layout, { top: 82, header: 132 });
+        await layoutChanged();
+
+        await waitFor(() => expect(asked()).toContainEqual({ page: 2, limit: 13 }));
+        expect(screen.getByRole('link', { name: 'page 2' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+    });
+
+    // Copilot review of PR 47: a footer that gets higher (the page numbers wrapping under the
+    // range on a narrow window) pushed itself below the window until the next resize
+    it('fits the rows again when the footer gets higher', async () => {
+        vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+        layout.footer = 49;
+        drawLayout();
+        serve(100);
+        list('/customers/2/');
+        await screen.findByText('Customer 16');
+
+        // Two rows higher: 13 rows fit, and the page stays the one in the address
+        layout.footer = 131;
+        await layoutChanged();
+
+        await waitFor(() => expect(asked()).toContainEqual({ page: 2, limit: 13 }));
+        expect(screen.getByRole('link', { name: 'page 2' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
     });
 
     // Copilot review of PR 47: while the next page loads, the rows on screen are still the
