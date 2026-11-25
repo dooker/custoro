@@ -305,6 +305,40 @@ describe('ListPage', () => {
         expect(asked().map(({ limit }) => limit)).not.toContain(30);
     });
 
+    // Copilot review of PR 47: while the next page loads, the rows on screen are still the
+    // page before (placeholder data), and a resize then has to keep those rows, not the page asked
+    it('keeps the rows on screen when the window is resized while the next page loads', async () => {
+        serve(100);
+        const paged = vi.mocked(Axios.get).getMockImplementation()!;
+        let release = () => {};
+
+        // Page 5 (not loaded ahead) answers only when let go
+        vi.mocked(Axios.get).mockImplementation(async (url, config) => {
+            const { page, limit } = config?.params as Params;
+
+            if (page === 5 && limit === fits) {
+                await new Promise<void>((resolve) => (release = resolve));
+            }
+
+            return paged(url, config);
+        });
+        list('/customers/3/');
+        await screen.findByText('Customer 31');
+
+        fireEvent.click(screen.getByRole('link', { name: 'Go to page 5' }));
+        await waitFor(() => expect(asked()).toContainEqual({ page: 5, limit: fits }));
+        // Still page 3's rows, 31 to 45
+        expect(screen.getByText('Customer 31')).toBeInTheDocument();
+
+        // 5 rows a page: row 31 is on page 7 (page 5's first row, 61, would be page 13)
+        await resizeTo(5);
+        await waitFor(() =>
+            expect(screen.getByTestId('list-range')).toHaveTextContent('31–35 of 100')
+        );
+        expect(asked()).not.toContainEqual({ page: 13, limit: 5 });
+        release();
+    });
+
     it('ignores the page size of an older address', async () => {
         serve(100);
         list('/customers/1/?size=30');

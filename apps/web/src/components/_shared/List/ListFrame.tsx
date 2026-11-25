@@ -20,7 +20,7 @@ interface ListFrameIF<T> {
     // The address of a page of this list, with its search (useListParams)
     pageHref?: (page: number) => string;
     // A full-page list shows as many rows as fit on the screen (useFitRows)
-    fit?: Pick<FitRowsIF, 'ref' | 'measure'>;
+    fit?: Pick<FitRowsIF, 'ref' | 'measure' | 'show'>;
     heading?: ReactNode;
     children: (rows: T[]) => ReactNode;
 }
@@ -51,6 +51,14 @@ const ListFrame = <T,>({
     const shownPageRef = useRef(page);
     const hasRows = rows.length > 0;
     const measure = fit?.measure;
+    const show = fit?.show;
+    const shownMeta = data?.meta;
+
+    // Which rows are on screen, for a resize to keep them (the answer shown, also while the next
+    // page loads)
+    useLayoutEffect(() => {
+        show?.(shownMeta && { page: shownMeta.page, limit: shownMeta.limit });
+    }, [show, shownMeta]);
 
     // Measured where the table will start, and again once the rows show their real heights
     useLayoutEffect(() => {

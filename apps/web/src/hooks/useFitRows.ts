@@ -55,6 +55,14 @@ export interface FitRowsIF {
     // The list's section (ListFrame), and measuring it again once the first rows are drawn
     ref: RefObject<HTMLElement | null>;
     measure: () => void;
+    // The page and page size of the rows on screen (ListFrame, from the answer shown): while the
+    // next page loads they are still the page before's
+    show: (rows: ShownRowsIF | undefined) => void;
+}
+
+export interface ShownRowsIF {
+    page?: number;
+    limit?: number;
 }
 
 /**
@@ -66,6 +74,7 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
     const navigate = useNavigate();
     const [size, setSize] = useState<number | null>(null);
     const latestRef = useRef({ page, pageHref, size });
+    const shownRef = useRef<ShownRowsIF | undefined>(undefined);
 
     useLayoutEffect(() => {
         latestRef.current = { page, pageHref, size };
@@ -91,11 +100,17 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
 
             latestRef.current = { ...latestRef.current, size: next };
 
+            // The first row the user sees: of the rows on screen, which are still the page before's
+            // while the next page loads (Copilot review of PR 47), else of the page asked for
+            const onScreen = shownRef.current;
+            const fromPage = onScreen?.page ?? shown;
+            const fromSize = onScreen?.limit ?? before;
+
             // The router moves pages in a transition: the size goes in the same one, so both land
             // in one render and the list asks only for the new page with the new size
             startTransition(() => {
-                if (keepRow && before && shown > 1) {
-                    const target = pageKeepingRow(shown, before, next);
+                if (keepRow && fromSize) {
+                    const target = pageKeepingRow(fromPage, fromSize, next);
 
                     if (target !== shown) {
                         void navigate(href(target), { replace: true });
@@ -108,6 +123,9 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
         [navigate]
     );
     const measure = useCallback(() => fit(false), [fit]);
+    const show = useCallback((rows: ShownRowsIF | undefined) => {
+        shownRef.current = rows;
+    }, []);
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -124,5 +142,5 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
         };
     }, [fit]);
 
-    return { size, ref, measure };
+    return { size, ref, measure, show };
 };
