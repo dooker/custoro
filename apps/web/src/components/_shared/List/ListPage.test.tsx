@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { AxiosError, type AxiosResponse } from 'axios';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Axios } from '../../../Axios';
 import { renderScreen } from '../../../test/renderScreen';
 import { useConfirmation } from '../../../store/confirmation';
@@ -26,7 +26,14 @@ interface Params {
 // answers with the last page, and the answer says the page, the pages, the rows and the size
 const serve = (count: number) =>
     vi.mocked(Axios.get).mockImplementation(async (_url, config) => {
-        const { page: asked, limit } = config?.params as Params;
+        const params = config?.params as Params | undefined;
+
+        // A list request always carries its page and size; say so instead of a destructuring crash
+        if (!params) {
+            throw new Error('a list request without page and limit');
+        }
+
+        const { page: asked, limit } = params;
         const pages = Math.ceil(count / limit);
         const page = Math.min(asked, Math.max(pages, 1));
         const first = (page - 1) * limit + 1;
@@ -86,6 +93,20 @@ const typeSearch = async (word: string) => {
         await new Promise((resolve) => setTimeout(resolve, 500));
     });
 };
+
+// Rows drawn this high, as a browser would measure them (jsdom measures everything as 0)
+const drawRowsAt = (height: number) =>
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement
+    ) {
+        const row = this.tagName === 'TR' && this.parentElement?.tagName === 'TBODY';
+
+        return DOMRect.fromRect({ x: 0, y: 0, width: 0, height: row ? height : 0 });
+    });
+
+afterEach(() => {
+    vi.restoreAllMocks();
+});
 
 beforeEach(() => {
     vi.resetAllMocks();
@@ -217,6 +238,71 @@ describe('ListPage', () => {
             'aria-current',
             'page'
         );
+    });
+
+    // Found while building it: the first measurement (before the rows are drawn) uses the list's
+    // own heights; when the drawn rows are higher, the second one has fewer rows and moved
+    // /customers/3/ to page 2 on load, as if the window had been resized
+    it('settles its size once the rows are drawn without moving the page', async () => {
+        drawRowsAt(60);
+        serve(100);
+        list('/customers/3/');
+
+        // 15 rows of 41 fit, 10 of 60: page 3 is rows 21 to 30 (moving to keep row 31 in view
+        // would be page 4)
+        await waitFor(() =>
+            expect(screen.getByTestId('list-range')).toHaveTextContent('21–30 of 100')
+        );
+        expect(screen.getByText('Customer 21')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'page 3' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+        // The first request with 10 rows is page 3 (page 4 comes after it, loaded ahead)
+        expect(asked().find(({ limit }) => limit === 10)).toEqual({ page: 3, limit: 10 });
+    });
+
+    it('asks once for a burst of resizes (dragging the window edge)', async () => {
+        serve(100);
+        list('/customers/1/');
+        await screen.findByText('Customer 15');
+
+        // Each event in its own act, so React draws in between as a browser would; each comes
+        // before the one before it settles (150 ms)
+        for (const rows of [18, 22, 26, 30]) {
+            await act(async () => {
+                window.innerHeight = windowFor(rows);
+                window.dispatchEvent(new Event('resize'));
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            });
+        }
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 200));
+        });
+
+        expect(await screen.findByText('Customer 30')).toBeInTheDocument();
+        // Only the last size was asked for (page 1 and the page after it)
+        expect(new Set(asked().map(({ limit }) => limit))).toEqual(new Set([fits, 30]));
+    });
+
+    it('does not pull the user back to the list after a resize just before leaving it', async () => {
+        serve(100);
+        list('/customers/3/');
+        await screen.findByText('Customer 31');
+
+        await act(async () => {
+            window.innerHeight = windowFor(30);
+            window.dispatchEvent(new Event('resize'));
+        });
+        fireEvent.click(screen.getByRole('link', { name: '31' }));
+        expect(await screen.findByTestId('path')).toHaveTextContent('/customer/3/31/');
+
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 200));
+        });
+
+        expect(screen.getByTestId('path')).toHaveTextContent('/customer/3/31/');
+        expect(asked().map(({ limit }) => limit)).not.toContain(30);
     });
 
     it('ignores the page size of an older address', async () => {

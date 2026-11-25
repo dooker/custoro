@@ -49,19 +49,25 @@ const createProducts = async (
     return ids;
 };
 
-// The products a test made, deleted after it even when it failed or timed out (a finally block in
-// the test cannot: its request context is closed by then)
+// The products and users a test made, deleted after it even when it failed or timed out (a
+// finally block in the test cannot: its request context is closed by then)
 let madeProducts: number[] = [];
+let madeUsers: number[] = [];
 
 test.afterEach(async ({ request }) => {
-    if (madeProducts.length) {
+    if (madeProducts.length || madeUsers.length) {
         const token = await getApiToken(request);
 
         for (const id of madeProducts) {
             await request.delete(`${apiUrl}/product/${id}/`, { headers: apiHeaders(token) });
         }
 
+        for (const id of madeUsers) {
+            await request.delete(`${apiUrl}/user/${id}/`, { headers: apiHeaders(token) });
+        }
+
         madeProducts = [];
+        madeUsers = [];
     }
 });
 
@@ -248,34 +254,195 @@ test('pages: past the end, which rows, page links, back to the top, rows that fi
     await expect(range).toHaveText('1–15 of 31');
 });
 
+// What the row-height test needs and a fresh database (CI: the demo data) does not have: a paid
+// invoice (the lock) next to an open one, a customer name too long for its column, and worksheets
+// of one customer, one on the paid invoice and one open (a checkbox). Invoices cannot be deleted,
+// so they are made once and found again by every later run.
+const rowsCustomer = `E2E Lists rows ${'with a name far too long for its column '.repeat(3)}OÜ`;
+
+const listRowsCustomer = async (request: APIRequestContext, token: string) => {
+    const call = async (method: 'get' | 'post' | 'put', path: string, data?: object) =>
+        (
+            await request[method](`${apiUrl}${path}`, {
+                headers: apiHeaders(token),
+                ...(data ? { data } : {}),
+            })
+        ).json();
+    const found = await call(
+        'get',
+        `/customers/?keyword=${encodeURIComponent('E2E Lists rows')}&page=1&limit=10`
+    );
+    const existing = (found.resource as { id: number; name: string }[]).find(
+        ({ name }) => name === rowsCustomer
+    );
+
+    if (existing) {
+        return existing.id;
+    }
+
+    const customer = await call('post', '/customer', {
+        name: rowsCustomer,
+        contact: 'E2E',
+        regNumber: '',
+        vatNumber: '',
+        phone: '',
+        phone2: '',
+        address: '',
+        email: '',
+        invoiceEmail: '',
+        www: '',
+        paymentPeriod: 14,
+        additionalInfo: '',
+        shippingInfo: '',
+        department: '',
+    });
+    const product = await call('post', '/product', {
+        code: `E2E-ROWS-${Date.now().toString(36)}`,
+        name: 'E2E Lists rows product',
+        price: '10',
+        discountPrice: '0',
+        unit: 'pc',
+    });
+
+    expect(customer, 'the rows customer').toMatchObject({ success: true });
+    expect(product, 'the rows product').toMatchObject({ success: true });
+
+    const sheets: number[] = [];
+
+    for (let index = 0; index < 2; index++) {
+        const sheet = await call('post', '/worksheet', {
+            customer: customer.insertId,
+            product_id: product.insertId,
+            quantity: 1,
+        });
+
+        expect(sheet, 'a worksheet').toMatchObject({ success: true });
+        sheets.push(sheet.insertId);
+    }
+
+    // Paid, with the first worksheet on it; the second worksheet stays open
+    const paid = await call('post', '/invoice', {
+        customerId: customer.insertId,
+        items: [{ worksheetId: sheets[0], productId: product.insertId, quantity: 1 }],
+    });
+    const open = await call('post', '/invoice', {
+        customerId: customer.insertId,
+        items: [{ productId: product.insertId, quantity: 1 }],
+    });
+
+    expect(paid, 'the paid invoice').toMatchObject({ success: true });
+    expect(open, 'the open invoice').toMatchObject({ success: true });
+    expect(await call('put', `/invoice/paid/${paid.lastId}`), 'paid').toMatchObject({
+        success: true,
+    });
+
+    return customer.insertId as number;
+};
+
+const rowHeights = (page: Page, resource: string) =>
+    listRows(page, resource).evaluateAll((rows) =>
+        rows.map((row) => Math.round(row.getBoundingClientRect().height))
+    );
+
 test('every row of every list is as high (41 px), so the rows fit the window exactly', async ({
     page,
+    request,
 }) => {
+    test.setTimeout(90_000);
+
+    const token = await getApiToken(request);
+    const customer = await listRowsCustomer(request, token);
+    const tag = Date.now().toString(36);
+    // A user with a picture (the default one) and a name and email too long for their columns
+    const user = await (
+        await request.post(`${apiUrl}/user`, {
+            headers: apiHeaders(token),
+            data: {
+                name: `E2E Lists rows ${'person with a long name '.repeat(2)}${tag}`,
+                username: `${'a-very-long-email-'.repeat(3)}${tag}@a-subdomain.example.test`,
+                discount: 0,
+                offer: 0,
+                role: 'user',
+            },
+        })
+    ).json();
+
+    expect(user, 'the long user').toMatchObject({ success: true });
+    madeUsers.push(user.insertId);
     await page.setViewportSize(fifteenRows);
 
-    // Invoices with the paid lock, users with their pictures and long emails, companies with
-    // their state, lists with a delete button
-    for (const [path, resource] of [
-        ['/customers/1/', 'customers'],
-        ['/products/1/', 'products'],
-        ['/worksheets/1/', 'worksheets'],
-        ['/invoices/1/', 'invoices'],
-        ['/users/1/', 'users'],
-        ['/tenants/1/', 'tenants'],
-    ]) {
+    const search = (path: string, word: string) => `${path}?q=${encodeURIComponent(word)}`;
+    const none = async () => {};
+
+    // What made a row higher, each one made sure of: the paid lock next to an open invoice, long
+    // names and emails, a picture, a checkbox, a company's state, a delete button in every row
+    const cases: [string, string, (page: Page) => Promise<void>][] = [
+        [
+            search('/invoices/1/', 'E2E Lists rows'),
+            'invoices',
+            async (page) => {
+                await expect(listRows(page, 'invoices')).toHaveCount(2);
+                await expect(page.locator('section.invoices tbody svg.locked')).toHaveCount(1);
+            },
+        ],
+        [
+            search('/customers/1/', 'E2E Lists rows'),
+            'customers',
+            async (page) => {
+                // The long name ends in "…" instead of taking a second line
+                const name = listRows(page, 'customers').first().locator('td.name > a');
+
+                // (the list adds the contact in brackets)
+                await expect(name).toHaveText(`${rowsCustomer} (E2E)`);
+                expect(await name.evaluate((a) => a.scrollWidth > a.clientWidth)).toBe(true);
+            },
+        ],
+        [
+            search('/users/1/', tag),
+            'users',
+            async (page) => {
+                await expect(listRows(page, 'users')).toHaveCount(1);
+                await expect(listRows(page, 'users').locator('img')).toHaveCount(1);
+            },
+        ],
+        [
+            `/worksheets/1/${customer}/1/`,
+            'worksheets-per-customer',
+            async (page) => {
+                const rows = listRows(page, 'worksheets-per-customer');
+
+                await expect(rows).toHaveCount(2);
+                await expect(rows.locator('td.actions input[type=checkbox]')).toHaveCount(1);
+            },
+        ],
+        ['/tenants/1/', 'tenants', none],
+        ['/customers/1/', 'customers', none],
+        ['/products/1/', 'products', none],
+        ['/worksheets/1/', 'worksheets', none],
+        ['/invoices/1/', 'invoices', none],
+        ['/users/1/', 'users', none],
+    ];
+
+    for (const [path, resource, check] of cases) {
         await page.goto(path);
         await expect(listRows(page, resource).first()).toBeVisible();
+        await check(page);
 
-        const heights = await listRows(page, resource).evaluateAll((rows) =>
-            rows.map((row) => Math.round(row.getBoundingClientRect().height))
-        );
-
-        expect(new Set(heights), path).toEqual(new Set([41]));
-        // Nothing left over for another row, and nothing below the window
+        expect(new Set(await rowHeights(page, resource)), path).toEqual(new Set([41]));
+        // Nothing below the window ...
         expect(
             await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
             path
         ).toBeLessThanOrEqual(0);
+
+        // ... and, when there are more pages, no room left for another row (12 px margin)
+        if (await page.getByRole('link', { name: 'Go to next page' }).count()) {
+            const left = await page
+                .locator(`section.component.${resource}`)
+                .evaluate((section) => window.innerHeight - section.getBoundingClientRect().bottom);
+
+            expect(left, path).toBeLessThan(12 + 41);
+        }
     }
 });
 
