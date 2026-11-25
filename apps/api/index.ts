@@ -20,7 +20,10 @@ if (process.env.SENTRY_DSN) {
         environment: env,
         // Errors are grouped by the build they happened in
         release: buildInfo.release,
-        integrations: [nodeProfilingIntegration()],
+        // Express errors are captured by the Express integration itself (5xx and errors without a
+        // status, as the old setupExpressErrorHandler did). Sentry 11 adds it by default; listed
+        // so that capturing errors does not rest on a default
+        integrations: [Sentry.expressIntegration(), nodeProfilingIntegration()],
         tracesSampleRate: sampleRate,
         profileSessionSampleRate: sampleRate,
         profileLifecycle: "trace",
@@ -205,10 +208,8 @@ app.use("/login", login);
 
 setupCustoroRoutes(app);
 
-// --- Sentry Error Handler ---
-// Must be registered after all controllers/routes, but before custom error middleware
-Sentry.setupExpressErrorHandler(app);
-
+// Sentry captures errors through expressIntegration (Sentry.init above), with no middleware of
+// its own: setupExpressErrorHandler is deprecated in Sentry 11
 // Custom Error handler
 app.use(errorHandler);
 
