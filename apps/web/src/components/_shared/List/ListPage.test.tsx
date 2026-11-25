@@ -5,8 +5,9 @@ import { Axios } from '../../../Axios';
 import { renderScreen } from '../../../test/renderScreen';
 import { useConfirmation } from '../../../store/confirmation';
 import { useNotification } from '../../../store/notification';
-import { endpoint, listPageSize } from '../../../variables';
+import { endpoint } from '../../../variables';
 import ListPage from './ListPage';
+import { listHeights } from './listLogic';
 
 vi.mock('../../../Axios', () => ({ Axios: { get: vi.fn(), delete: vi.fn() } }));
 
@@ -44,6 +45,20 @@ const serve = (count: number) =>
         } as AxiosResponse;
     });
 
+// jsdom draws nothing, so a list measures its own heights (listHeights) from the top of the window:
+// a window this high fits `fits` rows
+const windowFor = (rows: number) =>
+    listHeights.head + listHeights.footer + listHeights.below + rows * listHeights.row + 1;
+const fits = 15;
+
+const resizeTo = async (rows: number) => {
+    await act(async () => {
+        window.innerHeight = windowFor(rows);
+        window.dispatchEvent(new Event('resize'));
+        await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+};
+
 const asked = () => vi.mocked(Axios.get).mock.calls.map(([, config]) => config?.params as Params);
 
 const list = (path = '/customers/1/') =>
@@ -75,17 +90,20 @@ const typeSearch = async (word: string) => {
 beforeEach(() => {
     vi.resetAllMocks();
     window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
+    window.innerHeight = windowFor(fits);
 });
 
 describe('ListPage', () => {
-    it('asks for the page in the address with the same size on every screen', async () => {
+    it('asks for the page in the address with as many rows as fit on the screen', async () => {
         serve(40);
         list('/customers/2/');
 
         expect(await screen.findByText('Customer 16')).toBeInTheDocument();
         expect(Axios.get).toHaveBeenCalledWith(`${endpoint}/customers/`, {
-            params: { page: 2, limit: listPageSize },
+            params: { page: 2, limit: fits },
         });
+        // Not before the size is known
+        expect(asked().map(({ limit }) => limit)).not.toContain(0);
         // The row is a link, the title is the page's own
         expect(screen.getByRole('link', { name: '16' })).toHaveAttribute('href', '/customer/2/16/');
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Customers');
@@ -121,23 +139,21 @@ describe('ListPage', () => {
         );
     });
 
-    // Copilot review of PR 46, round 2: opening a row dropped the list's search and page size, so
-    // Go back on the record returned to an unfiltered list of 15 rows a page
-    it('opens a row and Add with the list\u2019s search and page size', async () => {
+    // Copilot review of PR 46, round 2: opening a row dropped the list's search, so Go back on
+    // the record returned to an unfiltered list
+    it('opens a row and Add with the list\u2019s search', async () => {
         serve(100);
-        list('/customers/3/?q=cust&size=30');
-        await screen.findByText('Customer 61');
+        list('/customers/3/?q=cust');
+        await screen.findByText('Customer 31');
 
-        expect(screen.getByRole('link', { name: '61' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: '31' })).toHaveAttribute(
             'href',
-            '/customer/3/61/?q=cust&size=30'
+            '/customer/3/31/?q=cust'
         );
 
         fireEvent.click(screen.getByTestId('add-customer'));
 
-        expect(await screen.findByTestId('path')).toHaveTextContent(
-            '/customer/3/0/?q=cust&size=30'
-        );
+        expect(await screen.findByTestId('path')).toHaveTextContent('/customer/3/0/?q=cust');
     });
 
     it('goes to the last page for a page past the end', async () => {
@@ -158,25 +174,57 @@ describe('ListPage', () => {
         await waitFor(() => expect(asked().map(({ page }) => page)).toEqual([2, 3]));
     });
 
-    it('offers 15, 30 and 50 rows; another size starts on page 1', async () => {
+    it('has no rows-per-page choice', async () => {
         serve(100);
-        list('/customers/3/');
-        await screen.findByText('Customer 31');
+        list('/customers/1/');
+        await screen.findByText('Customer 1');
 
-        fireEvent.change(screen.getByTestId('page-size'), { target: { value: '50' } });
-
-        expect(await screen.findByText('Customer 1')).toBeInTheDocument();
-        expect(asked()).toContainEqual({ page: 1, limit: 50 });
-        expect(screen.getByTestId('list-range')).toHaveTextContent('1–50 of 100');
-        expect(screen.getByTestId('page-size')).toHaveValue('50');
+        expect(screen.queryByTestId('page-size')).not.toBeInTheDocument();
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     });
 
-    it('takes the page size from the address', async () => {
+    it('fits the rows again after a resize, on the page with the first row seen', async () => {
+        serve(100);
+        list('/customers/3/?q=cust');
+        await screen.findByText('Customer 31');
+
+        // Taller: 30 rows a page, row 31 is on page 2
+        await resizeTo(30);
+        expect(await screen.findByText('Customer 60')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'page 2' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+        expect(screen.getByRole('link', { name: '31' })).toHaveAttribute(
+            'href',
+            '/customer/2/31/?q=cust'
+        );
+        expect(screen.getByTestId('list-range')).toHaveTextContent('31–60 of 100');
+        // The first request with the new size is for the new page, not the old page 3 (that one
+        // comes only as the page after it, loaded ahead)
+        expect(asked().filter(({ limit }) => limit === 30)[0]).toEqual({
+            page: 2,
+            limit: 30,
+            keyword: 'cust',
+        });
+
+        // Shorter: 10 rows a page, row 31 is on page 4
+        await resizeTo(10);
+        await waitFor(() =>
+            expect(screen.getByTestId('list-range')).toHaveTextContent('31–40 of 100')
+        );
+        expect(screen.getByRole('link', { name: 'page 4' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+    });
+
+    it('ignores the page size of an older address', async () => {
         serve(100);
         list('/customers/1/?size=30');
 
-        expect(await screen.findByText('Customer 30')).toBeInTheDocument();
-        expect(asked()[0]).toEqual({ page: 1, limit: 30 });
+        expect(await screen.findByText('Customer 15')).toBeInTheDocument();
+        expect(asked()[0]).toEqual({ page: 1, limit: fits });
     });
 
     it('starts a search on page 1, wherever the search began', async () => {
@@ -186,7 +234,7 @@ describe('ListPage', () => {
 
         await typeSearch('orb');
 
-        expect(asked()).toContainEqual({ page: 1, limit: listPageSize, keyword: 'orb' });
+        expect(asked()).toContainEqual({ page: 1, limit: fits, keyword: 'orb' });
     });
 
     it('opens with the search in the address, box open', async () => {
@@ -195,7 +243,7 @@ describe('ListPage', () => {
 
         expect(await screen.findByText('Customer 1')).toBeInTheDocument();
         expect(screen.getByTestId('search-input')).toHaveValue('orb');
-        expect(asked()[0]).toEqual({ page: 1, limit: listPageSize, keyword: 'orb' });
+        expect(asked()[0]).toEqual({ page: 1, limit: fits, keyword: 'orb' });
     });
 
     it('scrolls to the top of the list on another page', async () => {
@@ -238,18 +286,18 @@ describe('ListPage', () => {
         expect(screen.queryByTestId('list-range')).not.toBeInTheDocument();
     });
 
-    it('goes to the page before after deleting the last row of a page, search and size kept', async () => {
-        serve(61);
-        list('/customers/3/?q=la&size=30');
-        await screen.findByText('Customer 61');
+    it('goes to the page before after deleting the last row of a page, search kept', async () => {
+        serve(31);
+        list('/customers/3/?q=la');
+        await screen.findByText('Customer 31');
 
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
         expect(useConfirmation.getState().params).toMatchObject({
-            id: 61,
+            id: 31,
             resource: 'customers',
             page: 2,
-            returnTo: '/customers/2/?q=la&size=30',
+            returnTo: '/customers/2/?q=la',
         });
     });
 
@@ -257,10 +305,10 @@ describe('ListPage', () => {
     // user to the page before, as if the row were gone
     describe('after the confirmation', () => {
         const confirmDelete = async (answer: { success: boolean; message?: string }) => {
-            serve(61);
+            serve(31);
             vi.mocked(Axios.delete).mockResolvedValue({ data: answer } as AxiosResponse);
-            list('/customers/3/?q=la&size=30');
-            await screen.findByText('Customer 61');
+            list('/customers/3/?q=la');
+            await screen.findByText('Customer 31');
 
             fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
             const { callback, params } = useConfirmation.getState();
@@ -272,14 +320,14 @@ describe('ListPage', () => {
 
             await waitFor(() => expect(useNotification.getState().message).toBe('customer.inUse'));
             expect(asked().map(({ page }) => page)).not.toContain(2);
-            expect(screen.getByText('Customer 61')).toBeInTheDocument();
+            expect(screen.getByText('Customer 31')).toBeInTheDocument();
         });
 
         it('goes to the page before when the last row of the page is deleted', async () => {
             await confirmDelete({ success: true });
 
             await waitFor(() =>
-                expect(asked()).toContainEqual({ page: 2, limit: 30, keyword: 'la' })
+                expect(asked()).toContainEqual({ page: 2, limit: fits, keyword: 'la' })
             );
         });
     });

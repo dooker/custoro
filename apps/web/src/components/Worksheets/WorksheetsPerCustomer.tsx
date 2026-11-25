@@ -11,6 +11,7 @@ import { useDeleteItem } from '../../hooks/useDeleteItem';
 import { useWorksheetActions } from '../../hooks/useWorksheetActions';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useListParams } from '../../hooks/useListParams';
+import { useFitRows } from '../../hooks/useFitRows';
 import { useResourceList } from '../../hooks/useResourceList';
 import { getSingle } from '../../utils/Getters/getSingle';
 import { formatPrice } from '../../utils/invoiceTotals';
@@ -79,7 +80,8 @@ const WorksheetsPerCustomer = () => {
     const page = pageFromParam(rawPage);
     const currentPage = pageFromParam(worksheetPage);
     const pageHref = (number: number) => `${PATHS.WORKSHEETS}${page}/${customerId}/${number}/`;
-    const { keyword, size, setKeyword, setSize, withParams } = useListParams(pageHref);
+    const { keyword, setKeyword, withParams } = useListParams(pageHref);
+    const fit = useFitRows(currentPage, (number) => withParams(pageHref(number)));
     const [showInvoiceDropdown, setShowInvoiceDropdown] = useState(false);
     const { user } = useAuth();
     const showDiscount = !!Number(user?.discount);
@@ -93,11 +95,11 @@ const WorksheetsPerCustomer = () => {
             resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
             path: PATHS.WORKSHEETS,
             page: currentPage,
-            limit: size,
+            limit: fit.size ?? 0,
             keyword,
             params: { customer: customerId },
         },
-        { prefetchNext: true }
+        { prefetchNext: true, enabled: fit.size !== null }
     );
     const worksheets = query.data?.resource ?? [];
 
@@ -187,7 +189,7 @@ const WorksheetsPerCustomer = () => {
                 query={query}
                 page={currentPage}
                 pageHref={(number) => withParams(pageHref(number))}
-                pageSize={{ value: size, onChange: setSize }}
+                fit={fit}
             >
                 {(rows) => (
                     <ListTable<WorksheetIF>

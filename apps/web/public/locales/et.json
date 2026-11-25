@@ -334,7 +334,6 @@
     "emptyList": "Nimekiri on tühi",
     "listError": "Nimekirja ei õnnestunud laadida. Proovi hetke pärast uuesti.",
     "listRange": "{{from}}–{{to}}, kokku {{total}}",
-    "listPageSize": "Ridu lehel",
     "languages": {
         "en": "English",
         "et": "Eesti",

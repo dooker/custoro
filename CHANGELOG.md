@@ -5,6 +5,14 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+### Changed
+
+- **Rows per page fit the screen again**: every list (customers, products, worksheets, invoices,
+  users, companies, a customer's worksheets) shows as many rows as fit in the window, as before
+  5.2.0, and fits them again when the window is resized. The page then moves so that the first row
+  you were looking at stays on screen. The "Rows per page" choice under the lists is gone; "16–30
+  of 212" and the page numbers stay. An old link with `?size=30` still opens, without the size
+
 ## 5.2.0 - 2026-11-21
 
 ### Fixed

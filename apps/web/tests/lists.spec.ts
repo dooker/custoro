@@ -13,6 +13,12 @@ const listRows = (page: Page, resource: string) =>
 
 const heading = (page: Page) => page.getByRole('heading', { level: 1 });
 
+// A list shows as many rows as fit on the screen. These windows fit 15 rows (the table starts at
+// 98 px, a row is 43.5, its head 40.5, the footer 49 and the margin 12; 15 rows need 852 to 895
+// px, 873 is in the middle) and the minimum of 5.
+const fifteenRows = { width: 1280, height: 873 };
+const fiveRows = { width: 1280, height: 300 };
+
 // Products whose code and name carry one tag, so a search for it finds only them
 const createProducts = async (
     request: APIRequestContext,
@@ -105,6 +111,7 @@ test('a search starts on page 1, lives in the address, and survives pages, reloa
     const tag = Date.now().toString(36);
     const token = await getApiToken(request);
     madeProducts = await createProducts(request, token, tag, 17);
+    await page.setViewportSize(fifteenRows);
 
     // From page 2 of the whole list
     await page.goto('/products/2/');
@@ -173,22 +180,23 @@ test('a search starts on page 1, lives in the address, and survives pages, reloa
     await expect(page).toHaveURL('/products/1/');
 });
 
-test('pages: past the end, which rows, page links, back to the top, rows per page', async ({
+test('pages: past the end, which rows, page links, back to the top, rows that fit the window', async ({
     page,
     request,
 }) => {
     test.setTimeout(90_000);
 
-    // 31 products of its own, found by their tag: 3 pages of 15, 2 of 30, whatever else the
+    // 31 products of its own, found by their tag: 3 pages of 15, 7 of 5, whatever else the
     // database holds (CI starts with the demo data only)
     const tag = Date.now().toString(36);
     const token = await getApiToken(request);
 
     madeProducts = await createProducts(request, token, tag, 31);
+    await page.setViewportSize(fifteenRows);
 
     const rows = listRows(page, 'products');
     const range = page.getByTestId('list-range');
-    const at = (number: number, size = '') => `/products/${number}/?q=${tag}${size}`;
+    const at = (number: number, extra = '') => `/products/${number}/?q=${tag}${extra}`;
 
     // A page past the end shows the last page, and the address follows
     await page.goto(at(999));
@@ -205,27 +213,39 @@ test('pages: past the end, which rows, page links, back to the top, rows per pag
         'href',
         at(3)
     );
+    // No rows-per-page choice: the rows fit the window, and the page does not scroll
+    await expect(page.getByTestId('page-size')).toHaveCount(0);
+    expect(
+        await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)
+    ).toBeLessThanOrEqual(0);
+
+    // A smaller window: 5 rows (the fewest a list shows), from the first row seen
+    await page.setViewportSize(fiveRows);
+    await expect(range).toHaveText('1–5 of 31');
+    await expect(rows).toHaveCount(5);
 
     // Another page starts at the top, not at the page numbers under the last row
-    await page.setViewportSize({ width: 1280, height: 500 });
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     await page.getByRole('link', { name: 'Go to page 2' }).click();
     await expect(page).toHaveURL(at(2));
-    await expect(range).toHaveText('16–30 of 31');
+    await expect(range).toHaveText('6–10 of 31');
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 
-    // 30 rows a page: from page 1, in the address with the search, kept on reload and paging
-    await page.getByTestId('page-size').selectOption('30');
-    await expect(page).toHaveURL(at(1, '&size=30'));
-    await expect(rows).toHaveCount(30);
-    await expect(range).toHaveText('1–30 of 31');
-    await page.reload();
-    await expect(page.getByTestId('page-size')).toHaveValue('30');
-    await expect(page.getByRole('link', { name: 'Go to page 2' })).toHaveAttribute(
-        'href',
-        at(2, '&size=30')
-    );
+    // Resizing keeps the first row seen: row 16 is on page 2 of 15 and on page 4 of 5
+    await page.setViewportSize(fifteenRows);
+    await page.goto(at(2));
+    await expect(range).toHaveText('16–30 of 31');
+    await page.setViewportSize(fiveRows);
+    await expect(page).toHaveURL(at(4));
+    await expect(range).toHaveText('16–20 of 31');
+    await page.setViewportSize(fifteenRows);
+    await expect(page).toHaveURL(at(2));
+    await expect(range).toHaveText('16–30 of 31');
+
+    // An address from 5.2.0 with its rows per page: the size is ignored
+    await page.goto(at(1, '&size=30'));
+    await expect(range).toHaveText('1–15 of 31');
 });
 
 test('a list that cannot be loaded says so instead of "No entries"', async ({ page }) => {

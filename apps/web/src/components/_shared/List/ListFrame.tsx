@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import Pagination from '@mui/material/Pagination';
 import PaginationItem from '@mui/material/PaginationItem';
@@ -7,14 +7,8 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import Loader from '../Loader/Loader';
 import NoEntries from '../NoEntries/NoEntries';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
-import {
-    pageCorrection,
-    pageSizes,
-    pagesOf,
-    rangeOf,
-    showPages,
-    type ListDataIF,
-} from './listLogic';
+import type { FitRowsIF } from '../../../hooks/useFitRows';
+import { pageCorrection, pagesOf, rangeOf, showPages, type ListDataIF } from './listLogic';
 import '@css/shared/pagination.sass';
 import styles from './List.module.sass';
 
@@ -23,37 +17,45 @@ interface ListFrameIF<T> {
     resource: string;
     query: UseQueryResult<ListDataIF<T>>;
     page: number;
-    // The address of a page of this list, with its search and page size (useListParams)
+    // The address of a page of this list, with its search (useListParams)
     pageHref?: (page: number) => string;
-    // The rows-per-page choice, for a full-page list
-    pageSize?: { value: number; onChange: (size: number) => void };
+    // A full-page list shows as many rows as fit on the screen (useFitRows)
+    fit?: Pick<FitRowsIF, 'ref' | 'measure'>;
     heading?: ReactNode;
     children: (rows: T[]) => ReactNode;
 }
 
 /**
  * A list's states in one place: loading, could not load, no entries, the rows, and under them
- * "16–30 of 212", the page size and the page numbers (links, so a page opens in a new tab too).
+ * "16–30 of 212" and the page numbers (links, so a page opens in a new tab too).
  */
 const ListFrame = <T,>({
     resource,
     query,
     page,
     pageHref,
-    pageSize,
+    fit,
     heading,
     children,
 }: ListFrameIF<T>) => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
     const narrow = useMediaQuery('(max-width: 600px)');
-    const { data, isLoading, isError, isFetching, isPlaceholderData } = query;
+    // Pending, not loading: a list waiting for its size (useFitRows) has not asked yet
+    const { data, isPending, isError, isFetching, isPlaceholderData } = query;
     const rows = data?.resource ?? [];
     const pages = pagesOf(data?.meta);
     const range = rangeOf(data?.meta, rows.length);
     // A page past the end: the API answered with the last page, and the address follows it
     const correction = pageHref && !isPlaceholderData ? pageCorrection(page, data?.meta) : null;
     const shownPageRef = useRef(page);
+    const hasRows = rows.length > 0;
+    const measure = fit?.measure;
+
+    // Measured where the table will start, and again once the rows show their real heights
+    useLayoutEffect(() => {
+        measure?.();
+    }, [measure, hasRows]);
 
     useEffect(() => {
         if (correction && pageHref) {
@@ -70,7 +72,7 @@ const ListFrame = <T,>({
     }, [page]);
 
     const body = () => {
-        if (isLoading) {
+        if (isPending) {
             return <Loader additionalClass="relative" />;
         }
 
@@ -93,7 +95,8 @@ const ListFrame = <T,>({
 
     return (
         <section
-            className={`component ${resource}${isFetching && !isLoading ? ` ${styles.fetching}` : ''}`}
+            ref={fit?.ref}
+            className={`component ${resource}${isFetching && !isPending ? ` ${styles.fetching}` : ''}`}
             aria-busy={isFetching}
         >
             {heading}
@@ -101,28 +104,9 @@ const ListFrame = <T,>({
             {body()}
 
             {footer && (
-                <div className={styles.footer}>
-                    <div className={styles.summary}>
+                <div className={styles.footer} data-list-footer>
+                    <div>
                         {range && <span data-testid="list-range">{t('listRange', range)}</span>}
-
-                        {pageSize && (
-                            <label className={styles.size}>
-                                {t('listPageSize')}
-                                <select
-                                    value={pageSize.value}
-                                    onChange={(event) =>
-                                        pageSize.onChange(Number(event.target.value))
-                                    }
-                                    data-testid="page-size"
-                                >
-                                    {pageSizes.map((size) => (
-                                        <option key={size} value={size}>
-                                            {size}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        )}
                     </div>
 
                     {showPages(pages) && (
