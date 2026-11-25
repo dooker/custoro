@@ -92,11 +92,13 @@ describe('searchTarget', () => {
 
 describe('fitRows', () => {
     // 768 high, the table at 98: room for 568.5 px under the head, footer and margin
-    const desktop = { viewport: 768, top: 98, head: 40.5, row: 43.5, footer: 49, below: 12 };
+    const desktop = { viewport: 768, top: 98, head: 40.5, row: 41, footer: 49, below: 12 };
 
     it('shows as many rows as fit between the table and the bottom of the window', () => {
         expect(fitRows(desktop)).toBe(13);
-        expect(fitRows({ ...desktop, viewport: 1100 })).toBe(20);
+        expect(fitRows({ ...desktop, viewport: 1100 })).toBe(21);
+        // A row of 47 px (the paid lock made rows this high) would leave a row of room unused
+        expect(fitRows({ ...desktop, row: 47 })).toBe(12);
     });
 
     it('uses the list\u2019s own heights for the parts not drawn yet', () => {

@@ -104,7 +104,7 @@ export interface ListSpaceIF {
     below?: number;
 }
 
-export const listHeights = { head: 40.5, row: 43.5, footer: 49, below: 12 };
+export const listHeights = { head: 40.5, row: 41, footer: 49, below: 12 };
 
 /** The rows that fit between the table's top and the bottom of the window, from 5 to 50 */
 export const fitRows = ({

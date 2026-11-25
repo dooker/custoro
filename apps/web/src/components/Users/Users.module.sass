@@ -1,3 +1,8 @@
+// As high as a line of text, so a row with a picture is as high as every other row (41 px). Not
+// max-width: 100%, which squeezed it to nothing in a cell that stays on one line.
 .avatar img
-    max-width: 40px
-    max-height: 40px
+    display: block
+    width: 24px
+    height: 24px
+    max-width: none
+    object-fit: cover

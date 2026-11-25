@@ -12,6 +12,10 @@ version number, kept in each app's `package.json`. The web app shows this file o
   5.2.0, and fits them again when the window is resized. The page then moves so that the first row
   you were looking at stays on screen. The "Rows per page" choice under the lists is gone; "16–30
   of 212" and the page numbers stay. An old link with `?size=30` still opens, without the size
+- **Every list row is as high (41 px)**, so the rows fill the window without a row of room left
+  over: the paid lock on invoices and the users' pictures are as high as a line of text, a delete
+  button and a company's state no longer push their row higher, and a long name or email stays
+  on one line, the name column ending in "…" when it does not fit
 
 ## 5.2.0 - 2026-11-21
 

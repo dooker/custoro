@@ -14,9 +14,9 @@ const listRows = (page: Page, resource: string) =>
 const heading = (page: Page) => page.getByRole('heading', { level: 1 });
 
 // A list shows as many rows as fit on the screen. These windows fit 15 rows (the table starts at
-// 98 px, a row is 43.5, its head 40.5, the footer 49 and the margin 12; 15 rows need 852 to 895
-// px, 873 is in the middle) and the minimum of 5.
-const fifteenRows = { width: 1280, height: 873 };
+// 98 px, a row is 41, its head 40.5, the footer 49 and the margin 12; 15 rows need 815 to 855
+// px, 835 is in the middle) and the minimum of 5.
+const fifteenRows = { width: 1280, height: 835 };
 const fiveRows = { width: 1280, height: 300 };
 
 // Products whose code and name carry one tag, so a search for it finds only them
@@ -246,6 +246,37 @@ test('pages: past the end, which rows, page links, back to the top, rows that fi
     // An address from 5.2.0 with its rows per page: the size is ignored
     await page.goto(at(1, '&size=30'));
     await expect(range).toHaveText('1–15 of 31');
+});
+
+test('every row of every list is as high (41 px), so the rows fit the window exactly', async ({
+    page,
+}) => {
+    await page.setViewportSize(fifteenRows);
+
+    // Invoices with the paid lock, users with their pictures and long emails, companies with
+    // their state, lists with a delete button
+    for (const [path, resource] of [
+        ['/customers/1/', 'customers'],
+        ['/products/1/', 'products'],
+        ['/worksheets/1/', 'worksheets'],
+        ['/invoices/1/', 'invoices'],
+        ['/users/1/', 'users'],
+        ['/tenants/1/', 'tenants'],
+    ]) {
+        await page.goto(path);
+        await expect(listRows(page, resource).first()).toBeVisible();
+
+        const heights = await listRows(page, resource).evaluateAll((rows) =>
+            rows.map((row) => Math.round(row.getBoundingClientRect().height))
+        );
+
+        expect(new Set(heights), path).toEqual(new Set([41]));
+        // Nothing left over for another row, and nothing below the window
+        expect(
+            await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight),
+            path
+        ).toBeLessThanOrEqual(0);
+    }
 });
 
 test('a list that cannot be loaded says so instead of "No entries"', async ({ page }) => {

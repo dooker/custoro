@@ -19,6 +19,17 @@ const height = (element: Element | null | undefined): number | undefined => {
     return value ? value : undefined;
 };
 
+/** A row's height: the average of the rows drawn, so one taller row does not decide it */
+const rowHeight = (table: HTMLTableElement | null): number | undefined => {
+    const heights = [...(table?.querySelectorAll('tbody tr') ?? [])]
+        .map((row) => row.getBoundingClientRect().height)
+        .filter((value) => value > 0);
+
+    return heights.length
+        ? heights.reduce((sum, value) => sum + value, 0) / heights.length
+        : undefined;
+};
+
 /** The space of a list on the screen, measured from its section (ListFrame) */
 const measureList = (section: HTMLElement) => {
     const table = section.querySelector('table');
@@ -32,7 +43,7 @@ const measureList = (section: HTMLElement) => {
         viewport: window.innerHeight,
         top: top + window.scrollY,
         head: height(table?.querySelector('thead')),
-        row: height(table?.querySelector('tbody tr')),
+        row: rowHeight(table),
         footer: height(section.querySelector('[data-list-footer]')),
         below: Number.isNaN(below) ? undefined : below,
     });

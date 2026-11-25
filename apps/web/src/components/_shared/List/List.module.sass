@@ -9,8 +9,11 @@
     opacity: 0.6
     transition: opacity .2s
 
+// In the middle of the text line, not on its baseline: a row with a delete button is as high as
+// a row without one (41 px), so the list fits its rows exactly
 .delete
     display: inline-flex
+    vertical-align: middle
     padding: 0
     border: 0
     background: none

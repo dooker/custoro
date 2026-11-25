@@ -1,11 +1,9 @@
-import { lazy, Suspense } from 'react';
 import ListPage from '../_shared/List/ListPage';
 import type { ColumnIF } from '../_shared/List/ListTable';
 import type { InvoiceWithCustomerIF } from '../../types';
 import { PATHS, RESOURCE } from '../../variables';
+import Lock from '../_shared/Icons/Lock';
 import styles from './Invoices.module.sass';
-
-const Lock = lazy(() => import('../_shared/Icons/Lock'));
 
 // Also the small lists on Home and on a customer's page (without the customer column there). The
 // lock column only when the rows have a paid invoice.
@@ -17,12 +15,7 @@ export const invoiceColumns =
                   {
                       key: 'locked',
                       className: styles.locked,
-                      render: ({ locked }: InvoiceWithCustomerIF) =>
-                          locked ? (
-                              <Suspense fallback={null}>
-                                  <Lock />
-                              </Suspense>
-                          ) : null,
+                      render: ({ locked }: InvoiceWithCustomerIF) => (locked ? <Lock /> : null),
                   },
               ]
             : []),
