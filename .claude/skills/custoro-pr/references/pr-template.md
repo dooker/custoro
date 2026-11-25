@@ -50,8 +50,6 @@ own CHANGELOG entry. Checked against a local stack (<what was run>).
 ## Not in this PR
 
 <What was seen and left alone, one line each, so nobody has to rediscover it.>
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
 ## Optional sections
