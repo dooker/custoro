@@ -63,6 +63,8 @@ export interface FitRowsIF {
 export interface ShownRowsIF {
     page?: number;
     limit?: number;
+    // The list and search they belong to: the address of its first page
+    list?: string;
 }
 
 /**
@@ -103,8 +105,10 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
             latestRef.current = { ...latestRef.current, size: next };
 
             // The first row the user sees: of the rows on screen, which are still the page before's
-            // while the next page loads (Copilot review of PR 47), else of the page asked for
-            const onScreen = shownRef.current;
+            // while the next page loads (Copilot review of PR 47), else of the page asked for. Rows
+            // of another list or search (a new search loading) say nothing about this one's pages
+            // (round 2).
+            const onScreen = shownRef.current?.list === href(1) ? shownRef.current : undefined;
             const fromPage = onScreen?.page ?? shown;
             const fromSize = onScreen?.limit ?? before;
 

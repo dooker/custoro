@@ -426,6 +426,38 @@ describe('ListPage', () => {
         release();
     });
 
+    // Copilot review of PR 47, round 2: while a new search loads, the rows on screen are the old
+    // search's (placeholder data); a resize then must not move the new search to their page
+    it('keeps a new search on page 1 when the window is resized while it loads', async () => {
+        serve(100);
+        const paged = vi.mocked(Axios.get).getMockImplementation()!;
+        let release = () => {};
+
+        // The search answers only when let go
+        vi.mocked(Axios.get).mockImplementation(async (url, config) => {
+            if ((config?.params as Params).keyword) {
+                await new Promise<void>((resolve) => (release = resolve));
+            }
+
+            return paged(url, config);
+        });
+        list('/customers/3/');
+        await screen.findByText('Customer 31');
+
+        await typeSearch('orb');
+        await waitFor(() =>
+            expect(asked()).toContainEqual({ page: 1, limit: fits, keyword: 'orb' })
+        );
+        // Still the old list's page 3, rows 31 to 45
+        expect(screen.getByText('Customer 31')).toBeInTheDocument();
+
+        // 5 rows a page: the search stays on its page 1 (row 31 of the old list would be page 7)
+        await resizeTo(5);
+        release();
+        await waitFor(() => expect(asked()).toContainEqual({ page: 1, limit: 5, keyword: 'orb' }));
+        expect(asked()).not.toContainEqual({ page: 7, limit: 5, keyword: 'orb' });
+    });
+
     it('ignores the page size of an older address', async () => {
         serve(100);
         list('/customers/1/?size=30');

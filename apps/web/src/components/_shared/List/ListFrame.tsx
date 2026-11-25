@@ -53,12 +53,16 @@ const ListFrame = <T,>({
     const measure = fit?.measure;
     const show = fit?.show;
     const shownMeta = data?.meta;
+    const list = pageHref?.(1);
 
-    // Which rows are on screen, for a resize to keep them (the answer shown, also while the next
-    // page loads)
+    // Which rows are on screen, for a resize to keep them. While the next page or a new search
+    // loads, the rows shown are still the answer before (placeholder data): that answer stays, with
+    // the list and search it was asked for.
     useLayoutEffect(() => {
-        show?.(shownMeta && { page: shownMeta.page, limit: shownMeta.limit });
-    }, [show, shownMeta]);
+        if (!isPlaceholderData) {
+            show?.(shownMeta && { page: shownMeta.page, limit: shownMeta.limit, list });
+        }
+    }, [show, shownMeta, list, isPlaceholderData]);
 
     // Measured where the table will start, and again once the rows show their real heights
     useLayoutEffect(() => {
