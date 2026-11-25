@@ -16,6 +16,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
   over: the paid lock on invoices and the users' pictures are as high as a line of text, a delete
   button and a company's state no longer push their row higher, and a long name or email stays
   on one line, the name column ending in "…" when it does not fit
+- **Menu: Settings is always last**, with Companies (the owner's page) right above it
+- **Companies: the state is on the right**, with its heading, like the other short columns
 
 ## 5.2.0 - 2026-11-21
 

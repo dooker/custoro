@@ -19,15 +19,16 @@ import { useNotification } from '../../../store/notification';
 import { versionLabel } from '../../../utils/buildInfo';
 import styles from './Navigation.module.sass';
 
-const menuItems = [
+// Settings is always the last item: a new menu item goes above it
+export const menuItems = [
     { selector: RESOURCE.HOME, link: PATHS.HOME, Icon: Home },
     { selector: RESOURCE.PRODUCTS, link: `${PATHS.PRODUCTS}1/`, Icon: Product },
     { selector: RESOURCE.CUSTOMERS, link: `${PATHS.CUSTOMERS}1/`, Icon: Customer },
     { selector: RESOURCE.WORKSHEETS, link: `${PATHS.WORKSHEETS}1/`, Icon: Worksheet },
     { selector: RESOURCE.INVOICES, link: `${PATHS.INVOICES}1/`, Icon: Invoice },
     { selector: RESOURCE.USERS, link: `${PATHS.USERS}1/`, Icon: Users, level: 'admin' },
-    { selector: RESOURCE.SETTINGS, link: `${PATHS.SETTINGS}`, Icon: Settings, level: 'admin' },
     { selector: RESOURCE.TENANTS, link: `${PATHS.TENANTS}1/`, Icon: Users, level: 'owner' },
+    { selector: RESOURCE.SETTINGS, link: `${PATHS.SETTINGS}`, Icon: Settings, level: 'admin' },
 ];
 
 const Navigation = () => {
