@@ -5,6 +5,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.3.0 - 2026-11-25
+
 ### Changed
 
 - **Rows per page fit the screen again**: every list (customers, products, worksheets, invoices,
