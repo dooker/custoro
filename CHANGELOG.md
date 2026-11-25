@@ -28,6 +28,13 @@ version number, kept in each app's `package.json`. The web app shows this file o
   of the handler Sentry 11 deprecated; what is sent stays the same (server errors, not refusals).
   TypeScript stays on 6.0 until typescript-eslint supports 7
 
+### Fixed
+
+- A customer's worksheets: a worksheet picked on one page and put on an invoice from another page
+  (or after the window got smaller and hid its row) was sent without its product and quantity, and
+  the invoice was refused. Now every picked worksheet goes on the invoice, wherever it was picked;
+  the box in the heading picks or clears the worksheets of the page shown and keeps the others
+
 ## 5.2.0 - 2026-11-21
 
 ### Fixed
