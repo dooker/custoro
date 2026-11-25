@@ -359,7 +359,8 @@ test('every row of every list is as high (41 px), so the rows fit the window exa
             headers: apiHeaders(token),
             data: {
                 name: `E2E Lists rows ${'person with a long name '.repeat(2)}${tag}`,
-                username: `${'a-very-long-email-'.repeat(3)}${tag}@a-subdomain.example.test`,
+                // Near the 254 characters the API allows (Copilot review of PR 47)
+                username: `${'a-very-long-email-'.repeat(3)}${tag}@${'very-long-subdomain.'.repeat(8)}example.test`,
                 discount: 0,
                 offer: 0,
                 role: 'user',
@@ -403,6 +404,18 @@ test('every row of every list is as high (41 px), so the rows fit the window exa
             async (page) => {
                 await expect(listRows(page, 'users')).toHaveCount(1);
                 await expect(listRows(page, 'users').locator('img')).toHaveCount(1);
+                // The long email ends in "…": the page stays as wide as the window and the
+                // delete button inside it
+                expect(
+                    await page.evaluate(
+                        () => document.documentElement.scrollWidth - window.innerWidth
+                    )
+                ).toBeLessThanOrEqual(0);
+                const button = await listRows(page, 'users')
+                    .getByRole('button', { name: 'Delete' })
+                    .boundingBox();
+
+                expect(button!.x + button!.width).toBeLessThanOrEqual(fifteenRows.width);
             },
         ],
         [
