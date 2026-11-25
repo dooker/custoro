@@ -22,9 +22,9 @@ import type { HeaderButtonIF } from '../../types/header';
 import { endpoint, PATHS, RESOURCE } from '../../variables';
 import { pageAfterDelete, pageFromParam } from '../_shared/List/listLogic';
 import {
-    invoiceItems,
     invoiceNumberOf,
     isAllSelected,
+    pickedIds,
     selectableIds,
     toggledAll,
 } from './worksheetSelection';
@@ -87,8 +87,11 @@ const WorksheetsPerCustomer = () => {
     const showDiscount = !!Number(user?.discount);
     const listKey = [RESOURCE.WORKSHEETS_PER_CUSTOMER];
     const { promptDelete } = useDeleteItem(listKey);
-    const { selectedCheckboxes, setSelectedCheckboxes, doInvoice, toggleCheckbox } =
-        useWorksheetActions(Number(customerId), listKey);
+    const { picked, setPicked, doInvoice, toggleCheckbox } = useWorksheetActions(
+        Number(customerId),
+        listKey
+    );
+    const selectedCheckboxes = pickedIds(picked);
 
     const query = useResourceList<WorksheetIF>(
         {
@@ -125,13 +128,13 @@ const WorksheetsPerCustomer = () => {
         doInvoice({
             invoiceId,
             customerId: Number(customerId),
-            items: invoiceItems(selectedCheckboxes, worksheets),
+            items: picked,
         });
     };
 
     const selectable = selectableIds(worksheets);
     const allSelected = isAllSelected(selectable, selectedCheckboxes);
-    const toggleAll = () => setSelectedCheckboxes(toggledAll(selectable, selectedCheckboxes));
+    const toggleAll = () => setPicked(toggledAll(worksheets, picked));
 
     // Deleting the last row of a page goes to the page before; the customer list's counts change
     const remove = (id: number) => {
@@ -226,7 +229,7 @@ const WorksheetsPerCustomer = () => {
                                         type="checkbox"
                                         aria-label={row.name}
                                         checked={selectedCheckboxes.includes(row.id)}
-                                        onChange={() => toggleCheckbox(row.id)}
+                                        onChange={() => toggleCheckbox(row)}
                                     />
                                 )}
                                 <DeleteButton onClick={() => remove(row.id)} />

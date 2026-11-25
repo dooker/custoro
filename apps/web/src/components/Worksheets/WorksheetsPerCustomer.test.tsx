@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import type { AxiosResponse } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Axios } from '../../Axios';
@@ -46,6 +46,7 @@ const serve = (count: number) =>
                     id: first + index,
                     code: `WS-${first + index}`,
                     name: `Sheet ${first + index}`,
+                    product_id: 100 + first + index,
                     price: 10,
                     quantity: 1,
                 })),
@@ -62,6 +63,14 @@ const worksheetRequests = () =>
 
 const windowFor = (rows: number) =>
     listHeights.head + listHeights.footer + listHeights.below + rows * listHeights.row + 1;
+
+const resizeTo = async (rows: number) => {
+    await act(async () => {
+        window.innerHeight = windowFor(rows);
+        window.dispatchEvent(new Event('resize'));
+        await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+};
 
 const open = (path: string) =>
     renderScreen(<WorksheetsPerCustomer />, {
@@ -95,11 +104,7 @@ describe('WorksheetsPerCustomer', () => {
         await screen.findByText('Sheet 31');
 
         // 10 rows a page: row 31 is on page 4, the customer list's page 2 stays in the address
-        await act(async () => {
-            window.innerHeight = windowFor(10);
-            window.dispatchEvent(new Event('resize'));
-            await new Promise((resolve) => setTimeout(resolve, 200));
-        });
+        await resizeTo(10);
 
         await waitFor(() =>
             expect(screen.getByTestId('list-range')).toHaveTextContent('31–40 of 40')
@@ -112,5 +117,30 @@ describe('WorksheetsPerCustomer', () => {
             'aria-current',
             'page'
         );
+    });
+
+    // Copilot review of PR 47, round 2: a worksheet picked on a row that a smaller window no
+    // longer shows went on the invoice with product 0 and quantity 0, and the API refused it
+    it('puts a picked worksheet on the invoice after a resize hid its row', async () => {
+        serve(40);
+        vi.mocked(Axios.post).mockResolvedValue({ data: { success: true } } as AxiosResponse);
+        open('/worksheets/2/4/1/');
+        fireEvent.click(await screen.findByRole('checkbox', { name: 'Sheet 15' }));
+
+        // 5 rows a page: page 1 shows sheets 1 to 5
+        await resizeTo(5);
+        await waitFor(() =>
+            expect(screen.getByTestId('list-range')).toHaveTextContent('1–5 of 40')
+        );
+        expect(screen.queryByText('Sheet 15')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Add to invoice'));
+        fireEvent.click(await screen.findByText(/New nr/));
+
+        await waitFor(() => expect(Axios.post).toHaveBeenCalled());
+        expect(vi.mocked(Axios.post).mock.calls[0][1]).toMatchObject({
+            customerId: 4,
+            items: [{ worksheetId: 15, productId: 115, quantity: 1 }],
+        });
     });
 });

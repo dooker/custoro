@@ -12,29 +12,41 @@ export interface InvoiceItemIF {
 export const selectableIds = (rows: WorksheetIF[]): number[] =>
     rows.filter((row) => !row.invoice).map((row) => row.id);
 
+/**
+ * A picked worksheet, as its invoice line: it keeps its product and quantity, so a pick on a row
+ * no longer on screen (another page, a smaller window) still goes on the invoice whole
+ */
+export const pickOf = ({ id, product_id, quantity }: WorksheetIF): InvoiceItemIF => ({
+    worksheetId: id,
+    productId: product_id || 0,
+    quantity: quantity || 0,
+});
+
+/** The ids of the picked worksheets */
+export const pickedIds = (picked: InvoiceItemIF[]): number[] =>
+    picked.map(({ worksheetId }) => worksheetId);
+
 /** One worksheet picked or put back */
-export const toggled = (selected: number[], id: number): number[] =>
-    selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id];
+export const toggled = (picked: InvoiceItemIF[], row: WorksheetIF): InvoiceItemIF[] =>
+    picked.some(({ worksheetId }) => worksheetId === row.id)
+        ? picked.filter(({ worksheetId }) => worksheetId !== row.id)
+        : [...picked, pickOf(row)];
 
 /** Every selectable worksheet of the page is picked (and there is at least one) */
 export const isAllSelected = (selectable: number[], selected: number[]): boolean =>
     selectable.length > 0 && selectable.every((id) => selected.includes(id));
 
-/** The "all" box: picks every selectable worksheet, or none when they all were */
-export const toggledAll = (selectable: number[], selected: number[]): number[] =>
-    isAllSelected(selectable, selected) ? [] : selectable;
+/**
+ * The "all" box: picks every selectable worksheet of the page, or puts them all back when they all
+ * were; picks on other pages stay
+ */
+export const toggledAll = (rows: WorksheetIF[], picked: InvoiceItemIF[]): InvoiceItemIF[] => {
+    const page = rows.filter((row) => !row.invoice);
+    const pageIds = page.map(({ id }) => id);
+    const others = picked.filter(({ worksheetId }) => !pageIds.includes(worksheetId));
 
-/** The invoice lines for the picked worksheets, with their product and quantity */
-export const invoiceItems = (selected: number[], rows: WorksheetIF[]): InvoiceItemIF[] =>
-    selected.map((worksheetId) => {
-        const worksheet = rows.find((row) => row.id === worksheetId);
-
-        return {
-            worksheetId,
-            productId: worksheet?.product_id || 0,
-            quantity: worksheet?.quantity || 0,
-        };
-    });
+    return isAllSelected(pageIds, pickedIds(picked)) ? others : [...others, ...page.map(pickOf)];
+};
 
 /** The number of the invoice a worksheet is on, when it is one of the customer's */
 export const invoiceNumberOf = (
