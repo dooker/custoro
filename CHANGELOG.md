@@ -5,6 +5,23 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+### Added
+
+- **Custoro on a phone**: the layout is now built for a phone first. Every page fits the screen
+  without scrolling sideways; on a phone the menu opens over the whole screen from the button in
+  the header's corner (three lines that turn into an X), and closes with it, Escape or any page
+  opened from it. From 900 px (a tablet on its side, a laptop) the menu is the sidebar, as before
+
+### Changed
+
+- **Lists on a phone** show the columns that matter (number, name, price or state) and leave the
+  details for wider screens: My price and Unit of products, a worksheet's code, a user's email
+  and role, a company's counts and date. The page numbers are smaller and without the first and
+  last arrows there
+- **Forms on a phone**: fields one under the other, header and invoice buttons and the settings
+  tabs wrap onto more rows, and the invoice's payment and invoice type stack. The invoice's
+  lines scroll sideways in their own box when the discount columns do not fit
+
 ## 5.3.2 - 2026-11-27
 
 ### Fixed
