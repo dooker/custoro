@@ -59,6 +59,85 @@ test.describe('on a phone', () => {
         }
     });
 
+    test('the login screen fits, its button the whole width with the link under it', async ({
+        page,
+    }) => {
+        await page.goto('/login/');
+
+        const box = await page.locator('.modal-content').boundingBox();
+        const button = await page.getByTestId('login-submit-button').boundingBox();
+        const link = await page.getByRole('link', { name: 'Forgot password?' }).boundingBox();
+
+        // Inside the screen, centred: it was pushed past the right edge
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(phone.width);
+        expect(Math.abs(box!.x - (phone.width - box!.x - box!.width))).toBeLessThanOrEqual(1);
+        // The button spans the box but its gutters; the link no longer lies over it
+        expect(button!.width).toBeGreaterThan(box!.width - 30);
+        expect(link!.y).toBeGreaterThanOrEqual(button!.y + button!.height);
+        // The faint name stays in the top band on a phone
+        expect(
+            await page.evaluate(
+                () => getComputedStyle(document.getElementById('root')!, '::after').display
+            )
+        ).not.toBe('none');
+    });
+
+    test('buttons are the whole width, one on top of the other', async ({ page, request }) => {
+        await login({ page, request });
+        await page.goto('/customers/1/');
+        await page.locator('tbody tr').first().getByRole('link').first().click();
+        await expect(page).toHaveURL(/\/customer\/1\/\d+\/$/);
+        await expect(
+            page.locator('header').first().getByRole('button', { name: 'Delete' })
+        ).toBeVisible();
+
+        const buttons = await page
+            .locator('header')
+            .first()
+            .getByRole('button')
+            .evaluateAll((all) => all.map((button) => button.getBoundingClientRect().toJSON()));
+
+        expect(buttons.length).toBeGreaterThan(1);
+
+        for (const [index, button] of buttons.entries()) {
+            expect(button.width).toBeGreaterThan(phone.width - 30);
+
+            if (index > 0) {
+                expect(button.top).toBeGreaterThanOrEqual(buttons[index - 1].bottom);
+            }
+        }
+    });
+
+    test('Home’s small lists are as high as their rows, not the screen', async ({
+        page,
+        request,
+    }) => {
+        await login({ page, request });
+        await page.goto('/home/');
+        await expect(page.locator('section.component.customers tbody tr').first()).toBeVisible();
+
+        const heights = await page
+            .locator('section.component')
+            .evaluateAll((all) => all.map((section) => section.getBoundingClientRect().height));
+
+        expect(heights).toHaveLength(4);
+
+        for (const height of heights) {
+            // Five rows and their heading: about 300 px; each was a whole screen high
+            expect(height).toBeLessThan(phone.height / 2);
+        }
+
+        // Its title where a list's is, above its buttons (it sat 3.5 px lower alone in the band)
+        const titleTop = async () =>
+            (await page.getByRole('heading', { level: 1 }).boundingBox())!.y;
+        const home = await titleTop();
+
+        await page.goto('/products/1/');
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Products');
+        expect(await titleTop()).toBe(home);
+    });
+
     test('the menu opens over the whole screen and closes again', async ({ page, request }) => {
         await login({ page, request });
         await page.goto('/customers/1/');
