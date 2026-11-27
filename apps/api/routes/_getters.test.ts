@@ -465,8 +465,7 @@ describe("pageMeta", () => {
             page: 2,
             pages: 3,
             rows: 40,
-            limit: 15,
-            total: 3
+            limit: 15
         });
     });
 
@@ -479,8 +478,7 @@ describe("pageMeta", () => {
             page: 1,
             pages: 0,
             rows: 0,
-            limit: 15,
-            total: 0
+            limit: 15
         });
     });
 

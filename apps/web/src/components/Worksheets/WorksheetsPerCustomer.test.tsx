@@ -50,7 +50,7 @@ const serve = (count: number) =>
                     price: 10,
                     quantity: 1,
                 })),
-                meta: { page, pages, rows: count, limit, total: pages },
+                meta: { page, pages, rows: count, limit },
             },
         } as AxiosResponse;
     });

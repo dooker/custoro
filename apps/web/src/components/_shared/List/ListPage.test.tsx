@@ -47,7 +47,7 @@ const serve = (count: number) =>
             data: {
                 success: true,
                 resource: rows,
-                meta: { page, pages, rows: count, limit, total: pages },
+                meta: { page, pages, rows: count, limit },
             },
         } as AxiosResponse;
     });

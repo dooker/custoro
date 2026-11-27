@@ -123,9 +123,8 @@ describe('pageKeepingRow', () => {
 });
 
 describe('pagesOf', () => {
-    it('reads the number of pages, also from an older API that called it total', () => {
-        expect(pagesOf({ pages: 4, total: 4 })).toBe(4);
-        expect(pagesOf({ total: 3 })).toBe(3);
+    it('reads the number of pages', () => {
+        expect(pagesOf({ pages: 4 })).toBe(4);
         expect(pagesOf({})).toBe(0);
         expect(pagesOf(undefined)).toBe(0);
     });
@@ -164,9 +163,9 @@ describe('rangeOf', () => {
         });
     });
 
-    it('has none without rows or without the counts (an older API)', () => {
+    it('has none without rows or without the counts', () => {
         expect(rangeOf({ page: 1, limit: 15, rows: 0 }, 0)).toBeNull();
-        expect(rangeOf({ page: 1, total: 3 }, 15)).toBeNull();
+        expect(rangeOf({ page: 1, pages: 3 }, 15)).toBeNull();
         expect(rangeOf(undefined, 15)).toBeNull();
     });
 });

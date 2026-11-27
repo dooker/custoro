@@ -1182,7 +1182,7 @@ test.describe('invoice list', () => {
         expect(one.resource.map((row: { total: number }) => row.total)).toEqual([3, 2]);
         expect(two.resource.map((row: { id: number }) => row.id)).toEqual([ids[0]]);
         expect(two.resource[0]).toMatchObject({ total: 1, name: `Pager ${unique}` });
-        expect(one.meta).toEqual({ page: 1, pages: 2, rows: 3, limit: 2, total: 2 });
+        expect(one.meta).toEqual({ page: 1, pages: 2, rows: 3, limit: 2 });
         // page 3 is past the end: the last page, with the page it is from
         expect(await page(3)).toMatchObject({ meta: { page: 2 }, resource: [{ id: ids[0] }] });
     });

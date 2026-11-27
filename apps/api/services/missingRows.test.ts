@@ -156,7 +156,7 @@ describe("lists and the last invoice number", () => {
             type: "customers"
         });
 
-        expect(result).toMatchObject({ success: false, meta: { total: 0 } });
+        expect(result).toMatchObject({ success: false, meta: { pages: 0, rows: 0 } });
     });
 
     it("answers null when there is no counter yet", async () => {
