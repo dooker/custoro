@@ -5,6 +5,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.3.1 - 2026-11-27
+
 ### Fixed
 
 - **A page opened right after resizing the window fits the new window**: a page number clicked
