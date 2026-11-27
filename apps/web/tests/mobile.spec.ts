@@ -92,11 +92,16 @@ test.describe('on a phone', () => {
             page.locator('header').first().getByRole('button', { name: 'Delete' })
         ).toBeVisible();
 
+        // Save is the first, but it stays at the bottom of the screen (its own test below)
         const buttons = await page
             .locator('header')
             .first()
             .getByRole('button')
-            .evaluateAll((all) => all.map((button) => button.getBoundingClientRect().toJSON()));
+            .evaluateAll((all) =>
+                all
+                    .filter((button) => button.textContent?.trim() !== 'Save')
+                    .map((button) => button.getBoundingClientRect().toJSON())
+            );
 
         expect(buttons.length).toBeGreaterThan(1);
 
@@ -136,6 +141,89 @@ test.describe('on a phone', () => {
         await page.goto('/products/1/');
         await expect(page.getByRole('heading', { level: 1 })).toHaveText('Products');
         expect(await titleTop()).toBe(home);
+    });
+
+    test('Home’s small lists show their icon and their title opens the list', async ({
+        page,
+        request,
+    }) => {
+        await login({ page, request });
+        await page.goto('/home/');
+
+        const title = page.getByRole('link', { name: 'Latest Products' });
+
+        await expect(title.locator('svg')).toBeVisible();
+        await title.click();
+        await expect(page).toHaveURL(/\/products\/1\/$/);
+    });
+
+    test('the search field opens as its own row, as high as on a desktop', async ({
+        page,
+        request,
+    }) => {
+        await login({ page, request });
+        await page.goto('/customers/1/');
+        await page.getByTestId('search-button').click();
+
+        const button = (await page.getByTestId('search-button').boundingBox())!;
+        const field = (await page.getByTestId('search-input').boundingBox())!;
+
+        // Under the full-width button, the whole width, 50 px high
+        expect(field.y).toBeGreaterThanOrEqual(button.y + button.height);
+        expect(field.width).toBe(button.width);
+        expect(field.height).toBe(50);
+    });
+
+    test('Settings: the sections open as a menu over the form, fields one per row', async ({
+        page,
+        request,
+    }) => {
+        await login({ page, request });
+        await page.goto('/settings/');
+
+        const sections = page.getByTestId('settings-sections');
+        const firstField = page.locator('.general-form .field').first();
+        const fieldTop = (await firstField.boundingBox())!.y;
+
+        await expect(sections).toHaveText('General settings');
+        await sections.click();
+        await expect(page.locator('#settings-sections button')).toHaveCount(6);
+        // Over the form: nothing under it moved
+        expect((await firstField.boundingBox())!.y).toBe(fieldTop);
+
+        await page.getByRole('button', { name: 'Pdf settings' }).click();
+        await expect(page).toHaveURL(/\/settings\/pdf\/$/);
+        await expect(page.locator('#settings-sections')).toHaveCount(0);
+        await expect(sections).toHaveText('Pdf settings');
+
+        // Logo and Disclaimer one under the other
+        const lefts = await page
+            .locator('.general-form .field')
+            .evaluateAll((all) => all.map((field) => field.getBoundingClientRect().left));
+
+        expect(new Set(lefts).size).toBe(1);
+    });
+
+    test('a form’s Save stays at the bottom of the screen while it scrolls', async ({
+        page,
+        request,
+    }) => {
+        await login({ page, request });
+        await page.goto('/customers/1/');
+        await page.locator('tbody tr').first().getByRole('link').first().click();
+        await expect(page).toHaveURL(/\/customer\/1\/\d+\/$/);
+
+        const save = page.locator('header').first().getByRole('button', { name: 'Save' });
+        const bottomGap = async () => {
+            const box = (await save.boundingBox())!;
+
+            return phone.height - (box.y + box.height);
+        };
+
+        expect(await bottomGap()).toBe(12);
+        await page.mouse.wheel(0, 2000);
+        await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+        expect(await bottomGap()).toBe(12);
     });
 
     test('the menu opens over the whole screen and closes again', async ({ page, request }) => {
