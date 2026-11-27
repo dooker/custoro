@@ -28,25 +28,8 @@ const Home = () => {
         <>
             <Header title={t('home.dashboard')} />
 
+            {/* The menu's order (Navigation menuItems) */}
             <div className={styles.dashboard}>
-                <ListWidget<WorksheetIF>
-                    resource={RESOURCE.WORKSHEETS}
-                    path={PATHS.WORKSHEETS}
-                    title="worksheets.plural"
-                    href={`${PATHS.WORKSHEETS}1/`}
-                    icon={WorksheetIcon}
-                    columns={worksheetCustomerColumns}
-                    rowHref={(row) => worksheetCustomerHref(row)}
-                />
-                <ListWidget<InvoiceWithCustomerIF>
-                    resource={RESOURCE.INVOICES}
-                    path={PATHS.INVOICES}
-                    title="invoices.plural"
-                    href={`${PATHS.INVOICES}1/`}
-                    icon={InvoiceIcon}
-                    columns={invoiceColumns()}
-                    rowHref={(row) => invoiceHref(row)}
-                />
                 <ListWidget<ProductIF>
                     resource={RESOURCE.PRODUCTS}
                     path={PATHS.PRODUCTS}
@@ -66,6 +49,24 @@ const Home = () => {
                     columns={customerColumns}
                     rowHref={(row) => customerHref(row)}
                     params={newestFirst}
+                />
+                <ListWidget<WorksheetIF>
+                    resource={RESOURCE.WORKSHEETS}
+                    path={PATHS.WORKSHEETS}
+                    title="worksheets.plural"
+                    href={`${PATHS.WORKSHEETS}1/`}
+                    icon={WorksheetIcon}
+                    columns={worksheetCustomerColumns}
+                    rowHref={(row) => worksheetCustomerHref(row)}
+                />
+                <ListWidget<InvoiceWithCustomerIF>
+                    resource={RESOURCE.INVOICES}
+                    path={PATHS.INVOICES}
+                    title="invoices.plural"
+                    href={`${PATHS.INVOICES}1/`}
+                    icon={InvoiceIcon}
+                    columns={invoiceColumns()}
+                    rowHref={(row) => invoiceHref(row)}
                 />
             </div>
         </>
