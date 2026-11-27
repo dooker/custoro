@@ -26,7 +26,16 @@ version number, kept in each app's `package.json`. The web app shows this file o
 - **Forms on a phone**: fields one under the other, the settings tabs wrap onto more rows, and
   the invoice's payment and invoice type stack. The invoice's lines scroll sideways in their own
   box when the discount columns do not fit
-- **Home on a phone**: the four small lists one under the other, each as high as its rows
+- **Home on a phone**: the four small lists one under the other, each as high as its rows, with
+  the menu's icon; on every screen a small list's title opens the whole list
+- **A form's Save on a phone** stays at the bottom of the screen while the form scrolls, and every
+  field has its own row
+- **Search on a phone**: the search field opens as its own row under the button, as high as on a
+  desktop
+- **Settings on a phone**: the sections are a menu that opens over the form from one button with
+  the open section's name
+- **Invoices**: the product picker for a new line takes the row's width (it was squeezed into the
+  name column) and its list covers the Add button; a quantity sits in the middle of its row
 - **Login, forgot password and the password link on a phone**: the box fits the screen, the
   button is the whole width and the link is under it (it lay over the button)
 
