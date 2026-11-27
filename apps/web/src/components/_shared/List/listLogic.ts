@@ -52,11 +52,6 @@ export interface ListDataIF<T> {
     meta?: ListMetaIF;
 }
 
-// What a list keeps in its address besides the page: the search word
-export interface ListParamsIF {
-    keyword: string;
-}
-
 export interface ListAnswerIF<T> {
     success?: boolean;
     message?: string;
@@ -75,8 +70,8 @@ export const pageFromParam = (raw: string | undefined): number => {
 export const pageAfterDelete = (page: number, rowsOnPage: number): number =>
     rowsOnPage <= 1 && page > 1 ? page - 1 : page;
 
-/** An address of the list with its search word kept */
-export const withListParams = (href: string, { keyword }: ListParamsIF): string =>
+/** An address of the list with its search word kept (all it keeps in the address but the page) */
+export const withListParams = (href: string, keyword: string): string =>
     keyword ? `${href}?${searchParam}=${encodeURIComponent(keyword)}` : href;
 
 /**
@@ -85,10 +80,9 @@ export const withListParams = (href: string, { keyword }: ListParamsIF): string 
  */
 export const searchTarget = (
     next: string,
-    current: ListParamsIF,
+    keyword: string,
     firstPageHref: string
-): string | null =>
-    next === current.keyword ? null : withListParams(firstPageHref, { ...current, keyword: next });
+): string | null => (next === keyword ? null : withListParams(firstPageHref, next));
 
 // The heights of a list on the screen, in pixels: the defaults are the list's own styles, for
 // the parts not drawn yet (no rows while the first page loads)

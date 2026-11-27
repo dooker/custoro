@@ -39,8 +39,8 @@ interface ListPageIF<T extends { id: number }> {
 
 /**
  * A full-page list: its header (title, search, Add), the rows of the page in the URL (as many as
- * fit on the screen), the search in the URL, pages, and delete. A page of the app only says what is different: its columns and
- * where a row leads.
+ * fit on the screen), the search in the URL, pages, and delete. A page of the app only says what
+ * is different: its columns and where a row leads.
  */
 const ListPage = <T extends { id: number }>({
     resource,
@@ -63,18 +63,19 @@ const ListPage = <T extends { id: number }>({
     const page = pageFromParam(useParams().page);
     const pageHref = (number: number) => `${path}${number}/`;
     const { keyword, setKeyword, withParams } = useListParams(pageHref);
-    const fit = useFitRows(page, (number) => withParams(pageHref(number)));
+    const listPageHref = (number: number) => withParams(pageHref(number));
+    const fit = useFitRows(page, listPageHref);
     const { promptDelete } = useDeleteItem([resource]);
     const query = useResourceList<T>(
         {
             resource,
             path,
             page,
-            limit: fit.size ?? 0,
+            limit: fit.size,
             keyword,
             params,
         },
-        { prefetchNext: true, enabled: fit.size !== null }
+        { prefetchNext: true }
     );
 
     const headerButtons: HeaderButtonIF[] = [
@@ -98,7 +99,7 @@ const ListPage = <T extends { id: number }>({
             id: row.id,
             resource,
             page: target,
-            returnTo: withParams(pageHref(target)),
+            returnTo: listPageHref(target),
         });
     };
 
@@ -114,7 +115,7 @@ const ListPage = <T extends { id: number }>({
                 resource={resource}
                 query={query}
                 page={page}
-                pageHref={(number) => withParams(pageHref(number))}
+                pageHref={listPageHref}
                 fit={fit}
                 heading={intro}
             >

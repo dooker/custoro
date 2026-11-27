@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import { fitRows, pageKeepingRow } from '../components/_shared/List/listLogic';
+import { useDebounce } from './useDebounce';
 
 // A resize settles before the list asks for other rows (dragging a window edge fires many events)
 const resizeWait = 150;
@@ -16,7 +17,7 @@ const resizeWait = 150;
 const height = (element: Element | null | undefined): number | undefined => {
     const value = element?.getBoundingClientRect().height;
 
-    return value ? value : undefined;
+    return value || undefined;
 };
 
 /** A row's height: the average of the rows drawn, so one taller row does not decide it */
@@ -75,59 +76,62 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
     const ref = useRef<HTMLElement | null>(null);
     const navigate = useNavigate();
     const [size, setSize] = useState<number | null>(null);
-    const latestRef = useRef({ page, pageHref, size });
+    // The newest values, so `fit` stays one function for the list's life: the router's navigate
+    // changes with every page's address, and with it the observer and the resize listener did
+    const latestRef = useRef({ page, pageHref, size, navigate });
     const shownRef = useRef<ShownRowsIF | undefined>(undefined);
     // A window resize is settling (resizeWait): layout changes then wait for it
     const resizingRef = useRef(false);
+    // The page in the address when the resize began
+    const resizePageRef = useRef<number | null>(null);
 
     useLayoutEffect(() => {
-        latestRef.current = { page, pageHref, size };
+        latestRef.current = { page, pageHref, size, navigate };
     });
 
     // After a resize the address moves to the page with the first row the user saw. The first
     // measurements (before and after the rows are drawn) only settle the size: the page in the
-    // address is the one asked for.
-    const fit = useCallback(
-        (keepRow: boolean) => {
-            const section = ref.current;
+    // address is the one asked for. `clicked`: the user opened another page while the resize
+    // settled, so the row to keep is the first one of that page, not of the rows still on screen.
+    const fit = useCallback((keepRow: boolean, clicked = false) => {
+        const section = ref.current;
 
-            if (!section) {
-                return;
-            }
+        if (!section) {
+            return;
+        }
 
-            const next = measureList(section);
-            const { page: shown, pageHref: href, size: before } = latestRef.current;
+        const next = measureList(section);
+        const { page: shown, pageHref: href, size: before, navigate: go } = latestRef.current;
 
-            if (next === before) {
-                return;
-            }
+        if (next === before) {
+            return;
+        }
 
-            latestRef.current = { ...latestRef.current, size: next };
+        latestRef.current = { ...latestRef.current, size: next };
 
-            // The first row the user sees: of the rows on screen, which are still the page before's
-            // while the next page loads (Copilot review of PR 47), else of the page asked for. Rows
-            // of another list or search (a new search loading) say nothing about this one's pages
-            // (round 2).
-            const onScreen = shownRef.current?.list === href(1) ? shownRef.current : undefined;
-            const fromPage = onScreen?.page ?? shown;
-            const fromSize = onScreen?.limit ?? before;
+        // The first row the user sees: of the rows on screen, which are still the page before's
+        // while the next page loads (Copilot review of PR 47), else of the page asked for. Rows
+        // of another list or search (a new search loading) say nothing about this one's pages
+        // (round 2).
+        const onScreen =
+            !clicked && shownRef.current?.list === href(1) ? shownRef.current : undefined;
+        const fromPage = onScreen?.page ?? shown;
+        const fromSize = onScreen?.limit ?? before;
 
-            // The router moves pages in a transition: the size goes in the same one, so both land
-            // in one render and the list asks only for the new page with the new size
-            startTransition(() => {
-                if (keepRow && fromSize) {
-                    const target = pageKeepingRow(fromPage, fromSize, next);
+        // The router moves pages in a transition: the size goes in the same one, so both land
+        // in one render and the list asks only for the new page with the new size
+        startTransition(() => {
+            if (keepRow && fromSize) {
+                const target = pageKeepingRow(fromPage, fromSize, next);
 
-                    if (target !== shown) {
-                        void navigate(href(target), { replace: true });
-                    }
+                if (target !== shown) {
+                    void go(href(target), { replace: true });
                 }
+            }
 
-                setSize(next);
-            });
-        },
-        [navigate]
-    );
+            setSize(next);
+        });
+    }, []);
     const measure = useCallback(() => fit(false), [fit]);
     const show = useCallback((rows: ShownRowsIF | undefined) => {
         shownRef.current = rows;
@@ -161,25 +165,33 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
         return () => observer.disconnect();
     }, [fit]);
 
+    const settle = useDebounce(
+        () => {
+            const clicked = resizePageRef.current !== latestRef.current.page;
+
+            resizingRef.current = false;
+            resizePageRef.current = null;
+            fit(true, clicked);
+        },
+        resizeWait,
+        { cancelOnUnmount: true }
+    );
+
     useEffect(() => {
-        let timer: ReturnType<typeof setTimeout> | undefined;
         const onResize = () => {
             resizingRef.current = true;
-            clearTimeout(timer);
-            timer = setTimeout(() => {
-                resizingRef.current = false;
-                fit(true);
-            }, resizeWait);
+            resizePageRef.current ??= latestRef.current.page;
+            settle();
         };
 
         window.addEventListener('resize', onResize);
 
         return () => {
-            clearTimeout(timer);
             resizingRef.current = false;
+            resizePageRef.current = null;
             window.removeEventListener('resize', onResize);
         };
-    }, [fit]);
+    }, [settle]);
 
     return { size, ref, measure, show };
 };

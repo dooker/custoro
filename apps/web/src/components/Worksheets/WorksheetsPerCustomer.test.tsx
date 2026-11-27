@@ -1,9 +1,9 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import type { AxiosResponse } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Axios } from '../../Axios';
 import { renderScreen } from '../../test/renderScreen';
-import { listHeights } from '../_shared/List/listLogic';
+import { resizeTo, windowFor } from '../../test/fitWindow';
 import WorksheetsPerCustomer from './WorksheetsPerCustomer';
 
 vi.mock('../../Axios', () => ({ Axios: { get: vi.fn(), put: vi.fn(), post: vi.fn() } }));
@@ -60,17 +60,6 @@ const worksheetRequests = () =>
         .mocked(Axios.get)
         .mock.calls.filter(([url]) => url.endsWith('/worksheets/'))
         .map(([, config]) => config?.params as Params);
-
-const windowFor = (rows: number) =>
-    listHeights.head + listHeights.footer + listHeights.below + rows * listHeights.row + 1;
-
-const resizeTo = async (rows: number) => {
-    await act(async () => {
-        window.innerHeight = windowFor(rows);
-        window.dispatchEvent(new Event('resize'));
-        await new Promise((resolve) => setTimeout(resolve, 200));
-    });
-};
 
 const open = (path: string) =>
     renderScreen(<WorksheetsPerCustomer />, {

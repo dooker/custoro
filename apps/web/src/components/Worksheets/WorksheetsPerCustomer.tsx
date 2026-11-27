@@ -81,7 +81,8 @@ const WorksheetsPerCustomer = () => {
     const currentPage = pageFromParam(worksheetPage);
     const pageHref = (number: number) => `${PATHS.WORKSHEETS}${page}/${customerId}/${number}/`;
     const { keyword, setKeyword, withParams } = useListParams(pageHref);
-    const fit = useFitRows(currentPage, (number) => withParams(pageHref(number)));
+    const listPageHref = (number: number) => withParams(pageHref(number));
+    const fit = useFitRows(currentPage, listPageHref);
     const [showInvoiceDropdown, setShowInvoiceDropdown] = useState(false);
     const { user } = useAuth();
     const showDiscount = !!Number(user?.discount);
@@ -98,11 +99,11 @@ const WorksheetsPerCustomer = () => {
             resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
             path: PATHS.WORKSHEETS,
             page: currentPage,
-            limit: fit.size ?? 0,
+            limit: fit.size,
             keyword,
             params: { customer: customerId },
         },
-        { prefetchNext: true, enabled: fit.size !== null }
+        { prefetchNext: true }
     );
     const worksheets = query.data?.resource ?? [];
 
@@ -144,7 +145,7 @@ const WorksheetsPerCustomer = () => {
             id,
             resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
             page: target,
-            returnTo: withParams(pageHref(target)),
+            returnTo: listPageHref(target),
             cache: () => void queryClient.invalidateQueries({ queryKey: [RESOURCE.WORKSHEETS] }),
         });
     };
@@ -191,7 +192,7 @@ const WorksheetsPerCustomer = () => {
                 resource={RESOURCE.WORKSHEETS_PER_CUSTOMER}
                 query={query}
                 page={currentPage}
-                pageHref={(number) => withParams(pageHref(number))}
+                pageHref={listPageHref}
                 fit={fit}
             >
                 {(rows) => (

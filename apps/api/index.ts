@@ -208,8 +208,6 @@ app.use("/login", login);
 
 setupCustoroRoutes(app);
 
-// Sentry captures errors through expressIntegration (Sentry.init above), with no middleware of
-// its own: setupExpressErrorHandler is deprecated in Sentry 11
 // Custom Error handler
 app.use(errorHandler);
 

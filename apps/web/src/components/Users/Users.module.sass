@@ -1,8 +1,10 @@
-// As high as a line of text, so a row with a picture is as high as every other row (41 px). Not
-// max-width: 100%, which squeezed it to nothing in a cell that stays on one line.
+@use "src/assets/stylesheets/variables" as variables
+
+// As high as a line of text. Not max-width: 100%, which squeezed it to nothing in a cell that stays
+// on one line.
 .avatar img
     display: block
-    width: 24px
-    height: 24px
+    width: variables.$list-line
+    height: variables.$list-line
     max-width: none
     object-fit: cover

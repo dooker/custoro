@@ -61,32 +61,28 @@ describe('pageAfterDelete', () => {
 
 describe('withListParams', () => {
     it('keeps the search word, encoded', () => {
-        expect(withListParams('/customers/2/', { keyword: 'Õnne & Co 50%' })).toBe(
+        expect(withListParams('/customers/2/', 'Õnne & Co 50%')).toBe(
             '/customers/2/?q=%C3%95nne%20%26%20Co%2050%25'
         );
     });
 
     it('leaves an address without a search alone', () => {
-        expect(withListParams('/customers/2/', { keyword: '' })).toBe('/customers/2/');
+        expect(withListParams('/customers/2/', '')).toBe('/customers/2/');
     });
 });
 
 describe('searchTarget', () => {
-    const none = { keyword: '' };
-
     it('sends a new word to page 1, wherever the search began', () => {
-        expect(searchTarget('orb', none, '/customers/1/')).toBe('/customers/1/?q=orb');
+        expect(searchTarget('orb', '', '/customers/1/')).toBe('/customers/1/?q=orb');
     });
 
     it('goes to page 1 without a word when the search is cleared', () => {
-        expect(searchTarget('', { ...none, keyword: 'orb' }, '/customers/1/')).toBe(
-            '/customers/1/'
-        );
+        expect(searchTarget('', 'orb', '/customers/1/')).toBe('/customers/1/');
     });
 
     it('does not move when the word did not change', () => {
-        expect(searchTarget('orb', { ...none, keyword: 'orb' }, '/customers/1/')).toBeNull();
-        expect(searchTarget('', none, '/customers/1/')).toBeNull();
+        expect(searchTarget('orb', 'orb', '/customers/1/')).toBeNull();
+        expect(searchTarget('', '', '/customers/1/')).toBeNull();
     });
 });
 
