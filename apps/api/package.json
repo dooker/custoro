@@ -1,6 +1,6 @@
 {
     "name": "custoro-api",
-    "version": "5.3.1",
+    "version": "5.3.2",
     "description": "Custoro REST API",
     "scripts": {
         "build": "tsc",
@@ -23,14 +23,14 @@
         "node": ">=24"
     },
     "dependencies": {
-        "@react-pdf/renderer": "^4.9.1",
-        "@sentry/node": "^11.18.0",
-        "@sentry/profiling-node": "^11.18.0",
+        "@react-pdf/renderer": "^4.9.2",
+        "@sentry/node": "^11.19.0",
+        "@sentry/profiling-node": "^11.19.0",
         "bcryptjs": "^3.0.3",
         "cors": "^2.8.6",
         "dotenv": "^18.0.10",
         "express": "^5.3.0",
-        "i18next": "^27.2.9",
+        "i18next": "^27.2.10",
         "i18next-fs-backend": "^2.7.3",
         "i18next-http-middleware": "^3.11.1",
         "jsonwebtoken": "^9.0.3",
@@ -51,7 +51,7 @@
         "db-migrate": "^0.11.14",
         "db-migrate-mysql": "^3.2.1",
         "eslint": "^10.15.0",
-        "eslint-config-prettier": "^10.1.8",
+        "eslint-config-prettier": "^10.1.9",
         "globals": "^17.14.0",
         "nodemon": "^3.1.14",
         "prettier": "^3.10.1",

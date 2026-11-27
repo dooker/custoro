@@ -4,8 +4,6 @@ import style from './PageNotFound.module.sass';
 const PageNotFound = () => {
     const { t } = useSafeTranslation();
 
-    // TODO add translations
-
     return (
         <section className="modal large">
             <div className="component modal-content">
@@ -16,19 +14,16 @@ const PageNotFound = () => {
                 <div className={style.fourOuFour}>
                     <div className={style.container}>
                         <div>
-                            {"There's been a...complication."}
-                            <br />
-                            You see,
-                            <br />
-                            we went in to get the page,
-                            <br />
-                            And, um...well, uh...
-                            <br />
-                            {"in technical terms, it's gone."}
-                            <br />
-                            To put it another way,
-                            <br />
-                            {"it's not there."}
+                            {t('modal.notFound.story')
+                                .split('\n')
+                                .map((line, index) => (
+                                    // A line of a fixed text: its place is its identity
+                                    // eslint-disable-next-line @eslint-react/no-array-index-key
+                                    <span key={index}>
+                                        {index > 0 && <br />}
+                                        {line}
+                                    </span>
+                                ))}
                         </div>
 
                         <svg className="milk-404" viewBox="0 0 500 500">

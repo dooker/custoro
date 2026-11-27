@@ -5,6 +5,26 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.3.2 - 2026-11-27
+
+### Fixed
+
+- **The "page not found" page speaks your language**: it was English in every language. In
+  Estonian it now reads "Tekkis... komplikatsioon." and the rest of its story, in English (fun) as
+  before
+
+### Changed
+
+- **API: list answers no longer carry `meta.total`**. It was the number of pages under its old
+  name, kept for web apps before 5.2.0; `meta.pages` has the same number. A script that reads
+  `meta.total` from a list must read `meta.pages`
+- **Dependencies: minor and patch updates** of both apps (Sentry 11.19, Tiptap 3.35.1, Vite 8.4,
+  i18next 27.2.10, react-pdf 4.9.2) and jest-dom 8 for the web tests. Nothing changes for users
+- **Web code cleanup**: one component draws the app's HTML texts, always cleaned with DOMPurify;
+  the login redirect timer is cleared when the page goes; the editor toolbar reads its state from
+  the editor; React 19 context; one sass variables file; a page past the end of a list moves to
+  the last page once instead of on every render. Nothing changes for users
+
 ## 5.3.1 - 2026-11-27
 
 ### Fixed

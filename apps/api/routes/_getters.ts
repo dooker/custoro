@@ -37,8 +37,6 @@ export interface PageMetaIF {
     // How many rows match, on all pages
     rows: number;
     limit: number;
-    // The number of pages, under its old name: web apps before 5.2.0 read it (drop in 5.3.0)
-    total: number;
 }
 
 /**
@@ -49,7 +47,7 @@ export const pageMeta = (requested: { page: number; limit: number }, rows: numbe
     const pages = Math.ceil(Math.max(rows, 0) / requested.limit);
     const page = Math.min(requested.page, Math.max(pages, 1));
 
-    return { page, pages, rows, limit: requested.limit, total: pages };
+    return { page, pages, rows, limit: requested.limit };
 };
 
 // Where a statement wants its paging LIMIT instead of at the end: a getter that pages inside a

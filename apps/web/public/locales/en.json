@@ -195,7 +195,8 @@
             "footer": "Our highly advanced technology has failed you once again"
         },
         "notFound": {
-            "footer": "Page Not Found"
+            "footer": "Page Not Found",
+            "story": "There's been a...complication.\nYou see,\nwe went in to get the page,\nAnd, um...well, uh...\nin technical terms, it's gone.\nTo put it another way,\nit's not there."
         },
         "order": "order",
         "product": "product",

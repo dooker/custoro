@@ -9,7 +9,7 @@ import { PATHS, RESOURCE } from '../../variables';
 
 import Button from '../_shared/Form/Button';
 import Field from '../_shared/Form/Field';
-import DOMPurify from 'dompurify';
+import SafeHtml from '../_shared/SafeHtml/SafeHtml';
 
 const Restore = () => {
     const { t } = useSafeTranslation();
@@ -20,8 +20,6 @@ const Restore = () => {
     useEffect(() => {
         getToken(token as string);
     }, [token, getToken]);
-
-    const cleanHtml = errors.api ? DOMPurify.sanitize(t(errors.api)) : '';
 
     return (
         <section className="modal large">
@@ -53,9 +51,7 @@ const Restore = () => {
                     <input type="submit" className="hidden" />
                 </form>
 
-                {errors.api && (
-                    <div className="error" dangerouslySetInnerHTML={{ __html: cleanHtml }} />
-                )}
+                {errors.api && <SafeHtml className="error" html={t(errors.api)} />}
 
                 <div className="footer">
                     <Button

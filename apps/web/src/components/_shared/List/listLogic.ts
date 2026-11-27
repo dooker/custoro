@@ -38,13 +38,11 @@ export interface ListRequestIF {
 
 // What the API says about the page (pageMeta in the API): the page the rows are from (the last
 // one for a page past the end), the number of pages and of matching rows, and the page size.
-// `total` is the number of pages under its old name.
 export interface ListMetaIF {
     page?: number;
     pages?: number;
     rows?: number;
     limit?: number;
-    total?: number;
 }
 
 export interface ListDataIF<T> {
@@ -122,7 +120,7 @@ export const pageKeepingRow = (page: number, before: number, after: number): num
     Math.floor(((page - 1) * before) / after) + 1;
 
 /** The number of pages, from an answer of this API version or an older one */
-export const pagesOf = (meta: ListMetaIF | undefined): number => meta?.pages ?? meta?.total ?? 0;
+export const pagesOf = (meta: ListMetaIF | undefined): number => meta?.pages ?? 0;
 
 /** The page numbers show only when there is more than one page */
 export const showPages = (pages: number | undefined): boolean => (pages ?? 0) > 1;

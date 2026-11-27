@@ -21,11 +21,14 @@ const Login = () => {
     useEffect(() => {
         if (!isAuth) return;
 
-        setTimeout(() => {
+        // Not after the login page is gone (a quick logout, another page opened meanwhile)
+        const timer = setTimeout(() => {
             if (!localStorage.getItem(tokenName)) return;
 
             navigate(getRedirectAfterLogin(localStorage.getItem(lastUrl)));
         }, 0);
+
+        return () => clearTimeout(timer);
     }, [isAuth, navigate]);
 
     return (

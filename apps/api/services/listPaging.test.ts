@@ -43,7 +43,7 @@ describe("getGeneralMultiple", () => {
         expect(await list({ page: "2", limit: "15" })).toEqual({
             success: true,
             resource: [{ id: 1 }],
-            meta: { page: 2, pages: 3, rows: 40, limit: 15, total: 3 }
+            meta: { page: 2, pages: 3, rows: 40, limit: 15 }
         });
         expect(queryMock.mock.calls[0][0].sql).toContain("COUNT(*)");
         expect(rowsSql()).toMatch(/LIMIT 15, 15\s*$/);
@@ -63,8 +63,7 @@ describe("getGeneralMultiple", () => {
             page: 1,
             pages: 0,
             rows: 0,
-            limit: 15,
-            total: 0
+            limit: 15
         });
         expect(rowsSql()).toMatch(/LIMIT 0, 15\s*$/);
     });

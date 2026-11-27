@@ -28,7 +28,7 @@ describe("listTenants", () => {
         expect(await listTenants("shop", { page: "3", limit: "10" })).toEqual({
             success: true,
             resource: [row],
-            meta: { page: 3, pages: 3, rows: 21, limit: 10, total: 3 }
+            meta: { page: 3, pages: 3, rows: 21, limit: 10 }
         });
 
         // counted first, so the page is known before the rows are read

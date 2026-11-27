@@ -69,11 +69,15 @@ const ListFrame = <T,>({
         measure?.();
     }, [measure, hasRows]);
 
+    // The address, not pageHref: a list passes a new function on every render, and the move would
+    // run again on each one while it stands (review of PR 48)
+    const correctionHref = correction && pageHref ? pageHref(correction) : null;
+
     useEffect(() => {
-        if (correction && pageHref) {
-            navigate(pageHref(correction), { replace: true });
+        if (correctionHref) {
+            navigate(correctionHref, { replace: true });
         }
-    }, [correction, pageHref, navigate]);
+    }, [correctionHref, navigate]);
 
     // Another page starts at the top of the list, not at the page numbers under the last row
     useEffect(() => {

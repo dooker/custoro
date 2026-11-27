@@ -1,4 +1,11 @@
-import React, { ComponentType, lazy, LazyExoticComponent, Suspense, useEffect } from 'react';
+import React, {
+    ComponentType,
+    lazy,
+    LazyExoticComponent,
+    Suspense,
+    useEffect,
+    useState,
+} from 'react';
 import { storageChange, themeString } from '../variables';
 import Loader from '../components/_shared/Loader/Loader';
 
@@ -11,8 +18,8 @@ const Themes: Record<string, LazyExoticComponent<ComponentType<object>>> = {
 };
 
 const ThemeContext = () => {
-    const defaultTheme = 'flat';
-    const theme = localStorage.getItem(themeString) || defaultTheme;
+    // Read once: a theme change reloads the page (storageChange below)
+    const [theme] = useState(() => localStorage.getItem(themeString) || 'flat');
     const Content = Themes[theme as keyof typeof Themes] || Flat;
 
     useEffect(() => {
