@@ -4,7 +4,7 @@ import React, {
     type ReactNode,
     type SetStateAction,
     useCallback,
-    useContext,
+    use,
     useState,
 } from 'react';
 import { RESOURCE } from '../variables';
@@ -45,7 +45,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [token, setToken] = useState<string | null>(localStorage.getItem(tokenName));
+    const [token, setToken] = useState<string | null>(() => localStorage.getItem(tokenName));
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const queryClient = useQueryClient();
 
@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider
+        <AuthContext
             value={{
                 user: profile || null,
                 isAuth: !!profile,
@@ -89,12 +89,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }}
         >
             {children}
-        </AuthContext.Provider>
+        </AuthContext>
     );
 };
 
 export const useAuth = () => {
-    const context = useContext(AuthContext);
+    const context = use(AuthContext);
 
     if (!context) {
         throw new Error('useAuth must be used within AuthProvider');

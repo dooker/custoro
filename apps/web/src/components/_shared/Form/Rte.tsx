@@ -1,9 +1,8 @@
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import type { FieldIF } from '../../../types/form';
 import Link from '@tiptap/extension-link';
 import styles from './Rte.module.sass';
-import { useEffect, useState } from 'react';
 
 const Rte = ({ name, value, onChange }: FieldIF) => {
     const editor = useEditor({
@@ -23,45 +22,25 @@ const Rte = ({ name, value, onChange }: FieldIF) => {
             onChange?.({ name, value: html });
         },
     });
-    const [activeMarks, setActiveMarks] = useState({
-        bold: false,
-        italic: false,
-        strike: false,
-        link: false,
-        bulletList: false,
-        orderedList: false,
+    // The toolbar shows the marks at the cursor or selection; the editor's own state hook reads
+    // them on every change, instead of a copy kept in step by an effect
+    const activeMarks = useEditorState({
+        editor,
+        selector: ({ editor: current }) => {
+            const { from, to, empty } = current.state.selection;
+
+            return {
+                bold: current.isActive('bold'),
+                italic: current.isActive('italic'),
+                strike: current.isActive('strike'),
+                bulletList: current.isActive('bulletList'),
+                orderedList: current.isActive('orderedList'),
+                link:
+                    current.isActive('link') ||
+                    (!empty && current.state.doc.rangeHasMark(from, to, current.schema.marks.link)),
+            };
+        },
     });
-
-    useEffect(() => {
-        if (!editor) return;
-
-        const updateToolbar = () => {
-            const { from, to, empty } = editor.state.selection;
-
-            const isLink =
-                editor.isActive('link') ||
-                (!empty && editor.state.doc.rangeHasMark(from, to, editor.schema.marks.link));
-
-            setActiveMarks({
-                bold: editor.isActive('bold'),
-                italic: editor.isActive('italic'),
-                strike: editor.isActive('strike'),
-                bulletList: editor.isActive('bulletList'),
-                orderedList: editor.isActive('orderedList'),
-                link: isLink,
-            });
-        };
-
-        editor.on('selectionUpdate', updateToolbar);
-        editor.on('transaction', updateToolbar);
-
-        updateToolbar(); // initial
-
-        return () => {
-            editor.off('selectionUpdate', updateToolbar);
-            editor.off('transaction', updateToolbar);
-        };
-    }, [editor]);
 
     const setLink = () => {
         const previousUrl = editor.getAttributes('link').href;
