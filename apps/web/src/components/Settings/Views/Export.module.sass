@@ -1,12 +1,21 @@
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+
 .export
     p
         margin-bottom: 16px
 
 .period
+    // Mobile first: from, to and the language one under the other on a phone, a row from tablet
+    // portrait
     display: flex
-    flex-wrap: wrap
-    align-items: flex-end
+    flex-direction: column
+    align-items: stretch
     gap: 16px
+
+    @include mixins.for-tablet-portrait-up
+        flex-direction: row
+        flex-wrap: wrap
+        align-items: flex-end
 
     label
         display: flex

@@ -5,16 +5,22 @@
     > div + div
         padding-top: variables.$grid
 
-// Side by side while each gets 15rem; one under the other on a phone (the payment and invoice
-// type choices need that much)
+// Mobile first: one under the other on a phone; from tablet portrait side by side while each
+// gets 15rem (the payment and invoice type choices need that much)
 .split
     display: flex
-    flex-wrap: wrap
+    flex-direction: column
     gap: variables.$grid variables.$grid-gutter
 
     > div
-        flex: 1 1 15rem
         min-width: 0
+
+    @include mixins.for-tablet-portrait-up
+        flex-direction: row
+        flex-wrap: wrap
+
+        > div
+            flex: 1 1 15rem
 
 // Mobile first: payment type and invoice type one under the other on a phone, so their two-word
 // choices ("Bank transfer") fit; side by side from tablet portrait
