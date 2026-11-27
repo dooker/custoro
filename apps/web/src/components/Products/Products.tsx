@@ -25,12 +25,12 @@ export const productColumns = (showDiscount: boolean): ColumnIF<ProductIF>[] => 
               {
                   key: 'discountPrice',
                   label: 'products.form.discountPrice',
-                  className: 'items',
+                  className: 'items wide-only',
                   render: ({ discountPrice }: ProductIF) => formatPrice(discountPrice ?? 0),
               },
           ]
         : []),
-    { key: 'unit', label: 'products.form.unit', className: 'items' },
+    { key: 'unit', label: 'products.form.unit', className: 'items wide-only' },
 ];
 
 export const productHref = ({ id }: ProductIF, page = 1) => `${PATHS.PRODUCT}${page}/${id}/`;

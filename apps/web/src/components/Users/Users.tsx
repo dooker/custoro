@@ -21,8 +21,8 @@ const Users = () => (
                 ),
             },
             { key: 'name', label: 'users.form.name', className: 'name' },
-            { key: 'username', label: 'users.form.username', className: 'username' },
-            { key: 'role', label: 'users.form.role', className: 'role' },
+            { key: 'username', label: 'users.form.username', className: 'username wide-only' },
+            { key: 'role', label: 'users.form.role', className: 'role wide-only' },
         ]}
         rowHref={({ id }, page) => `${PATHS.USER}${page}/${id}/`}
         addHref={(page) => `${PATHS.USER}${page}/0/`}
