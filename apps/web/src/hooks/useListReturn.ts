@@ -11,13 +11,13 @@ import { usePageParam } from './usePageParam';
 export const useListReturn = (listPath: string, pageName: string = 'page') => {
     const page = usePageParam(pageName);
     const [searchParams] = useSearchParams();
-    const params = { keyword: searchParams.get(searchParam) ?? '' };
+    const keyword = searchParams.get(searchParam) ?? '';
 
     return {
         page,
         // The list, on the page the record was opened from, with its search
-        listHref: withListParams(`${listPath}${page}/`, params),
+        listHref: withListParams(`${listPath}${page}/`, keyword),
         // Another address of the same visit (the record just created), the list's search kept
-        keep: (href: string) => withListParams(href, params),
+        keep: (href: string) => withListParams(href, keyword),
     };
 };

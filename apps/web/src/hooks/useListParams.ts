@@ -1,10 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router';
-import {
-    searchParam,
-    searchTarget,
-    withListParams,
-    type ListParamsIF,
-} from '../components/_shared/List/listLogic';
+import { searchParam, searchTarget, withListParams } from '../components/_shared/List/listLogic';
 
 /**
  * What a list keeps in its address besides the page: the search word (?q=). It survives paging,
@@ -15,18 +10,18 @@ import {
 export const useListParams = (pageHref: (page: number) => string) => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const current: ListParamsIF = { keyword: searchParams.get(searchParam) ?? '' };
+    const keyword = searchParams.get(searchParam) ?? '';
 
     return {
-        ...current,
+        keyword,
         // Typing replaces the history entry (one per search, not one per letter)
         setKeyword: (next: string) => {
-            const target = searchTarget(next, current, pageHref(1));
+            const target = searchTarget(next, keyword, pageHref(1));
 
             if (target) {
                 navigate(target, { replace: true });
             }
         },
-        withParams: (href: string) => withListParams(href, current),
+        withParams: (href: string) => withListParams(href, keyword),
     };
 };
