@@ -1,3 +1,5 @@
+import type { ComponentType } from 'react';
+import { Link } from 'react-router';
 import ListFrame from './ListFrame';
 import ListTable from './ListTable';
 import { resolveColumns, type Columns } from './listLogic';
@@ -5,6 +7,7 @@ import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
 import { type ListParams, useResourceList } from '../../../hooks/useResourceList';
 import { capitalizeFirst } from '../../../utils/_helpers';
 import { widgetSize } from '../../../variables';
+import styles from './List.module.sass';
 
 interface ListWidgetIF<T extends { id: number }> {
     resource: string;
@@ -17,6 +20,10 @@ interface ListWidgetIF<T extends { id: number }> {
     rowClassName?: (row: T) => string;
     // The cache key's first part, when it is not the resource
     queryResource?: string;
+    // The whole list: the title links to it (Home)
+    href?: string;
+    // The list's icon from the menu, shown where the sidebar with the menu's icons is not (a phone)
+    icon?: ComponentType;
 }
 
 /**
@@ -26,14 +33,26 @@ interface ListWidgetIF<T extends { id: number }> {
 const ListWidget = <T extends { id: number }>({
     resource,
     path,
-    title,
+    title: titleKey,
     columns,
     rowHref,
     params,
     rowClassName,
     queryResource = resource,
+    href,
+    icon: Icon,
 }: ListWidgetIF<T>) => {
     const { t } = useSafeTranslation();
+    const title = (
+        <>
+            {Icon && (
+                <span className={styles.headingIcon} aria-hidden="true">
+                    <Icon />
+                </span>
+            )}
+            {t('latest')} {capitalizeFirst(t(titleKey))}
+        </>
+    );
     const query = useResourceList<T>({
         resource: queryResource,
         path,
@@ -50,7 +69,13 @@ const ListWidget = <T extends { id: number }>({
             heading={
                 <header>
                     <h2>
-                        {t('latest')} {capitalizeFirst(t(title))}
+                        {href ? (
+                            <Link to={href} className={styles.headingLink}>
+                                {title}
+                            </Link>
+                        ) : (
+                            title
+                        )}
                     </h2>
                 </header>
             }
