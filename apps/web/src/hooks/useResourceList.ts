@@ -24,19 +24,28 @@ export const fetchResourceList = async <T>(options: ListRequestIF): Promise<List
     return listAnswer(data);
 };
 
+// A list's page, before it knows its page size: a limit of null (useFitRows) asks for nothing
+type ListPageRequestIF = Omit<ListRequestIF, 'limit'> & { limit: number | null };
+
+const sized = (options: ListPageRequestIF, page = options.page): ListRequestIF => ({
+    ...options,
+    page,
+    limit: options.limit ?? 0,
+});
+
 interface UseResourceListIF {
     // Load the next page ahead while this one is read, so a click on it shows at once
     prefetchNext?: boolean;
 }
 
 export const useResourceList = <T>(
-    options: ListRequestIF,
+    options: ListPageRequestIF,
     { prefetchNext = false }: UseResourceListIF = {}
 ) => {
     const queryClient = useQueryClient();
     const query = useQuery<ListDataIF<T>>({
-        queryKey: listQueryKey(options),
-        queryFn: () => fetchResourceList<T>(options),
+        queryKey: listQueryKey(sized(options)),
+        queryFn: () => fetchResourceList<T>(sized(options)),
         // The page shown stays while the next one loads
         placeholderData: keepPreviousData,
         retry: 1,
@@ -47,7 +56,7 @@ export const useResourceList = <T>(
 
     useEffect(() => {
         if (ahead) {
-            const next = { ...options, page: ahead };
+            const next = sized(options, ahead);
 
             // Fetches only when the next page is not in the cache yet (or is stale), so running
             // again on a render with the same options costs nothing

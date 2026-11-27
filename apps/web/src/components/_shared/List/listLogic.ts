@@ -30,8 +30,7 @@ export interface ListRequestIF {
     // The list endpoint, such as /customers/
     path: string;
     page: number;
-    // null while a list does not know its page size yet (useFitRows): it asks for nothing then
-    limit: number | null;
+    limit: number;
     keyword?: string;
     // Extra query parameters, such as { customer: 4 } or { order: 'id', direction: 'DESC' }
     params?: ListParams;
