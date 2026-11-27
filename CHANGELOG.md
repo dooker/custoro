@@ -27,7 +27,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
   the invoice's payment and invoice type stack. The invoice's lines scroll sideways in their own
   box when the discount columns do not fit
 - **Home on a phone**: the four small lists one under the other, each as high as its rows, with
-  the menu's icon; on every screen a small list's title opens the whole list
+  the menu's icon; on every screen a small list's title opens the whole list, and the lists come
+  in the menu's order (products, customers, worksheets, invoices)
 - **A form's Save on a phone** stays at the bottom of the screen while the form scrolls, and every
   field has its own row
 - **Search on a phone**: the search field opens as its own row under the button, as high as on a
