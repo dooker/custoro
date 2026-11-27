@@ -9,8 +9,10 @@ export interface InvoiceItemIF {
 }
 
 /** The worksheets of the page that can still be put on an invoice */
+const selectableRows = (rows: WorksheetIF[]): WorksheetIF[] => rows.filter((row) => !row.invoice);
+
 export const selectableIds = (rows: WorksheetIF[]): number[] =>
-    rows.filter((row) => !row.invoice).map((row) => row.id);
+    selectableRows(rows).map((row) => row.id);
 
 /**
  * A picked worksheet, as its invoice line: it keeps its product and quantity, so a pick on a row
@@ -41,7 +43,7 @@ export const isAllSelected = (selectable: number[], selected: number[]): boolean
  * were; picks on other pages stay
  */
 export const toggledAll = (rows: WorksheetIF[], picked: InvoiceItemIF[]): InvoiceItemIF[] => {
-    const page = rows.filter((row) => !row.invoice);
+    const page = selectableRows(rows);
     const pageIds = page.map(({ id }) => id);
     const others = picked.filter(({ worksheetId }) => !pageIds.includes(worksheetId));
 
