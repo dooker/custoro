@@ -12,13 +12,16 @@ import styles from './Header.module.sass';
 const Header = ({ title, buttons = [], search }: HeaderIF) => {
     const { t } = useSafeTranslation();
 
+    // A form's Save stays in view on a phone while the form scrolls (Header.module.sass)
     const renderButton = (
         { label, classname, onClick, dropdown, dataTestId, disabled }: HeaderButtonIF,
         index: number
     ) => (
         <ConditionalWrapper
-            condition={!!dropdown}
-            wrapper={(children) => <div className={styles.wrapper}>{children}</div>}
+            condition={!!dropdown || label === 'button.save'}
+            wrapper={(children) => (
+                <div className={dropdown ? styles.wrapper : styles.keepInView}>{children}</div>
+            )}
             key={index}
         >
             <Button
