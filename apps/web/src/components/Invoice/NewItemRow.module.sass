@@ -1,3 +1,16 @@
+@use "src/assets/stylesheets/variables" as variables
+
+// One cell across the row
 .newItem
-    display: table-cell
-    width: 100px
+    padding: variables.$grid variables.$grid-gutter
+
+// The picker as wide as the box the lines are shown in (InvoiceForm.module.sass .itemsScroll):
+// the whole row on a wide screen; on a phone, where the lines scroll sideways, the visible width,
+// staying in view while they scroll
+.picker
+    position: sticky
+    left: variables.$grid-gutter
+    // Sticky makes it its own layer: above the rows after it, so its open list covers the Add
+    // button and the totals instead of going under them
+    z-index: 2
+    width: calc(100cqw - #{variables.$grid-gutter * 2})
