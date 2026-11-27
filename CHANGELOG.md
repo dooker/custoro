@@ -20,9 +20,15 @@ version number, kept in each app's `package.json`. The web app shows this file o
   details for wider screens: My price and Unit of products, a worksheet's code, a user's email
   and role, a company's counts and date. The page numbers are smaller and without the first and
   last arrows there
-- **Forms on a phone**: fields one under the other, header and invoice buttons and the settings
-  tabs wrap onto more rows, and the invoice's payment and invoice type stack. The invoice's
-  lines scroll sideways in their own box when the discount columns do not fit
+- **Buttons on a phone** are the whole width, one on top of the other: a page's buttons under its
+  title (the header then scrolls away with the page), the invoice's Mark as paid, PDF and Send
+  email, and Yes and No when deleting. From 600 px they are a row again
+- **Forms on a phone**: fields one under the other, the settings tabs wrap onto more rows, and
+  the invoice's payment and invoice type stack. The invoice's lines scroll sideways in their own
+  box when the discount columns do not fit
+- **Home on a phone**: the four small lists one under the other, each as high as its rows
+- **Login, forgot password and the password link on a phone**: the box fits the screen, the
+  button is the whole width and the link is under it (it lay over the button)
 
 ## 5.3.2 - 2026-11-27
 
