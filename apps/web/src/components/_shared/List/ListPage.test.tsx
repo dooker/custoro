@@ -3,11 +3,11 @@ import { AxiosError, type AxiosResponse } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Axios } from '../../../Axios';
 import { renderScreen } from '../../../test/renderScreen';
+import { resizeTo, windowFor } from '../../../test/fitWindow';
 import { useConfirmation } from '../../../store/confirmation';
 import { useNotification } from '../../../store/notification';
 import { endpoint } from '../../../variables';
 import ListPage from './ListPage';
-import { listHeights } from './listLogic';
 
 vi.mock('../../../Axios', () => ({ Axios: { get: vi.fn(), delete: vi.fn() } }));
 
@@ -52,19 +52,8 @@ const serve = (count: number) =>
         } as AxiosResponse;
     });
 
-// jsdom draws nothing, so a list measures its own heights (listHeights) from the top of the window:
-// a window this high fits `fits` rows
-const windowFor = (rows: number) =>
-    listHeights.head + listHeights.footer + listHeights.below + rows * listHeights.row + 1;
+// The rows the window fits at the start of each test
 const fits = 15;
-
-const resizeTo = async (rows: number) => {
-    await act(async () => {
-        window.innerHeight = windowFor(rows);
-        window.dispatchEvent(new Event('resize'));
-        await new Promise((resolve) => setTimeout(resolve, 200));
-    });
-};
 
 const asked = () => vi.mocked(Axios.get).mock.calls.map(([, config]) => config?.params as Params);
 
