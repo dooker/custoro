@@ -204,6 +204,50 @@ test.describe('on a phone', () => {
         expect(new Set(lefts).size).toBe(1);
     });
 
+    test('the invoice’s product picker takes the visible width, its list over Add', async ({
+        page,
+        request,
+    }) => {
+        await login({ page, request });
+        await page.goto('/invoices/1/');
+        await expect(page.locator('tbody tr').first()).toBeVisible();
+
+        // An invoice that is not paid (a paid one has a lock and no Add)
+        const href = await page.locator('tbody tr').evaluateAll(
+            (rows) =>
+                rows
+                    .find((row) => !row.querySelector('svg'))
+                    ?.querySelector('a')
+                    ?.getAttribute('href') ?? null
+        );
+
+        expect(href).not.toBeNull();
+        await page.goto(href!);
+
+        const add = page.locator('table').getByRole('button', { name: 'Add' });
+
+        await add.click();
+
+        const picker = page.getByTestId('new-item-picker');
+        const box = (await page.locator('table').locator('xpath=..').boundingBox())!;
+        const pickerBox = (await picker.boundingBox())!;
+
+        // The width of the box the lines scroll in, but its gutters (it was the name column's)
+        expect(pickerBox.width).toBe(box.width - 24);
+
+        await picker.locator('#product-select').fill('P');
+        await expect(picker.locator('.select__option').first()).toBeVisible();
+
+        const addBox = (await add.boundingBox())!;
+        const onTop = await page.evaluate(
+            ({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.select__option'),
+            { x: addBox.x + addBox.width / 2, y: addBox.y + addBox.height / 2 }
+        );
+
+        expect(onTop, 'the list is drawn over the Add button').toBe(true);
+        await page.keyboard.press('Escape');
+    });
+
     test('a form’s Save stays at the bottom of the screen while it scrolls', async ({
         page,
         request,
