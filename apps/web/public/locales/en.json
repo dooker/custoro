@@ -329,7 +329,10 @@
     },
     "menu": {
         "plural": "List",
-        "add": "Add new"
+        "add": "Add new",
+        "open": "Open the menu",
+        "close": "Close the menu",
+        "navigation": "Main menu"
     },
     "emptyList": "No entries",
     "listError": "The list could not be loaded. Try again in a moment.",

@@ -329,7 +329,10 @@
     },
     "menu": {
         "plural": "List",
-        "add": "Add new"
+        "add": "Add new",
+        "open": "Summon the menu",
+        "close": "Banish the menu",
+        "navigation": "The grand menu"
     },
     "emptyList": "Looks like there are no entries...",
     "listError": "The list wandered off. Give it a moment and try again.",

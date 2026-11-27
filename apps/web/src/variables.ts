@@ -9,6 +9,10 @@ export const sessionEndedEvent = 'sessionEnded';
 
 export const debounceTimer = 350;
 
+// Mobile first: the phone's layout is the default, and from this width up (mixins.sass
+// for-tablet-landscape-up) the menu is a sidebar instead of a drawer
+export const wideScreen = '(min-width: 900px)';
+
 // Rows in a small list on Home or a customer's page (a full-page list fits its rows to the
 // screen, see useFitRows)
 export const widgetSize = 5;

@@ -1,2 +1,39 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+
+// Mobile first: the title next to the menu button, the search and buttons on a row under it when
+// they do not fit beside it; from tablet landscape one row, with the sidebar on the left
+.header
+    flex-wrap: wrap
+    gap: variables.$grid variables.$grid-gutter
+    min-height: variables.$header-height
+    box-sizing: border-box
+    // The menu button (Navigation) sits at the left, 44px high and 20px from the top
+    padding: 20px variables.$grid-gutter variables.$grid-gutter 68px
+
+    h1
+        font-size: 20px
+        line-height: 44px
+        overflow: hidden
+        text-overflow: ellipsis
+        white-space: nowrap
+        min-width: 0
+
+    @include mixins.for-tablet-landscape-up
+        flex-wrap: nowrap
+        padding: 0 24px
+
+        h1
+            font-size: 24px
+            line-height: 32px
+
+.actions
+    // Phone: a row of its own that the buttons wrap in, instead of one wide row past the screen
+    flex: 1 1 100%
+    min-width: 0
+
+    @include mixins.for-tablet-landscape-up
+        flex: 1 0 auto
+
 .wrapper
     position: relative

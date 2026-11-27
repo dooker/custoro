@@ -35,11 +35,15 @@ const Header = ({ title, buttons = [], search }: HeaderIF) => {
     );
 
     return (
-        <header className="flex justify-between items-center px-6 bg-midnightBlue sticky top-0 z-20">
+        <header
+            className={`flex justify-between items-center bg-midnightBlue sticky top-0 z-20 ${styles.header}`}
+        >
             <h1 className="text-2xl text-logo no-underline">{title}</h1>
 
             {(search || buttons.length > 0) && (
-                <div className="flex gap-12 flex-wrap flex-[1_0_auto] justify-end">
+                <div
+                    className={`flex gap-12 flex-wrap flex-[1_0_auto] justify-end ${styles.actions}`}
+                >
                     {search && <Search value={search.value} onChange={search.onChange} />}
                     {buttons.map(renderButton)}
                 </div>
