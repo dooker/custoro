@@ -5,6 +5,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.3.2 - 2026-11-27
+
 ### Fixed
 
 - **The "page not found" page speaks your language**: it was English in every language. In
