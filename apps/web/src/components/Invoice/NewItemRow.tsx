@@ -20,6 +20,8 @@ const NewItemRow = ({ onAdd }: NewItemRowIF) => {
                         resource="products"
                         name="product-select"
                         clearOnSelect
+                        // The items scroll sideways on a phone (InvoiceForm.module.sass)
+                        menuPosition="fixed"
                         onSelect={(option) => {
                             if (option) {
                                 onAdd(option.item);

@@ -1,8 +1,11 @@
 @use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
 
 .tabButtons
     display: flex
-    column-gap: variables.$grid-gutter
+    // Mobile first: the tabs wrap onto as many rows as they need; one row once they fit
+    flex-wrap: wrap
+    gap: variables.$grid
     padding: variables.$grid
     border-bottom: 1px solid variables.$turquoise
 
@@ -11,3 +14,8 @@
 
     button
         flex: 1 0 auto
+        min-width: 0
+
+    @include mixins.for-tablet-landscape-up
+        flex-wrap: nowrap
+        column-gap: variables.$grid-gutter

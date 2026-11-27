@@ -177,18 +177,20 @@ export const InvoiceForm = ({ initialInvoice, isNew, type, ref }: InvoiceFormIF)
                 noVat={!isCustomerPending && noVat}
             />
 
-            <table className={`${styles.invoiceItems} general-table`}>
-                <Items
-                    draft={initialInvoice}
-                    onAdd={onItemAdd}
-                    onChange={({ name, value }) =>
-                        debouncedAutoSave({ update: { name, value }, type: updateString })
-                    }
-                />
+            <div className={styles.itemsScroll}>
+                <table className={`${styles.invoiceItems} general-table`}>
+                    <Items
+                        draft={initialInvoice}
+                        onAdd={onItemAdd}
+                        onChange={({ name, value }) =>
+                            debouncedAutoSave({ update: { name, value }, type: updateString })
+                        }
+                    />
 
-                {/* The totals wait for a newly chosen customer: VAT depends on its VAT number */}
-                {items && !isCustomerPending && <Total draft={initialInvoice} noVat={noVat} />}
-            </table>
+                    {/* The totals wait for a newly chosen customer: VAT depends on its VAT number */}
+                    {items && !isCustomerPending && <Total draft={initialInvoice} noVat={noVat} />}
+                </table>
+            </div>
 
             <Actions markAsPaid={markAsPaid} draft={initialInvoice} />
         </div>

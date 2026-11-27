@@ -1,16 +1,27 @@
 @use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
 
 .details
     > div + div
         padding-top: variables.$grid
 
+// Side by side while each gets 15rem; one under the other on a phone (the payment and invoice
+// type choices need that much)
 .split
     display: flex
-    column-gap: variables.$grid-gutter
+    flex-wrap: wrap
+    gap: variables.$grid variables.$grid-gutter
 
     > div
-        flex: 1
+        flex: 1 1 15rem
+        min-width: 0
 
+// Mobile first: payment type and invoice type one under the other on a phone, so their two-word
+// choices ("Bank transfer") fit; side by side from tablet portrait
 .half
     display: grid
-    grid-template-columns: 1fr 1fr
+    grid-template-columns: minmax(0, 1fr)
+    row-gap: variables.$grid
+
+    @include mixins.for-tablet-portrait-up
+        grid-template-columns: 1fr 1fr
