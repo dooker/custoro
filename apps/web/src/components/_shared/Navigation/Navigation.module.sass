@@ -8,8 +8,9 @@ $toggle-size: 44px
 // Mobile first: on a phone the menu opens over the whole screen from the toggle in the header's
 // corner; from tablet landscape (900px) it is the sidebar the page sits next to
 .sidebar
-    // Out of the page's grid: the toggle and the menu place themselves on the screen
-    position: fixed
+    // Out of the page's grid, at its top: the toggle scrolls away with the header (which is not
+    // sticky on a phone); the open menu places itself on the screen
+    position: absolute
     top: 0
     left: 0
     z-index: 30
@@ -44,6 +45,10 @@ $toggle-size: 44px
             transform: none
             transition: none
 
+    // Open, the X stays on the screen above the menu however far the page was scrolled
+    &.open .toggle
+        position: fixed
+
     &.open .container
         opacity: 1
         visibility: visible
@@ -51,8 +56,10 @@ $toggle-size: 44px
         transition: opacity .2s ease-out, transform .2s ease-out
 
     // Three lines in the header's corner; open, they turn into an X above the menu
+    // Scrolls away with a phone's header; stays on the screen where the header does (tablet
+    // portrait), and always while the menu is open
     .toggle
-        position: fixed
+        position: absolute
         top: math.div(variables.$header-height - $toggle-size, 2)
         left: variables.$grid-gutter
         z-index: 35
@@ -87,6 +94,9 @@ $toggle-size: 44px
         &:focus-visible
             background: variables.$wet-asphalt
             outline: none
+
+        @include mixins.for-tablet-portrait-up
+            position: fixed
 
         &[aria-expanded="true"]
             span

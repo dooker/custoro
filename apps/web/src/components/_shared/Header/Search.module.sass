@@ -29,5 +29,13 @@
     justify-content: flex-end
     min-width: 0
 
+    // Phone: the closed search is a full-width button like the others in the header
+    > button:only-child
+        flex: 1 1 auto
+
+    @include mixins.for-tablet-portrait-up
+        > button:only-child
+            flex: 0 0 auto
+
     @include mixins.for-tablet-landscape-up
         flex: 0 0 auto
