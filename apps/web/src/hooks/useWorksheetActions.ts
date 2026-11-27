@@ -4,20 +4,18 @@ import { Axios } from '../Axios';
 import { handleError } from '../shared/helpers';
 import type { AxiosResponse } from 'axios';
 import { endpoint, PATHS, RESOURCE } from '../variables';
-import { toggled } from '../components/Worksheets/worksheetSelection';
+import { type InvoiceItemIF, toggled } from '../components/Worksheets/worksheetSelection';
+import type { WorksheetIF } from '../types';
 
 interface InvoiceMutationIF {
     invoiceId?: number;
     customerId: number;
-    items: {
-        worksheetId: number;
-        productId: number;
-        quantity: number;
-    }[];
+    items: InvoiceItemIF[];
 }
 
 export const useWorksheetActions = (customerId: number, queryKey: QueryKey) => {
-    const [selectedCheckboxes, setSelectedCheckboxes] = useState<number[]>([]);
+    // The picked worksheets with their product and quantity, also those no longer on screen
+    const [picked, setPicked] = useState<InvoiceItemIF[]>([]);
     const queryClient = useQueryClient();
 
     const { mutate: doInvoice, isPending } = useMutation<AxiosResponse, Error, InvoiceMutationIF>({
@@ -32,18 +30,18 @@ export const useWorksheetActions = (customerId: number, queryKey: QueryKey) => {
                 queryKey: [RESOURCE.INVOICES, 'all', customerId],
             });
             await queryClient.invalidateQueries({ queryKey: [RESOURCE.INVOICES, 'last'] });
-            setSelectedCheckboxes([]);
+            setPicked([]);
         },
         onError: (error) => handleError(error.message),
     });
 
-    const toggleCheckbox = (id: number) => {
-        setSelectedCheckboxes((prev) => toggled(prev, id));
+    const toggleCheckbox = (row: WorksheetIF) => {
+        setPicked((prev) => toggled(prev, row));
     };
 
     return {
-        selectedCheckboxes,
-        setSelectedCheckboxes,
+        picked,
+        setPicked,
         doInvoice,
         isPending,
         toggleCheckbox,

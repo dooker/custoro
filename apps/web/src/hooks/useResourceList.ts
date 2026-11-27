@@ -27,11 +27,13 @@ export const fetchResourceList = async <T>(options: ListRequestIF): Promise<List
 interface UseResourceListIF {
     // Load the next page ahead while this one is read, so a click on it shows at once
     prefetchNext?: boolean;
+    // False until the list knows its page size (useFitRows)
+    enabled?: boolean;
 }
 
 export const useResourceList = <T>(
     options: ListRequestIF,
-    { prefetchNext = false }: UseResourceListIF = {}
+    { prefetchNext = false, enabled = true }: UseResourceListIF = {}
 ) => {
     const queryClient = useQueryClient();
     const query = useQuery<ListDataIF<T>>({
@@ -40,6 +42,7 @@ export const useResourceList = <T>(
         // The page shown stays while the next one loads
         placeholderData: keepPreviousData,
         retry: 1,
+        enabled,
     });
     const pages = pagesOf(query.data?.meta);
     const ahead = prefetchNext && !query.isPlaceholderData ? nextPage(options.page, pages) : null;

@@ -11,6 +11,7 @@ import { useDeleteItem } from '../../hooks/useDeleteItem';
 import { useWorksheetActions } from '../../hooks/useWorksheetActions';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import { useListParams } from '../../hooks/useListParams';
+import { useFitRows } from '../../hooks/useFitRows';
 import { useResourceList } from '../../hooks/useResourceList';
 import { getSingle } from '../../utils/Getters/getSingle';
 import { formatPrice } from '../../utils/invoiceTotals';
@@ -21,9 +22,9 @@ import type { HeaderButtonIF } from '../../types/header';
 import { endpoint, PATHS, RESOURCE } from '../../variables';
 import { pageAfterDelete, pageFromParam } from '../_shared/List/listLogic';
 import {
-    invoiceItems,
     invoiceNumberOf,
     isAllSelected,
+    pickedIds,
     selectableIds,
     toggledAll,
 } from './worksheetSelection';
@@ -79,25 +80,29 @@ const WorksheetsPerCustomer = () => {
     const page = pageFromParam(rawPage);
     const currentPage = pageFromParam(worksheetPage);
     const pageHref = (number: number) => `${PATHS.WORKSHEETS}${page}/${customerId}/${number}/`;
-    const { keyword, size, setKeyword, setSize, withParams } = useListParams(pageHref);
+    const { keyword, setKeyword, withParams } = useListParams(pageHref);
+    const fit = useFitRows(currentPage, (number) => withParams(pageHref(number)));
     const [showInvoiceDropdown, setShowInvoiceDropdown] = useState(false);
     const { user } = useAuth();
     const showDiscount = !!Number(user?.discount);
     const listKey = [RESOURCE.WORKSHEETS_PER_CUSTOMER];
     const { promptDelete } = useDeleteItem(listKey);
-    const { selectedCheckboxes, setSelectedCheckboxes, doInvoice, toggleCheckbox } =
-        useWorksheetActions(Number(customerId), listKey);
+    const { picked, setPicked, doInvoice, toggleCheckbox } = useWorksheetActions(
+        Number(customerId),
+        listKey
+    );
+    const selectedCheckboxes = pickedIds(picked);
 
     const query = useResourceList<WorksheetIF>(
         {
             resource: RESOURCE.WORKSHEETS_PER_CUSTOMER,
             path: PATHS.WORKSHEETS,
             page: currentPage,
-            limit: size,
+            limit: fit.size ?? 0,
             keyword,
             params: { customer: customerId },
         },
-        { prefetchNext: true }
+        { prefetchNext: true, enabled: fit.size !== null }
     );
     const worksheets = query.data?.resource ?? [];
 
@@ -123,13 +128,13 @@ const WorksheetsPerCustomer = () => {
         doInvoice({
             invoiceId,
             customerId: Number(customerId),
-            items: invoiceItems(selectedCheckboxes, worksheets),
+            items: picked,
         });
     };
 
     const selectable = selectableIds(worksheets);
     const allSelected = isAllSelected(selectable, selectedCheckboxes);
-    const toggleAll = () => setSelectedCheckboxes(toggledAll(selectable, selectedCheckboxes));
+    const toggleAll = () => setPicked(toggledAll(worksheets, picked));
 
     // Deleting the last row of a page goes to the page before; the customer list's counts change
     const remove = (id: number) => {
@@ -187,7 +192,7 @@ const WorksheetsPerCustomer = () => {
                 query={query}
                 page={currentPage}
                 pageHref={(number) => withParams(pageHref(number))}
-                pageSize={{ value: size, onChange: setSize }}
+                fit={fit}
             >
                 {(rows) => (
                     <ListTable<WorksheetIF>
@@ -224,7 +229,7 @@ const WorksheetsPerCustomer = () => {
                                         type="checkbox"
                                         aria-label={row.name}
                                         checked={selectedCheckboxes.includes(row.id)}
-                                        onChange={() => toggleCheckbox(row.id)}
+                                        onChange={() => toggleCheckbox(row)}
                                     />
                                 )}
                                 <DeleteButton onClick={() => remove(row.id)} />

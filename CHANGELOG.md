@@ -5,6 +5,36 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.3.0 - 2026-11-25
+
+### Changed
+
+- **Rows per page fit the screen again**: every list (customers, products, worksheets, invoices,
+  users, companies, a customer's worksheets) shows as many rows as fit in the window, as before
+  5.2.0, and fits them again when the window is resized. The page then moves so that the first row
+  you were looking at stays on screen. The "Rows per page" choice under the lists is gone; "16–30
+  of 212" and the page numbers stay. An old link with `?size=30` still opens, without the size
+- **Every list row is as high (41 px)**, so the rows fill the window without a row of room left
+  over: the paid lock on invoices and the users' pictures are as high as a line of text, a delete
+  button and a company's state no longer push their row higher, and a long name or email stays
+  on one line, the name column ending in "…" when it does not fit
+- **Menu: Settings is always last**, with Companies (the owner's page) right above it
+- **Companies: the state is on the right**, with its heading, like the other short columns
+- **Dependencies: the minor and patch updates of both apps**, among them Sentry 11.18, the upload
+  handler `multer` 2.5, `nodemailer` 10.6, i18next 27.2, MUI 9.6, Tiptap 3.35, TanStack Query 5.108,
+  React Router 8.5.3, DOMPurify 3.5, Vite 8.3.8, Vitest 5.1.2 and Playwright 1.65.1. Nothing changes
+  for users. The web app's `npm audit` is clean again; the API's last two warnings are in `nodemon`,
+  a development tool. Sentry now captures the API's errors through its Express integration instead
+  of the handler Sentry 11 deprecated; what is sent stays the same (server errors, not refusals).
+  TypeScript stays on 6.0 until typescript-eslint supports 7
+
+### Fixed
+
+- A customer's worksheets: a worksheet picked on one page and put on an invoice from another page
+  (or after the window got smaller and hid its row) was sent without its product and quantity, and
+  the invoice was refused. Now every picked worksheet goes on the invoice, wherever it was picked;
+  the box in the heading picks or clears the worksheets of the page shown and keeps the others
+
 ## 5.2.0 - 2026-11-21
 
 ### Fixed

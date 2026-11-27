@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { endpoint, listPageSize } from '../../../variables';
+import { endpoint } from '../../../variables';
 import {
     cellText,
+    fitRows,
+    maxRows,
+    minRows,
+    pageKeepingRow,
     listAnswer,
     listQueryKey,
     listRequest,
@@ -11,12 +15,10 @@ import {
     rowClass,
     nextPage,
     pageCorrection,
-    pageSizeFromParam,
     pagesOf,
     rangeOf,
     searchTarget,
     showPages,
-    sizeTarget,
     tableClass,
     tabStopColumn,
     withListParams,
@@ -57,55 +59,23 @@ describe('pageAfterDelete', () => {
     });
 });
 
-describe('pageSizeFromParam', () => {
-    it.each([
-        ['30', 30],
-        ['50', 50],
-        ['15', listPageSize],
-        [null, listPageSize],
-        ['', listPageSize],
-        ['20', listPageSize],
-        ['5000', listPageSize],
-        ['abc', listPageSize],
-    ])('reads %j as %i rows a page', (raw, size) => {
-        expect(pageSizeFromParam(raw)).toBe(size);
-    });
-});
-
 describe('withListParams', () => {
     it('keeps the search word, encoded', () => {
-        expect(
-            withListParams('/customers/2/', { keyword: 'Õnne & Co 50%', size: listPageSize })
-        ).toBe('/customers/2/?q=%C3%95nne%20%26%20Co%2050%25');
-    });
-
-    it('keeps a page size other than the default', () => {
-        expect(withListParams('/customers/2/', { keyword: '', size: 30 })).toBe(
-            '/customers/2/?size=30'
-        );
-        expect(withListParams('/customers/2/', { keyword: 'orb', size: 50 })).toBe(
-            '/customers/2/?q=orb&size=50'
+        expect(withListParams('/customers/2/', { keyword: 'Õnne & Co 50%' })).toBe(
+            '/customers/2/?q=%C3%95nne%20%26%20Co%2050%25'
         );
     });
 
-    it('leaves an address without a search or another size alone', () => {
-        expect(withListParams('/customers/2/', { keyword: '', size: listPageSize })).toBe(
-            '/customers/2/'
-        );
+    it('leaves an address without a search alone', () => {
+        expect(withListParams('/customers/2/', { keyword: '' })).toBe('/customers/2/');
     });
 });
 
 describe('searchTarget', () => {
-    const none = { keyword: '', size: listPageSize };
+    const none = { keyword: '' };
 
     it('sends a new word to page 1, wherever the search began', () => {
         expect(searchTarget('orb', none, '/customers/1/')).toBe('/customers/1/?q=orb');
-    });
-
-    it('keeps the page size', () => {
-        expect(searchTarget('orb', { keyword: '', size: 30 }, '/customers/1/')).toBe(
-            '/customers/1/?q=orb&size=30'
-        );
     });
 
     it('goes to page 1 without a word when the search is cleared', () => {
@@ -120,21 +90,39 @@ describe('searchTarget', () => {
     });
 });
 
-describe('sizeTarget', () => {
-    it('sends a new size to page 1, the search kept', () => {
-        expect(sizeTarget(50, { keyword: 'orb', size: listPageSize }, '/customers/1/')).toBe(
-            '/customers/1/?q=orb&size=50'
-        );
+describe('fitRows', () => {
+    // 768 high, the table at 98: room for 568.5 px under the head, footer and margin
+    const desktop = { viewport: 768, top: 98, head: 40.5, row: 41, footer: 49, below: 12 };
+
+    it('shows as many rows as fit between the table and the bottom of the window', () => {
+        expect(fitRows(desktop)).toBe(13);
+        expect(fitRows({ ...desktop, viewport: 1100 })).toBe(21);
+        // A row of 47 px (the paid lock made rows this high) would leave a row of room unused
+        expect(fitRows({ ...desktop, row: 47 })).toBe(12);
     });
 
-    it('drops the size from the address when it is the default again', () => {
-        expect(sizeTarget(listPageSize, { keyword: '', size: 30 }, '/customers/1/')).toBe(
-            '/customers/1/'
-        );
+    it('uses the list\u2019s own heights for the parts not drawn yet', () => {
+        expect(fitRows({ viewport: 768, top: 98 })).toBe(fitRows(desktop));
     });
 
-    it('does not move when the size did not change', () => {
-        expect(sizeTarget(30, { keyword: '', size: 30 }, '/customers/1/')).toBeNull();
+    it('shows at least 5 rows and at most the 50 the API allows', () => {
+        expect(fitRows({ ...desktop, viewport: 300 })).toBe(minRows);
+        expect(fitRows({ ...desktop, viewport: 5000 })).toBe(maxRows);
+        expect(fitRows({ ...desktop, row: 0 })).toBe(maxRows);
+        expect(fitRows({ ...desktop, viewport: Number.NaN })).toBe(minRows);
+    });
+});
+
+describe('pageKeepingRow', () => {
+    it('goes to the page that still shows the first row seen', () => {
+        // Page 3 of 15 starts at row 31: row 31 is on page 4 with 10 rows, on page 2 with 30
+        expect(pageKeepingRow(3, 15, 10)).toBe(4);
+        expect(pageKeepingRow(3, 15, 30)).toBe(2);
+        expect(pageKeepingRow(2, 13, 20)).toBe(1);
+    });
+
+    it('stays on page 1', () => {
+        expect(pageKeepingRow(1, 15, 7)).toBe(1);
     });
 });
 

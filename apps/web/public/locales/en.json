@@ -333,7 +333,6 @@
     "emptyList": "No entries",
     "listError": "The list could not be loaded. Try again in a moment.",
     "listRange": "{{from}}–{{to}} of {{total}}",
-    "listPageSize": "Rows per page",
     "languages": {
         "en": "English",
         "et": "Eesti",

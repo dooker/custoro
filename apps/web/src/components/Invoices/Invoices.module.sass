@@ -1,8 +1,12 @@
 @use "src/assets/stylesheets/variables" as variables
 
+// The lock of a paid invoice is as high as a line of text (24 px, the icon's own size), so a row
+// with it is as high as every other row (41 px) and the list fits its rows exactly
 td.locked
     padding: 0 variables.$grid
 
     svg
+        display: block
+        width: 24px
+        height: 24px
         fill: variables.$emerald
-        width: 30px

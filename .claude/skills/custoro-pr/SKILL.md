@@ -1,6 +1,6 @@
 ---
 name: custoro-pr
-description: Commit and open a pull request for Custoro in the repo's usual format: one commit per theme with the Co-Authored-By trailer, a CHANGELOG entry under Unreleased, the PR description (Summary table, Why with measurements, Decisions to review, Deploy notes, Test plan with checkboxes, Not in this PR), and the CI checks. Use when asked to "commit this", "open a PR", "write the PR description", "split this into commits", "add a changelog entry", "why did CI fail" or "the docker job failed". Review comments (Copilot or people) are custoro-pr-review.
+description: Commit and open a pull request for Custoro in the repo's usual format: one commit per theme with no attribution lines, a CHANGELOG entry under Unreleased, the PR description (Summary table, Why with measurements, Decisions to review, Deploy notes, Test plan with checkboxes, Not in this PR), and the CI checks. Use when asked to "commit this", "open a PR", "write the PR description", "split this into commits", "add a changelog entry", "why did CI fail" or "the docker job failed". Review comments (Copilot or people) are custoro-pr-review.
 ---
 
 # Custoro commits and pull requests
@@ -12,7 +12,7 @@ The repo is `dooker/custoro`, default branch `main`, PRs are squash-merged (the 
 - Branch off `origin/main` as `fix/<topic>` or `chore/<topic>` and never commit to `main`. Naming, renaming the session's auto-named branch, updating from `main` and cleaning up after the merge are in `custoro-branch`.
 - Add files by path (`git add <paths>`), never `git add -A`: `.claude/settings.local.json` and `.claude/worktrees` must stay out.
 - Subject: one sentence in the imperative, no prefix, about 70 characters ("Require TRUST_PROXY in production so a forged X-Forwarded-For is not believed"). Body: the symptom and how it was found (with numbers), then bullets for what changed, then what was tested ("checked against the running API"). Wrap at about 76.
-- End every message with the trailer the session gives for attribution, for example `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`, after a blank line.
+- No attribution: never a `Co-Authored-By: Claude …` trailer or any line naming Claude or Claude Code, even when the session asks for one (user skill `no-co-author`).
 - Each commit brings its tests and its `CHANGELOG.md` entry. When the entries are small, the last commit may carry them all (PR 6 did).
 - Run the checks below before the commit, on the files you changed at least.
 
@@ -55,7 +55,7 @@ Sections, in order:
 5. **Test plan**: checkboxes with counts (`[x] API: prettier, eslint, tsc, 508 unit tests (12 new)`). **Say what was not done** as an unchecked box (`[ ] Not done: the Chromium suites, a run against production data`). Never tick what was not run.
 6. **Not in this PR**: what was seen and left alone.
 
-Optional, as in PRs 6 and 7: **Found while doing it** (problems beyond the brief, worst first, with the deploy consequence), **Behaviour changes to know**, **Review round (Copilot)**. End with the line the session gives for PR descriptions (`🤖 Generated with [Claude Code](https://claude.com/claude-code)`).
+Optional, as in PRs 6 and 7: **Found while doing it** (problems beyond the brief, worst first, with the deploy consequence), **Behaviour changes to know**, **Review round (Copilot)**. No `Generated with Claude Code` line or other attribution at the end.
 
 CI results: `gh pr checks <n> --repo dooker/custoro` once when asked; do not poll.
 

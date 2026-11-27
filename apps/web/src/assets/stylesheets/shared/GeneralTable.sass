@@ -27,7 +27,10 @@
             width: 80px
             white-space: nowrap
 
-        // A row that leads somewhere: the link fills the cell, so the whole row is the link
+        // A row that leads somewhere: the link fills the cell, so the whole row is the link. It
+        // stays on one line, so every row of a list is as high (41 px) and the list fits its
+        // rows to the window exactly (useFitRows); the name column takes the room left and ends
+        // in "…" when its text does not fit
         &.link
             padding: 0
 
@@ -36,10 +39,21 @@
                 padding: variables.$grid
                 color: inherit
                 text-decoration: none
+                white-space: nowrap
+                overflow: hidden
+                text-overflow: ellipsis
 
                 &:focus-visible
                     outline: 2px solid variables.$green-sea
                     outline-offset: -2px
+
+        &.link.name
+            max-width: 0
+
+        // Any other column ends in "…" at 20rem: a long email (the API allows 254 characters)
+        // would otherwise widen the table and push the delete button out of the window
+        &.link:not(.name) > a
+            max-width: 20rem
 
         &.link:first-of-type > a
             padding-left: variables.$grid-gutter

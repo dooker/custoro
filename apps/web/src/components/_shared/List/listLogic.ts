@@ -2,13 +2,14 @@
 // ListPage, ListWidget, ListFrame, ListTable and the list hooks only wire these to the screen,
 // so the rules are tested on their own (listLogic.test.ts).
 import type { ReactNode } from 'react';
-import { endpoint, listPageSize } from '../../../variables';
+import { endpoint } from '../../../variables';
 
 export const searchParam = 'q';
-export const sizeParam = 'size';
 
-// The page sizes a list offers; the first is the default (listPageSize) and the API allows 50
-export const pageSizes = [listPageSize, 30, 50];
+// A page of a list shows as many rows as fit on the screen: at least minRows, at most the 50 the
+// API allows a page
+export const minRows = 5;
+export const maxRows = 50;
 
 export type ListParams = Record<string, string | number | undefined>;
 
@@ -51,10 +52,9 @@ export interface ListDataIF<T> {
     meta?: ListMetaIF;
 }
 
-// What a list keeps in its address besides the page: the search word and the page size
+// What a list keeps in its address besides the page: the search word
 export interface ListParamsIF {
     keyword: string;
-    size: number;
 }
 
 export interface ListAnswerIF<T> {
@@ -75,26 +75,13 @@ export const pageFromParam = (raw: string | undefined): number => {
 export const pageAfterDelete = (page: number, rowsOnPage: number): number =>
     rowsOnPage <= 1 && page > 1 ? page - 1 : page;
 
-/** The page size in the address (?size=30): one of pageSizes, anything else is the default */
-export const pageSizeFromParam = (raw: string | null | undefined): number => {
-    const size = Number(raw);
-
-    return pageSizes.includes(size) ? size : listPageSize;
-};
-
-/** An address of the list with its search word and page size kept (the default size left out) */
-export const withListParams = (href: string, { keyword, size }: ListParamsIF): string => {
-    const query = [
-        ...(keyword ? [`${searchParam}=${encodeURIComponent(keyword)}`] : []),
-        ...(size !== listPageSize ? [`${sizeParam}=${size}`] : []),
-    ].join('&');
-
-    return query ? `${href}?${query}` : href;
-};
+/** An address of the list with its search word kept */
+export const withListParams = (href: string, { keyword }: ListParamsIF): string =>
+    keyword ? `${href}?${searchParam}=${encodeURIComponent(keyword)}` : href;
 
 /**
  * Where a new search word goes: page 1 of the list (the matches of page 3 of the full list mean
- * nothing), the page size kept, or nowhere when the word did not change.
+ * nothing), or nowhere when the word did not change.
  */
 export const searchTarget = (
     next: string,
@@ -103,13 +90,42 @@ export const searchTarget = (
 ): string | null =>
     next === current.keyword ? null : withListParams(firstPageHref, { ...current, keyword: next });
 
-/** Where a new page size goes: page 1 (the rows of page 3 change with the size), search kept */
-export const sizeTarget = (
-    next: number,
-    current: ListParamsIF,
-    firstPageHref: string
-): string | null =>
-    next === current.size ? null : withListParams(firstPageHref, { ...current, size: next });
+// The heights of a list on the screen, in pixels: the defaults are the list's own styles, for
+// the parts not drawn yet (no rows while the first page loads)
+export interface ListSpaceIF {
+    // The window's inner height
+    viewport: number;
+    // Where the table starts, from the top of the page
+    top: number;
+    // The table's head row, one row, the footer ("1–15 of 212" and the pages), the margin below
+    head?: number;
+    row?: number;
+    footer?: number;
+    below?: number;
+}
+
+export const listHeights = { head: 40.5, row: 41, footer: 49, below: 12 };
+
+/** The rows that fit between the table's top and the bottom of the window, from 5 to 50 */
+export const fitRows = ({
+    viewport,
+    top,
+    head = listHeights.head,
+    row = listHeights.row,
+    footer = listHeights.footer,
+    below = listHeights.below,
+}: ListSpaceIF): number => {
+    const rows = Math.floor((viewport - top - head - footer - below) / (row > 0 ? row : 1));
+
+    return Math.min(maxRows, Math.max(minRows, Number.isFinite(rows) ? rows : minRows));
+};
+
+/**
+ * The page that still shows the first row of this page when the rows a page change (a resized
+ * window): row 31 is on page 3 with 15 rows a page and on page 4 with 10.
+ */
+export const pageKeepingRow = (page: number, before: number, after: number): number =>
+    Math.floor(((page - 1) * before) / after) + 1;
 
 /** The number of pages, from an answer of this API version or an older one */
 export const pagesOf = (meta: ListMetaIF | undefined): number => meta?.pages ?? meta?.total ?? 0;

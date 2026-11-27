@@ -28,6 +28,8 @@ const Tenants = () => {
                 {
                     key: 'active',
                     label: 'tenants.state',
+                    // Right, with its heading, like the other short columns
+                    className: 'items',
                     render: ({ active }) => (
                         <span className={`${styles.state} ${active ? styles.on : styles.off}`}>
                             {active ? t('tenants.active') : t('tenants.inactive')}
