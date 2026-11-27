@@ -196,7 +196,8 @@
             "footer": "PDFi laadimine ebaõnnestus"
         },
         "notFound": {
-            "footer": "Lehte ei leitud"
+            "footer": "Lehte ei leitud",
+            "story": "Tekkis... komplikatsioon.\nNäete,\nme läksime lehte tooma\nja, ee... noh, öö...\ntehniliselt öeldes on see kadunud.\nTeisisõnu,\nseda pole siin."
         },
         "order": "tellimuse",
         "product": "toote",
