@@ -1,4 +1,4 @@
-import DOMPurify from 'dompurify';
+import SafeHtml from '../_shared/SafeHtml/SafeHtml';
 import { useSafeTranslation } from '../../hooks/useSafeTranslation';
 import styles from './Helpfield.module.sass';
 
@@ -15,10 +15,9 @@ const HelpField = ({ text, position, type }: HelpFieldIF) => {
         return null;
     }
 
-    const cleanHtml = DOMPurify.sanitize(t(text));
     const classNames = [styles.help, position && styles[position], type && styles[type]].join(' ');
 
-    return <div className={classNames} dangerouslySetInnerHTML={{ __html: cleanHtml }}></div>;
+    return <SafeHtml className={classNames} html={t(text)} />;
 };
 
 export default HelpField;

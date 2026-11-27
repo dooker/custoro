@@ -8,7 +8,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Slide from '@mui/material/Slide';
 import { TransitionProps } from '@mui/material/transitions';
 import { useSafeTranslation } from '../../../hooks/useSafeTranslation';
-import DOMPurify from 'dompurify';
+import SafeHtml from '../SafeHtml/SafeHtml';
 import { useConfirmation } from '../../../store/confirmation';
 import styles from './Confirmation.module.sass';
 
@@ -67,9 +67,7 @@ const Confirmation = () => {
         text: text || defaults.text,
     };
 
-    const cleanHtml = DOMPurify.sanitize(
-        `${t(`modal.${translation.text}`)}${showResource && params ? `<span>${t(`${params.resource}.singular`)}</span>?` : ''}`
-    );
+    const html = `${t(`modal.${translation.text}`)}${showResource && params ? `<span>${t(`${params.resource}.singular`)}</span>?` : ''}`;
 
     return (
         <MaterialDialog
@@ -83,7 +81,7 @@ const Confirmation = () => {
             <DialogContent>
                 <IconComponent />
 
-                <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />
+                <SafeHtml html={html} />
             </DialogContent>
 
             <DialogActions>
