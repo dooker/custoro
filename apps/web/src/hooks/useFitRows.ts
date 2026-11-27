@@ -12,7 +12,7 @@ import { fitRows, pageKeepingRow } from '../components/_shared/List/listLogic';
 import { useDebounce } from './useDebounce';
 
 // A resize settles before the list asks for other rows (dragging a window edge fires many events)
-const resizeWait = 150;
+export const resizeWait = 150;
 
 const height = (element: Element | null | undefined): number | undefined => {
     const value = element?.getBoundingClientRect().height;
