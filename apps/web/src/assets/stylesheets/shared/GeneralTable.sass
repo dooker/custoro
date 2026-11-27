@@ -64,6 +64,13 @@
         &.link:not(.name) > a
             max-width: 20rem
 
+        // A phone keeps a long code short ("B-mwfz…") so the name keeps its room
+        &.link.id > a
+            max-width: 6rem
+
+            @include mixins.for-tablet-portrait-up
+                max-width: 20rem
+
         &.link:first-of-type > a
             padding-left: variables.$grid-gutter
 
