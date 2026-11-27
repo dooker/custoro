@@ -5,6 +5,17 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+### Fixed
+
+- **A page opened right after resizing the window fits the new window**: a page number clicked
+  while the resize was still settling (150 ms) kept the old number of rows. Now that page is fitted
+  to the new size, on the page that shows its first row
+
+### Changed
+
+- **Lists: a cleanup of 5.3.0's list sizing**. A list no longer sets up its window watching again
+  on every page change, and the list code repeats itself less. Nothing changes for users
+
 ## 5.3.0 - 2026-11-25
 
 ### Changed
