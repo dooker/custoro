@@ -5,6 +5,8 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.4.0 - 2026-11-27
+
 ### Added
 
 - **Custoro on a phone**: the layout is now built for a phone first. Every page fits the screen
