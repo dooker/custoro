@@ -296,6 +296,38 @@ describe('ListPage', () => {
         expect(asked().find(({ limit }) => limit === 10)).toEqual({ page: 3, limit: 10 });
     });
 
+    // Review of the cleanup branch: a page clicked while a resize settled was moved back to the
+    // rows still on screen (the page before), as if the resize had come after the click
+    it('keeps the rows of a page clicked while a resize settles', async () => {
+        serve(100);
+        list('/customers/2/');
+        await screen.findByText('Customer 16');
+
+        // From now on the answers come after the resize has settled
+        const answer = vi.mocked(Axios.get).getMockImplementation()!;
+        vi.mocked(Axios.get).mockImplementation(async (...args) => {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            return answer(...args);
+        });
+
+        await act(async () => {
+            window.innerHeight = windowFor(30);
+            window.dispatchEvent(new Event('resize'));
+        });
+        fireEvent.click(screen.getByRole('link', { name: 'Go to page 4' }));
+
+        // Page 4 of 15 rows starts at row 46: with 30 rows a page that is page 2, not page 1 (where
+        // row 16, the first row of page 2 still on screen, would be)
+        await waitFor(
+            () => expect(screen.getByTestId('list-range')).toHaveTextContent('31–60 of 100'),
+            { timeout: 2000 }
+        );
+        expect(screen.getByRole('link', { name: 'page 2' })).toHaveAttribute(
+            'aria-current',
+            'page'
+        );
+    });
+
     it('asks once for a burst of resizes (dragging the window edge)', async () => {
         serve(100);
         list('/customers/1/');

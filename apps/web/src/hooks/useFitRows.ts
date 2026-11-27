@@ -82,6 +82,8 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
     const shownRef = useRef<ShownRowsIF | undefined>(undefined);
     // A window resize is settling (resizeWait): layout changes then wait for it
     const resizingRef = useRef(false);
+    // The page in the address when the resize began
+    const resizePageRef = useRef<number | null>(null);
 
     useLayoutEffect(() => {
         latestRef.current = { page, pageHref, size, navigate };
@@ -89,8 +91,9 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
 
     // After a resize the address moves to the page with the first row the user saw. The first
     // measurements (before and after the rows are drawn) only settle the size: the page in the
-    // address is the one asked for.
-    const fit = useCallback((keepRow: boolean) => {
+    // address is the one asked for. `clicked`: the user opened another page while the resize
+    // settled, so the row to keep is the first one of that page, not of the rows still on screen.
+    const fit = useCallback((keepRow: boolean, clicked = false) => {
         const section = ref.current;
 
         if (!section) {
@@ -110,7 +113,8 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
         // while the next page loads (Copilot review of PR 47), else of the page asked for. Rows
         // of another list or search (a new search loading) say nothing about this one's pages
         // (round 2).
-        const onScreen = shownRef.current?.list === href(1) ? shownRef.current : undefined;
+        const onScreen =
+            !clicked && shownRef.current?.list === href(1) ? shownRef.current : undefined;
         const fromPage = onScreen?.page ?? shown;
         const fromSize = onScreen?.limit ?? before;
 
@@ -163,8 +167,11 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
 
     const settle = useDebounce(
         () => {
+            const clicked = resizePageRef.current !== latestRef.current.page;
+
             resizingRef.current = false;
-            fit(true);
+            resizePageRef.current = null;
+            fit(true, clicked);
         },
         resizeWait,
         { cancelOnUnmount: true }
@@ -173,6 +180,7 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
     useEffect(() => {
         const onResize = () => {
             resizingRef.current = true;
+            resizePageRef.current ??= latestRef.current.page;
             settle();
         };
 
@@ -180,6 +188,7 @@ export const useFitRows = (page: number, pageHref: (page: number) => string): Fi
 
         return () => {
             resizingRef.current = false;
+            resizePageRef.current = null;
             window.removeEventListener('resize', onResize);
         };
     }, [settle]);
