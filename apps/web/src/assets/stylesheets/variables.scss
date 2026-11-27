@@ -35,3 +35,6 @@ $button-desktop-height: 50;
 $breakpoint: 768px;
 $button-min-width: 140px;
 $header-height: 83px;
+// A line of text in a list row: an icon or picture in a row is this high, so every row is 41 px
+// (listHeights.row in listLogic.ts) and a list fits its rows exactly
+$list-line: 24px;
