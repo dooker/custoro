@@ -1,11 +1,16 @@
 @use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
 
 .fourOuFour
     text-align: center
     padding: variables.$grid-gutter
 
 .container
+    // The story above the picture on a phone, beside it from tablet portrait
     display: grid
-    grid-template-columns: 1fr 1fr
+    grid-template-columns: minmax(0, 1fr)
+
+    @include mixins.for-tablet-portrait-up
+        grid-template-columns: 1fr 1fr
     align-items: center
     line-height: 22px

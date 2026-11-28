@@ -1,18 +1,28 @@
 @use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
 
 .modal
+    // Mobile first: on a phone the box takes the screen's width but its gutters; from tablet
+    // portrait it has its own width. Centred by its own box: .component's margin would push it
+    // off centre (and, on a phone, past the right edge).
     .modal-content
         color: variables.$black
         position: fixed
         top: 50%
         left: 50%
         transform: translateX(-50%) translateY(-50%)
-        min-width: 300px
+        margin: 0
+        width: calc(100% - #{variables.$grid-gutter * 2})
+        max-height: calc(100dvh - #{variables.$grid-gutter * 2})
+        overflow-y: auto
         display: flex
         flex-direction: column
-        overflow: hidden
         box-sizing: border-box
         border-radius: 2px
+
+        @include mixins.for-tablet-portrait-up
+            width: auto
+            min-width: 300px
 
         .header
             padding: variables.$grid-gutter
@@ -41,9 +51,13 @@
             background: variables.$alizarin
             padding: variables.$grid
 
+        // Phone: the button the whole width, the link (Forgot password?, Login) centred under it;
+        // from tablet portrait the button in the middle and the link on the right
         .footer
-            display: grid
-            justify-content: center
+            display: flex
+            flex-direction: column
+            align-items: stretch
+            gap: variables.$grid-gutter
             padding: variables.$grid-gutter
             border-top: 1px solid variables.$green-sea
             position: relative
@@ -51,17 +65,25 @@
             box-sizing: content-box
 
             a
-                position: absolute
-                top: 50%
-                transform: translateY(-50%)
-                right: variables.$grid-gutter
+                align-self: center
                 text-decoration: none
                 color: variables.$belize-hole
 
+            @include mixins.for-tablet-portrait-up
+                display: grid
+                justify-content: center
+
+                a
+                    position: absolute
+                    top: 50%
+                    transform: translateY(-50%)
+                    right: variables.$grid-gutter
+
     &.large
         .modal-content
-            width: 600px
-            max-width: 100%
+            @include mixins.for-tablet-portrait-up
+                width: 600px
+                max-width: calc(100% - #{variables.$grid-gutter * 2})
 
     .close
         position: absolute
@@ -77,4 +99,6 @@
 
     .MuiDialogContent-root
         padding: 20px 24px !important
-        min-width: 400px
+
+        @include mixins.for-tablet-portrait-up
+            min-width: 400px

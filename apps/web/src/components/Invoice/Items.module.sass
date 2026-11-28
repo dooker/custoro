@@ -3,8 +3,16 @@
 .item
     cursor: auto
 
+    // A cell with the form's styles (the quantity's input, the name) stays a table cell: as the
+    // form's grid its value sat at the top of a row made higher by a long name
+    :global(td.general-form)
+        display: table-cell
+        vertical-align: middle
+
     input[name=quantity]
         text-align: right
+        // A cell that shrinks on a phone keeps room for a few digits
+        min-width: 3.5rem
 
 .addNew button
     margin: 0 auto

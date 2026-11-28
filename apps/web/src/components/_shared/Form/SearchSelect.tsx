@@ -22,6 +22,9 @@ interface SearchSelectIF<T> {
     placeholder?: string;
     // Empty again after each choice, for a picker that adds things (a line on an invoice)
     clearOnSelect?: boolean;
+    // 'fixed' for a picker inside a box that scrolls sideways (the invoice items on a phone): its
+    // list of matches then shows over the page instead of being cut off by the box
+    menuPosition?: 'absolute' | 'fixed';
 }
 
 // A picker that searches the customers or products in the API as the user types and shows the
@@ -35,6 +38,7 @@ const SearchSelect = <
     onSelect,
     placeholder,
     clearOnSelect = false,
+    menuPosition = 'absolute',
 }: SearchSelectIF<T>) => {
     const [chosen, setChosen] = useState<SelectOptionIF | null>(null);
     const loadOptions = useMemo(
@@ -76,6 +80,7 @@ const SearchSelect = <
                 onSelect(option);
             }}
             placeholder={placeholder}
+            menuPosition={menuPosition}
         />
     );
 };

@@ -16,8 +16,9 @@ const Items = ({ draft, onChange, onAdd }: InvoiceItemsIF) => {
     const { items, locked } = draft || {};
     const isLocked = locked === 1;
 
+    // A product picked: it becomes a line and the picker goes away until Add is pressed again
     const handleOnAdd = (product: ProductIF | undefined) => {
-        setNewItem((prev) => !prev);
+        setNewItem(false);
 
         if (product) {
             onAdd(product);

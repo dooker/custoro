@@ -1,3 +1,16 @@
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+
+// Mobile first: on a phone the item rows shrink to their content and, when they still do not fit
+// (with the discount columns), scroll sideways in their own box; the page never scrolls sideways
+.itemsScroll
+    overflow-x: auto
+    -webkit-overflow-scrolling: touch
+    // Its width for what is inside it (the new line's product picker: 100cqw)
+    container-type: inline-size
+
+    @include mixins.for-tablet-landscape-up
+        overflow-x: visible
+
 .invoiceItems
     z-index: 12
     position: relative

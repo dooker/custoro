@@ -133,6 +133,9 @@ $asbestos: color.scale(variables.$asbestos, $lightness: 5%)
 
 .buttonContainer
     position: relative
+    // Its button as wide as the container: the whole width where buttons stack on a phone
+    display: flex
+    flex-direction: column
 
 .buttonDropdown
     position: absolute

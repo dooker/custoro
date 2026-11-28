@@ -32,7 +32,7 @@ import styles from './WorksheetsPerCustomer.module.sass';
 
 // A customer's worksheets: also the small list on the customer's page, without the discount price
 export const customerWorksheetColumns = (showDiscount: boolean): ColumnIF<WorksheetIF>[] => [
-    { key: 'code', label: '#', className: 'id' },
+    { key: 'code', label: '#', className: 'id wide-only' },
     {
         key: 'name',
         label: 'worksheets.form.products',
@@ -50,7 +50,7 @@ export const customerWorksheetColumns = (showDiscount: boolean): ColumnIF<Worksh
               {
                   key: 'discountPrice',
                   label: 'worksheets.form.discountPrice',
-                  className: 'items',
+                  className: 'items wide-only',
                   render: ({ discountPrice }: WorksheetIF) => formatPrice(discountPrice),
               },
           ]

@@ -330,7 +330,10 @@
     },
     "menu": {
         "plural": "Nimekiri",
-        "add": "Lisa uus"
+        "add": "Lisa uus",
+        "open": "Ava menüü",
+        "close": "Sulge menüü",
+        "navigation": "Peamenüü"
     },
     "emptyList": "Nimekiri on tühi",
     "listError": "Nimekirja ei õnnestunud laadida. Proovi hetke pärast uuesti.",

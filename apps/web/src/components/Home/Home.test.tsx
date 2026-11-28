@@ -25,11 +25,12 @@ describe('Home', () => {
         expect(await screen.findAllByText('Orbit')).not.toHaveLength(0);
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Dashboard');
         expect(screen.queryByTestId('search-button')).not.toBeInTheDocument();
+        // In the menu's order
         expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
-            'Latest Worksheets',
-            'Latest Invoices',
             'Latest Products',
             'Latest Customers',
+            'Latest Worksheets',
+            'Latest Invoices',
         ]);
         const limits = vi
             .mocked(Axios.get)

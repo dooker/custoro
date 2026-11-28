@@ -194,6 +194,31 @@ describe('ListPage', () => {
         );
     });
 
+    // Mobile first: a phone gets a pager that fits its width (page 1 and the last page are numbers
+    // anyway); the arrows to them and the neighbouring pages only where there is room
+    it('gives a phone a pager without the first and last arrows', async () => {
+        const wide = window.innerWidth;
+
+        window.innerWidth = 375;
+
+        try {
+            serve(100);
+            list('/customers/3/?q=cust');
+            await screen.findByText('Customer 31');
+
+            expect(screen.getByRole('link', { name: 'Go to page 1' })).toHaveAttribute(
+                'href',
+                '/customers/1/?q=cust'
+            );
+            expect(screen.getByRole('link', { name: 'Go to page 7' })).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: 'Go to first page' })).toBeNull();
+            expect(screen.queryByRole('link', { name: 'Go to last page' })).toBeNull();
+            expect(screen.queryByRole('link', { name: 'Go to page 4' })).toBeNull();
+        } finally {
+            window.innerWidth = wide;
+        }
+    });
+
     // Copilot review of PR 46, round 2: opening a row dropped the list's search, so Go back on
     // the record returned to an unfiltered list
     it('opens a row and Add with the list\u2019s search', async () => {

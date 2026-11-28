@@ -5,6 +5,41 @@ version number, kept in each app's `package.json`. The web app shows this file o
 
 ## Unreleased
 
+## 5.4.0 - 2026-11-27
+
+### Added
+
+- **Custoro on a phone**: the layout is now built for a phone first. Every page fits the screen
+  without scrolling sideways; on a phone the menu opens over the whole screen from the button in
+  the header's corner (three lines that turn into an X), and closes with it, Escape or any page
+  opened from it. From 900 px (a tablet on its side, a laptop) the menu is the sidebar, as before
+
+### Changed
+
+- **Lists on a phone** show the columns that matter (number, name, price or state) and leave the
+  details for wider screens: My price and Unit of products, a worksheet's code, a user's email
+  and role, a company's counts and date. The page numbers are smaller and without the first and
+  last arrows there
+- **Buttons on a phone** are the whole width, one on top of the other: a page's buttons under its
+  title (the header then scrolls away with the page), the invoice's Mark as paid, PDF and Send
+  email, and Yes and No when deleting. From 600 px they are a row again
+- **Forms on a phone**: fields one under the other, the settings tabs wrap onto more rows, and
+  the invoice's payment and invoice type stack. The invoice's lines scroll sideways in their own
+  box when the discount columns do not fit
+- **Home on a phone**: the four small lists one under the other, each as high as its rows, with
+  the menu's icon; on every screen a small list's title opens the whole list, and the lists come
+  in the menu's order (products, customers, worksheets, invoices)
+- **A form's Save on a phone** stays at the bottom of the screen while the form scrolls, and every
+  field has its own row
+- **Search on a phone**: the search field opens as its own row under the button, as high as on a
+  desktop
+- **Settings on a phone**: the sections are a menu that opens over the form from one button with
+  the open section's name
+- **Invoices**: the product picker for a new line takes the row's width (it was squeezed into the
+  name column) and its list covers the Add button; a quantity sits in the middle of its row
+- **Login, forgot password and the password link on a phone**: the box fits the screen, the
+  button is the whole width and the link is under it (it lay over the button)
+
 ## 5.3.2 - 2026-11-27
 
 ### Fixed

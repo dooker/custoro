@@ -17,12 +17,12 @@ const Tenants = () => {
             columns={[
                 { key: 'id', label: '#', className: 'id' },
                 { key: 'name', label: 'tenants.name', className: 'name' },
-                { key: 'people', label: 'tenants.people', className: 'items' },
-                { key: 'invoices', label: 'tenants.invoices', className: 'items' },
+                { key: 'people', label: 'tenants.people', className: 'items wide-only' },
+                { key: 'invoices', label: 'tenants.invoices', className: 'items wide-only' },
                 {
                     key: 'created',
                     label: 'tenants.created',
-                    className: styles.date,
+                    className: `${styles.date} wide-only`,
                     render: ({ created }) => String(created).slice(0, 10),
                 },
                 {

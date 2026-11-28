@@ -80,11 +80,12 @@ test('Home keeps its own title and has no buttons once its small lists have load
 }) => {
     await page.goto('/home/');
 
+    // In the menu's order
     await expect(page.getByRole('heading', { level: 2 })).toHaveText([
-        'Latest Worksheets',
-        'Latest Invoices',
         'Latest Products',
         'Latest Customers',
+        'Latest Worksheets',
+        'Latest Invoices',
     ]);
     await expect(listRows(page, 'customers').first()).toBeVisible();
     // The last small list to load used to win: "Invoices" with Search and Add

@@ -1,4 +1,5 @@
 @use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
 
 .general-table
     width: 100%
@@ -9,6 +10,14 @@
         color: variables.$black
         padding: variables.$grid
         text-align: left
+
+        // Mobile first: a column that only adds detail (a second price, a unit, counts, an email)
+        // is left out on a phone, where the number, the name and the actions need the room
+        &.wide-only
+            display: none
+
+            @include mixins.for-tablet-portrait-up
+                display: table-cell
 
         &.items
             text-align: right
@@ -54,6 +63,13 @@
         // would otherwise widen the table and push the delete button out of the window
         &.link:not(.name) > a
             max-width: 20rem
+
+        // A phone keeps a long code short ("B-mwfz…") so the name keeps its room
+        &.link.id > a
+            max-width: 6rem
+
+            @include mixins.for-tablet-portrait-up
+                max-width: 20rem
 
         &.link:first-of-type > a
             padding-left: variables.$grid-gutter

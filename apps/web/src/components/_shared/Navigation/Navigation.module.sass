@@ -1,17 +1,129 @@
 @use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+@use "sass:math"
 
+$sidebar-width: 200px
+$toggle-size: 44px
+
+// Mobile first: on a phone the menu opens over the whole screen from the toggle in the header's
+// corner; from tablet landscape (900px) it is the sidebar the page sits next to
 .sidebar
-    position: relative
-    z-index: 1
+    // Out of the page's grid, at its top: the toggle scrolls away with the header (which is not
+    // sticky on a phone); the open menu places itself on the screen
+    position: absolute
+    top: 0
+    left: 0
+    z-index: 30
+
+    @include mixins.for-tablet-landscape-up
+        position: relative
+        z-index: 1
 
     .container
         position: fixed
-        width: 200px
+        inset: 0
+        z-index: 30
+        width: 100%
         height: 100dvh
         display: grid
-    
+        overflow-y: auto
+        background: variables.$midnight-blue
+        opacity: 0
+        visibility: hidden
+        transform: translateY(-12px)
+        transition: opacity .2s ease-out, transform .2s ease-out, visibility 0s .2s
+
+        @media (prefers-reduced-motion: reduce)
+            transition: none
+
+        @include mixins.for-tablet-landscape-up
+            inset: 0 auto 0 0
+            z-index: auto
+            width: $sidebar-width
+            opacity: 1
+            visibility: visible
+            transform: none
+            transition: none
+
+    // Open, the X stays on the screen above the menu however far the page was scrolled
+    &.open .toggle
+        position: fixed
+
+    &.open .container
+        opacity: 1
+        visibility: visible
+        transform: none
+        transition: opacity .2s ease-out, transform .2s ease-out
+
+    // Three lines in the header's corner; open, they turn into an X above the menu
+    // Scrolls away with a phone's header; stays on the screen where the header does (tablet
+    // portrait), and always while the menu is open
+    .toggle
+        position: absolute
+        top: math.div(variables.$header-height - $toggle-size, 2)
+        left: variables.$grid-gutter
+        z-index: 35
+        width: $toggle-size
+        height: $toggle-size
+        padding: 0
+        border: 0
+        border-radius: 50%
+        background: transparent
+        transition: background .2s
+
+        span
+            position: absolute
+            left: 11px
+            width: 22px
+            height: 2px
+            padding: 0
+            border-radius: 2px
+            background: variables.$turquoise
+            transition: transform .25s ease-in-out, opacity .2s, background .2s
+
+            &:nth-child(1)
+                top: 14px
+
+            &:nth-child(2)
+                top: 21px
+
+            &:nth-child(3)
+                top: 28px
+
+        &:hover,
+        &:focus-visible
+            background: variables.$wet-asphalt
+            outline: none
+
+        @include mixins.for-tablet-portrait-up
+            position: fixed
+
+        &[aria-expanded="true"]
+            span
+                background: variables.$white
+
+                &:nth-child(1)
+                    transform: translateY(7px) rotate(45deg)
+
+                &:nth-child(2)
+                    opacity: 0
+                    transform: scaleX(0)
+
+                &:nth-child(3)
+                    transform: translateY(-7px) rotate(-45deg)
+
+        @media (prefers-reduced-motion: reduce)
+            transition: none
+
+            span
+                transition: none
+
+        @include mixins.for-tablet-landscape-up
+            display: none
+
     div.profile
-        padding: 0 variables.$grid-gutter
+        // On a phone the toggle sits in this row's left corner
+        padding: 0 variables.$grid-gutter 0 $toggle-size + variables.$grid-gutter*2
         color: variables.$white
         display: grid
         grid-template-columns: 40px 1fr 10px
@@ -20,6 +132,9 @@
         background: #3E5871
         cursor: pointer
         height: variables.$header-height
+
+        @include mixins.for-tablet-landscape-up
+            padding: 0 variables.$grid-gutter
 
     // The person's name and, under it, their company's
     .who
@@ -68,6 +183,26 @@
         svg
             width: 16px
             fill: currentColor
+
+    // A phone's menu: rows big enough to tap; the sidebar keeps its compact ones
+    div.profile + .menu li
+        a
+            font-size: 18px
+            padding: 14px 20px
+            gap: 14px
+            align-items: center
+
+        svg
+            width: 20px
+
+        @include mixins.for-tablet-landscape-up
+            a
+                font-size: 14px
+                padding: variables.$grid variables.$grid-gutter
+                gap: 10px
+
+            svg
+                width: 16px
 
     div.profile + ul,
     .menu

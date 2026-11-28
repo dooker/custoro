@@ -12,13 +12,16 @@ import styles from './Header.module.sass';
 const Header = ({ title, buttons = [], search }: HeaderIF) => {
     const { t } = useSafeTranslation();
 
+    // A form's Save stays in view on a phone while the form scrolls (Header.module.sass)
     const renderButton = (
         { label, classname, onClick, dropdown, dataTestId, disabled }: HeaderButtonIF,
         index: number
     ) => (
         <ConditionalWrapper
-            condition={!!dropdown}
-            wrapper={(children) => <div className={styles.wrapper}>{children}</div>}
+            condition={!!dropdown || label === 'button.save'}
+            wrapper={(children) => (
+                <div className={dropdown ? styles.wrapper : styles.keepInView}>{children}</div>
+            )}
             key={index}
         >
             <Button
@@ -35,11 +38,15 @@ const Header = ({ title, buttons = [], search }: HeaderIF) => {
     );
 
     return (
-        <header className="flex justify-between items-center px-6 bg-midnightBlue sticky top-0 z-20">
+        <header
+            className={`flex justify-between items-center bg-midnightBlue sticky top-0 z-20 ${styles.header}`}
+        >
             <h1 className="text-2xl text-logo no-underline">{title}</h1>
 
             {(search || buttons.length > 0) && (
-                <div className="flex gap-12 flex-wrap flex-[1_0_auto] justify-end">
+                <div
+                    className={`flex gap-12 flex-wrap flex-[1_0_auto] justify-end ${styles.actions}`}
+                >
                     {search && <Search value={search.value} onChange={search.onChange} />}
                     {buttons.map(renderButton)}
                 </div>

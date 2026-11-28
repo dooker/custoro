@@ -40,7 +40,9 @@ const ListFrame = <T,>({
 }: ListFrameIF<T>) => {
     const { t } = useSafeTranslation();
     const navigate = useNavigate();
-    const narrow = useMediaQuery('(max-width: 600px)');
+    // Mobile first: a phone gets small page numbers without the first and last arrows (page 1 and
+    // the last page are numbers anyway); from tablet portrait the full pager
+    const roomy = useMediaQuery('(min-width: 600px)', { noSsr: true });
     // Pending, not loading: a list waiting for its size (useFitRows) has not asked yet
     const { data, isPending, isError, isFetching, isPlaceholderData } = query;
     const rows = data?.resource ?? [];
@@ -130,9 +132,10 @@ const ListFrame = <T,>({
                             count={pages}
                             page={page}
                             color="primary"
-                            showFirstButton
-                            showLastButton
-                            siblingCount={narrow ? 0 : 1}
+                            size={roomy ? 'medium' : 'small'}
+                            showFirstButton={roomy}
+                            showLastButton={roomy}
+                            siblingCount={roomy ? 1 : 0}
                             renderItem={(item) =>
                                 item.page && !item.disabled && !item.type.endsWith('ellipsis') ? (
                                     <PaginationItem

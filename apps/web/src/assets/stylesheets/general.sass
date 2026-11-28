@@ -20,27 +20,44 @@ html,
         left: 0
         top: 0
 
+    // The big faint name in the header band, always there: on a phone after the menu toggle and as
+    // big as the screen's width allows (it must not widen the page), from tablet landscape next to
+    // the sidebar at its full size
     &::after
         content: "Custoro"
         position: absolute
         z-index: 20
         top: 41px
-        left: 250px
+        left: 60px
         transform: translateY(-50%)
-        font-size: 128px
+        font-size: min(16vw, 128px)
         font-weight: 900
         color: rgba(255, 255, 255, 0.05)
         white-space: nowrap
         pointer-events: none
 
+        @include mixins.for-tablet-landscape-up
+            left: 250px
+            font-size: 128px
+
+    // Fields side by side once there is room; one under the other on a phone
     .splitter
         display: grid
-        grid-template-columns: 1fr 1fr
+        grid-template-columns: minmax(0, 1fr)
 
+        @include mixins.for-tablet-portrait-up
+            grid-template-columns: repeat(2, minmax(0, 1fr))
+
+    // Mobile first: one column, the menu is a drawer (Navigation); from tablet landscape the
+    // sidebar takes the first column. minmax(0, …) lets a wide table scroll in its section
+    // instead of widening the page.
     &:not(.pdf)
         display: grid
-        grid-template-columns: 200px 1fr
+        grid-template-columns: minmax(0, 1fr)
         grid-template-rows: minmax(variables.$header-height, min-content) 1fr
+
+        @include mixins.for-tablet-landscape-up
+            grid-template-columns: 200px minmax(0, 1fr)
 
     > svg
         position: absolute

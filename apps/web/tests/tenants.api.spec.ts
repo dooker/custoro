@@ -72,7 +72,9 @@ const productBody = (code: string) => ({
 // A new company through the owner page, its admin's password set with the emailed link, and the
 // same data in each: a customer, a product, a worksheet and an invoice with that worksheet's line
 const createCompany = async (key: 'a' | 'b') => {
-    const name = `Company ${key.toUpperCase()} ${unique}`;
+    // Alpha and Bravo: neither name's words occur in the other (a search needs every word, and
+    // "Company B <tag>" also matched A whenever the base-36 tag had a "b")
+    const name = `${key === 'a' ? 'Alpha' : 'Bravo'} company ${unique}`;
     const admin = `boss-${key}-${unique}@example.test`;
 
     const { result, token: link } = await nextPasswordLink(request, admin, () =>
@@ -182,19 +184,15 @@ test("a company's lists and searches never show another company's rows", async (
         );
         const found = JSON.stringify(body.resource ?? []);
 
-        // Not "no rows": every word must match, and "B" also matches a "b" in the tag, so A's own
-        // "Company A <tag> customer" can come back when the tag has one (mwqhfb11 did)
+        // Not "no rows": a search for B's name may still find A's rows by their other fields; only
+        // B's own rows must never show
         expect(found, `search ${resource}`).not.toContain(b.name);
         expect(found, `search ${resource}`).not.toContain(`P-b-${unique}`);
         expect(found, `search ${resource}`).not.toContain(b.admin);
     }
 
     // its own rows are found the same way
-    const own = await call(
-        a.token,
-        'get',
-        `/customers/?keyword=${encodeURIComponent(a.name)}`
-    );
+    const own = await call(a.token, 'get', `/customers/?keyword=${encodeURIComponent(a.name)}`);
     expect(own.resource).toHaveLength(1);
 });
 

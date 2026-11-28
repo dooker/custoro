@@ -1,2 +1,96 @@
+@use "src/assets/stylesheets/variables" as variables
+@use "src/assets/stylesheets/helpers/mixins" as mixins
+@use "sass:string"
+
+// Mobile first: the title next to the menu button, the search and buttons on a row under it when
+// they do not fit beside it; from tablet landscape one row, with the sidebar on the left
+.header
+    flex-wrap: wrap
+    // Its rows from the top: a title alone (Home) sits where it does above buttons (Products)
+    // instead of in the middle of the band's 83px
+    align-content: flex-start
+    gap: variables.$grid variables.$grid-gutter
+    min-height: variables.$header-height
+    box-sizing: border-box
+    padding: 20px variables.$grid-gutter variables.$grid-gutter
+
+    // The title leaves room for the menu toggle (Navigation: 44px, 20px from the top) on its left;
+    // the buttons under it take the whole width
+    h1
+        padding-left: 56px
+        font-size: 20px
+        line-height: 44px
+        overflow: hidden
+        text-overflow: ellipsis
+        white-space: nowrap
+        min-width: 0
+
+    // With its buttons stacked it is tall on a phone: it scrolls away with the page there, and
+    // stays at the top from tablet portrait, where the buttons are a row
+    position: relative
+
+    @include mixins.for-tablet-portrait-up
+        position: sticky
+
+    @include mixins.for-tablet-landscape-up
+        flex-wrap: nowrap
+        padding: 0 24px
+
+        h1
+            padding-left: 0
+            font-size: 24px
+            line-height: 32px
+
+.actions
+    // Phone: under the title, each button the whole width, one on top of the other; from tablet
+    // portrait a row on the right, beside the title from tablet landscape
+    flex: 1 1 100%
+    flex-direction: column
+    align-items: stretch
+    min-width: 0
+
+    @include mixins.for-tablet-portrait-up
+        flex-direction: row
+        align-items: center
+
+    @include mixins.for-tablet-landscape-up
+        flex: 1 0 auto
+
 .wrapper
     position: relative
+
+// A form's Save: on a phone, where the header scrolls away, it stays at the bottom of the screen
+// while the form scrolls; from tablet portrait it is in the header, which stays at the top
+.keepInView
+    position: fixed
+    left: variables.$grid-gutter
+    right: variables.$grid-gutter
+    bottom: variables.$grid-gutter
+    z-index: 20
+    display: flex
+    flex-direction: column
+    border-radius: 4px
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .35)
+
+    // Big enough for a thumb
+    > button
+        min-height: 48px
+
+    // Back to the header buttons' own heights (Button.module.sass .large)
+    @include mixins.for-tablet-portrait-up
+        position: static
+        box-shadow: none
+
+        > button
+            min-height: string.unquote(variables.$button-default-height + 'px')
+
+    @include mixins.for-tablet-landscape-up
+        > button
+            min-height: string.unquote(variables.$button-desktop-height + 'px')
+
+// Room under the page for that Save, so it never covers the last field
+:global(#root):has(.keepInView)
+    padding-bottom: 48px + variables.$grid-gutter * 2
+
+    @include mixins.for-tablet-portrait-up
+        padding-bottom: 0

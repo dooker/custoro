@@ -1,15 +1,21 @@
 @use "src/assets/stylesheets/variables" as variables
 @use "src/assets/stylesheets/helpers/mixins" as mixins
 
+// Mobile first: on a phone the small lists are one column, each as high as its rows; from tablet
+// landscape a 2×2 grid whose blocks fill the screen
 .dashboard
+    display: grid
+    gap: variables.$grid-gutter
+    align-content: start
     padding: variables.$grid-gutter
 
     :global(.component)
-        min-height: 100%
         margin: 0
 
     @include mixins.for-tablet-landscape-up
-        display: grid
-        gap: variables.$grid-gutter
+        align-content: stretch
         grid-template-columns: 1fr 1fr
         grid-template-rows: 1fr 1fr
+
+        :global(.component)
+            min-height: 100%
